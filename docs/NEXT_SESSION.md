@@ -21,6 +21,7 @@ P3-02b Signed S3 upload code is implemented for DEV and passes `smoke:s3` using 
 
 
 ## P1-04 latest implementation (read before continuing)
+**Live note after 2026-11-03 reboot:** Git `d259c94` is pushed and Apartment managed API/Web/LINE observer are Healthy on private 127.0.0.1:18089, migration 0015 applied. Public HTTPS is NOT reachable: shared `dokploy-traefik` exited (255), host 80/443 closed and its dynamic/ACME mounts were read-only. This is shared infra: DO NOT restart it under an Apartment feature session. Coordinate safe ACME/certificate persistence repair and verify other sites before restarting/recreating the proxy. No live LINE sends.
 - Source: `apps/api/src/routes/staff.ts`, `apps/api/src/services/staff-permissions.ts`, `apps/api/src/security.ts`, `apps/api/drizzle/0015_bright_loki.sql` and owner/STAFF UI `apps/web/src/components/StaffManagement.tsx`.
 - Test: `corepack pnpm --filter @apartment/api smoke:staff` (real PostgreSQL & HTTP), unit + typecheck + web build and all existing smoke suites. Never grant STAFF the generic `requireProperty` read access; property read must explicitly opt in through `STAFF_READ`.
 - Owner must confirm recipient identity before approval. Live LINE provider remains OFF and Production unavailable until real E2E and security/legal acceptance. See `docs/P1_STAFF_ACCESS.md`.

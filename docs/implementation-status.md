@@ -223,5 +223,6 @@ See docs/P1_METER_REPLACEMENT_MOVE_OUT.md.
 - [x] React OWNER staff invitation/approval/revoke UI, pending staff claim UI and property-scoped STAFF room/meter read UI; staff avoids financial API calls.
 - [x] Unit tests 67/67, TypeScript and web build; real PostgreSQL/HTTP staff tests for cross-org and cross-property IDOR, replay/approval race, safe projections, role restriction and revoke. Regression suites: smoke, smoke:http, payments, finance, S3 mock, cleanup, LINE webhook and consent passed.
 - [ ] Live LINE browser E2E, independent security/long-running load QA and Production signoff remain P2/P7 gates.
-- [ ] Document final Git SHA and managed DEV deployment verification after rollout.
+- [x] Commit `d259c94` pushed to GitHub main. Apartment-only managed Compose API/Web/LINE Observer rebuilt/recreated and Healthy; PostgreSQL unchanged and Healthy; private local `/readyz` 200, unauth staff API 401, unsigned LINE webhook 503, observe-only dispatched=0.
+- [ ] Public HTTPS after VPS reboot: shared `dokploy-traefik` Exited (255), 80/443 not listening; ACME dynamic directory mounted read-only, cert persistence broken. Do not restart shared Traefik from Apartment work; dedicated infra recovery and multi-domain verification required.
 See docs/P1_STAFF_ACCESS.md. Next P1-05 edge/load gates and P1-01b/P5 maintenance.
