@@ -13,9 +13,9 @@
 
 ## Current checkpoint (live)
 
-- **Current phase:** P3 — Non-tax Thai Billing Notice PDF implemented (P3-05b); P3 still PARTIAL because real S3 provider IAM/CORS E2E, malware scan, retention, PromptPay QR, refunds, and official receipt/tax/legal work remain.
-- **Immediate task:** P3-01b verify Thai PromptPay QR specification and implement **display-only** QR for the active tenant invoice/property payment destination with correct account/amount controls, unit + frontend + IDOR tests. Do not infer transfer success. If provider ENV arrives, separately validate real S3 and LINE Sandbox. No production deployment.
-- **Last verified:** 35 unit tests (11 domain + 24 API), TS typecheck, Vite build; dedicated DEV Postgres migration 0006 adds nullable invoice document_snapshot and line ordinal; real HTTP billing PDF owner/tenant access + immutable label snapshot + legacy disclosure tests; PDFJS text and raster checks 1/7 pages. Repeat final verification before closing this session.
+- **Current phase:** P3 — PromptPay QR DEV implementation complete (P3-01b code/tests); real bank app scan and other P3 production controls remain outstanding. Overall P3 PARTIAL.
+- **Immediate task:** P3-02b.6 implement private evidence cleanup/retention guard and malware scan integration contract (without requiring provider keys), then run tests. When keys arrive, perform P3-02b.5 real provider IAM/SigV4/CORS E2E and P2-06 LINE sandbox. P3-01b real bank app scan remains external acceptance. No production deployment.
+- **Last verified:** 40 unit tests (11 domain + 29 API) plus API/HTTP PromptPay authorization and partial-balance tests, TypeScript and Vite build; dedicated DEV PostgreSQL. Repeat final verification before accepting.
 
 - **Deployment:** Postgres DEV on `127.0.0.1:55432`; API/web not deployed. Actual LINE credentials not configured.
 - **Git:** Preserve user files, check `git status --short` before edits; commit with evidence; no push or production deploy without explicit instruction. Last completed commit: see `git log -1 --oneline`.
@@ -62,7 +62,10 @@
 
 - [ ] P3-01 Payment instructions per property: bank and PromptPay fields implemented, **QR generation deferred**
   - [x] P3-01a Owner/Super Admin-only bank settings with optimistic CAS, audit, property scope, disabled state and tenant invoice-bound read
-  - [ ] P3-01b Validated PromptPay QR presentation against provider/bank specs; never allow unverified destination encoding
+  - [ ] P3-01b PromptPay QR core implemented, real bank-app interoperability/recipient-registration check PENDING
+  - [x] P3-01b.1 BOT merchant-presented EMV Tag 29/54/63 builder, 10-digit mobile or 13-digit tax/national ID input, integer-satang amount, published golden CRC vector
+  - [x] P3-01b.2 Owner and authorized tenant invoice-scoped no-store APIs, direct browser QR rendering, masked ID, copy/save/refresh UX, prevent QR on zero-balance or pending-payment claim, unit + real HTTP IDOR/partial balance tests
+  - [ ] P3-01b.3 **BLOCKED on hands-on confirmation:** scan with real bank apps and confirm actual registered recipient name, fixed amount and LIFF/mobile behavior; no bank settlement verification
 - [ ] P3-02 Tenant submits evidence securely; **DEV local private evidence implemented**, S3/presigned upload pending
   - [x] P3-02a Authenticated multipart evidence upload with <4 MB, JPEG/PNG/WebP decoder, 12MP limit, EXIF-stripped WebP re-encode, private files 0600, directory 0700, authorized download and rate limit
   - [ ] P3-02b Signed private S3-compatible evidence storage (PARTIAL; live provider/security gate pending)
@@ -145,6 +148,7 @@
 - 2026-11-03 P3-05b: PDF visual rendering verified with `corepack pnpm --filter @apartment/api exec tsx scripts/preview-billing-pdf.ts` plus `--long` (7 pages); **not** a legal receipt or tax invoice.
 - 2026-11-03 P3 S3: 32 unit tests (11 domain + 21 API); `corepack pnpm --filter @apartment/api smoke:s3` uses local HTTP mock, checksum and tenant IDOR, real Postgres; **NOT real S3 provider IAM/CORS**.
 - Storage threat model and provider CORS/lifecycle runbook: `docs/P3_S3_STORAGE_RUNBOOK.md`; legal document requirements: `docs/P3_PDF_RECEIPT_SPEC.md`.
+- 2026-11-03 P3-01b: BOT/EMV merchant-presented PromptPay QR built locally; CRC golden BB8A for 0812345678/THB 100, 5 new API unit tests; owner/tenant 200, invalid 400, outsider 404, cross-property 403, disabled 404, pending/full 409, partial-balance update verified with DEV Postgres HTTP smoke. Bank-app recipient confirmation remains outstanding; see `docs/P3_PROMPTPAY_QR.md`.
 - Environment variables/keys: `docs/ENV_REQUIRED.md`. No real gateway, actual LINE OA or object storage credentials configured.
 - Keep `docs/implementation-status.md` as a short mirror; **this PHASES file supersedes its checklist**.
 
@@ -153,7 +157,7 @@
 You are continuing the Apartment SaaS project on **/root/Projects/Apartment** (DEV only). Before coding:
 1. Read `AGENTS.md`, `README.md`, and **`docs/PHASES.md`**, especially *Current checkpoint* and the first unchecked item in the active phase.
 2. Check `git status --short --branch` and `git log -1 --oneline`. Preserve uncommitted work; do NOT reset, stash, discard, push, deploy or send actual LINE notifications.
-3. Inspect targeted source files. Apply test-first behavior for the next unchecked item and reuse existing Fastify/Drizzle conventions. Default scope: **P3-01b display-only PromptPay QR** (validate official encoding and destination; DO NOT auto-collect/mark paid); P3-02b live provider E2E requires user credentials and HTTPS endpoint. Review `docs/ENV_REQUIRED.md`. Do not mark any invoice PAID automatically. Independently run P2-06 only after real LINE sandbox configuration arrives.
+3. Inspect targeted source files. Apply test-first behavior for the next unchecked item and reuse existing Fastify/Drizzle conventions. Default scope: **P3-02b.6 private evidence cleanup/retention controls and malware scan integration contract** (do not mark storage production-ready without real provider tests); P3-02b live provider E2E requires user credentials and HTTPS endpoint. Review `docs/ENV_REQUIRED.md`. Do not mark any invoice PAID automatically. Independently run P2-06 only after real LINE sandbox configuration arrives.
 4. Run `corepack pnpm test`, `corepack pnpm typecheck`, `corepack pnpm --filter @apartment/web build`, `corepack pnpm --filter @apartment/api smoke`, and `corepack pnpm --filter @apartment/api smoke:http` when the private Postgres DEV container is up.
 5. Update this file with exact checkbox evidence, pending risks, next task and git commit. Do not claim real LINE or finance E2E without keys or evidence.
 6. If external secrets or a product decision are required, leave that specific checkbox blocked and continue other independent work.

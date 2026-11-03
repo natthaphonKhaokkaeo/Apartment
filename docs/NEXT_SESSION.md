@@ -6,7 +6,9 @@
 
 Continue the Apartment LINE-first multi-tenant SaaS in `/root/Projects/Apartment`.
 
-**Start with P3-01b:** implement **display-only Thai PromptPay QR** after validating the official format and CRC. Use property payment settings scoped to authenticated tenant's invoice; it must never auto-approve or post to Ledger. Unit test invalid identifiers, payload encoding, amount optional/fixed policy and tenant IDOR.
+**Start with P3-02b.6**: implement private payment-evidence cleanup / retention controls and a malware-scanning integration contract, with TDD. Keep files inaccessible except after authorization and keep production blocked until an actual provider with tested IAM/SigV4/CORS + malware scanning is configured. Do not remove evidence attached to live invoices or claims; make deletion reconcile with DB state and legal retention. See `docs/P3_S3_STORAGE_RUNBOOK.md`.
+
+**P3-01b PromptPay QR implemented in DEV:** read `docs/P3_PROMPTPAY_QR.md`. BOT/EMV Tag 29 payload+CRC golden test, tenant and owner scoped API, local browser QR image + refresh/download, fixed outstanding amount and pending/full-payment guards passed. Real bank-app scan / recipient name verification is **not yet done**, so keep the overall P3-01b checkbox pending external sign-off. No payment is marked paid automatically.
 
 **P3-05b is implemented in DEV:** scoped owner and linked tenant can download an A4 Thai Billing Notice PDF with immutable invoice-line amounts and an issuance-time snapshot of issuer/property/address/room/tenant. Historical invoices without snapshots display a clear current-record metadata warning. This document is **NOT** a payment receipt or tax invoice. See docs/P3_PDF_RECEIPT_SPEC.md.
 
@@ -79,3 +81,12 @@ Before declaring phase work complete, run tests/typecheck/build/database smoke, 
 - apps/api/tests/billing-notice.test.ts — PDFJS Thai text, total invariants, legacy warning and long-row pagination tests
 - apps/api/scripts/preview-billing-pdf.ts — reproducible PDF+PNG visual review, optional --long
 - apps/api/drizzle/0006_mushy_magdalene.sql — invoice document_snapshot and invoice line ordinal
+
+
+## PromptPay P3-01b source map
+- `apps/api/src/services/promptpay.ts` — BOT/EMV credit-transfer Tag 29 builder, CRC16-CCITT-FALSE, phone/tax proxy validation
+- `apps/api/src/routes/promptpay.ts` — tenant/owner invoice-scoped no-store display-only payload endpoints
+- `apps/api/tests/promptpay.test.ts` — golden vector and invalid identifier/money tests
+- `apps/web/src/components/PromptPayQRCode.tsx` — browser-only QR pixels via lazy `qrcode`, download and refresh
+- `apps/web/src/components/TenantPayments.tsx`, `PaymentCenter.tsx` — tenant bill and owner invoice preview integrations
+- `apps/api/scripts/smoke-http.ts` — real PostgreSQL, identity/IDOR, pending/full and partial payments QR smoke.

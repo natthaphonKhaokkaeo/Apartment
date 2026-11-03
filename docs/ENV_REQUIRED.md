@@ -82,3 +82,7 @@ No real-bank API, payment provider, tax receipt API, refunds or e-tax integratio
 
 ## H. P3-05b informational PDF (implemented)
 No additional environment variables or credentials are required. The API depends on the npm package @expo-google-fonts/noto-sans-thai and pdfkit at runtime, and embeds the Thai font in the PDF. Official receipts/tax documents still require policy and legally verified issuer/tax identity before implementation.
+
+
+## I. PromptPay QR configuration (P3-01b)
+No new ENV / external API key is required. The authorized organization owner sets a 10-digit Thai mobile or 13-digit tax/national PromptPay proxy via the property Payment Settings UI, not in environment files. App bank-registration verification and real bank-app scan are **not implemented**. LINE Login and HTTPS remain separate sandbox ENV requirements.

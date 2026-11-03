@@ -1,5 +1,6 @@
 import {useEffect,useState} from "react";
 import {Banknote,ClipboardCopy,FileImage,ShieldCheck,UploadCloud} from "lucide-react";
+import {PromptPayQRCode} from "./PromptPayQRCode.js";
 type Api={api:<T>(path:string,options?:RequestInit)=>Promise<T>};
 type Bank={bankName:string;accountName:string;accountNumber:string;promptPayId:string|null;updatedAt:string;version:number};
 type Summary={invoiceId:string;totalSatang:number;manuallyApprovedSatang:number;outstandingSatang:number;pendingClaims:number;settlementState:string;verification:string};
@@ -93,6 +94,7 @@ export function TenantPayments({invoiceId,api}:Api&{invoiceId:string}){
    <div><small>เจ้าของอนุมัติแล้ว</small><strong>{money(summary.manuallyApprovedSatang)}</strong></div>
    <div><small>ยอดคงเหลือ</small><strong>{money(summary.outstandingSatang)}</strong></div>
   </div>}
+  {bank?.promptPayId&&summary&&<PromptPayQRCode invoiceId={invoiceId} outstandingSatang={summary.outstandingSatang} api={api}/>}
   <div className="payment-review-note">ระบบไม่ตรวจสอบธนาคารอัตโนมัติ ข้อมูลยอดที่อนุมัติเป็นบันทึกการตรวจสอบด้วยมือของเจ้าของ</div>
   <h3 className="section-subtitle">ส่งหลักฐานแจ้งชำระ</h3>
   <form className="form" onSubmit={e=>void submit(e)}>

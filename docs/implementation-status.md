@@ -66,3 +66,14 @@ Canonical handoff remains `docs/PHASES.md`; full key list `docs/ENV_REQUIRED.md`
 - [x] PDFJS Thai/money extraction, visual raster inspected single-page and 7-page document
 - [ ] Official receipts/tax PDFs, legal issuer/VAT, document numbering, signed storage/retention, real LINE browser UAT
 Next: P3-01b PromptPay display-only QR. Canonical plan: docs/PHASES.md.
+
+
+## P3-01b PromptPay QR (DEV complete; external bank scan pending) — 2026-11-03
+- [x] BOT/EMV Tag 29 PromptPay AID, mobile/tax identifier, THB tag 54, CRC16 unit + golden-vector tests
+- [x] Authorized owner/tenant invoice QR APIs with full ID only in no-store payload; masked UI
+- [x] Fixed invoice outstanding amount computed from manual ledger, no QR while pending claim or fully recorded
+- [x] Client-side QR rendering, manual-refresh and download; no external QR rendering service
+- [x] Real Postgres HTTP smoke: owner/tenant 200, cross-org 403, unauthorized tenant 404, inactive account 404, partial balance and pending/full guard
+- [ ] Scan with actual banking apps and verify registered receiver and amount; real LIFF/HTTPS E2E
+- [ ] Real bank reconciliation and official receipt (not part of QR rendering)
+Canonical plan: docs/PHASES.md. Details: docs/P3_PROMPTPAY_QR.md.

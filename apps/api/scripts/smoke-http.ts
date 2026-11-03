@@ -158,6 +158,41 @@ async function main(){
   bankName:"Demo Bank",accountName:"Demo Account",accountNumber:"1234567890",promptPayId:null,
   active:true,expectedVersion:null
  })})).status,409);
+ // P3-01b: PromptPay display-only QR is scoped to the approved tenant and the issued invoice.
+ const tenantQR="/v1/tenant/invoices/"+issue.body.invoice.id+"/promptpay-qr";
+ const ownerQR="/v1/properties/"+pa.id+"/invoices/"+issue.body.invoice.id+"/promptpay-qr";
+ assert.equal((await request(tenantQR,tenantTokenA)).status,404); // no PromptPay destination set yet
+ const invalidPP=await request(settingsPath,token,{method:"PUT",body:JSON.stringify({
+  bankName:"Demo Bank (test only)",accountName:"Demo Account",accountNumber:"1234567890",
+  promptPayId:"08123456789",active:true,expectedVersion:1
+ })});
+ assert.equal(invalidPP.status,400,JSON.stringify(invalidPP.body));
+ const configuredPP=await request(settingsPath,token,{method:"PUT",body:JSON.stringify({
+  bankName:"Demo Bank (test only)",accountName:"Demo Account",accountNumber:"1234567890",
+  promptPayId:"0812345678",active:true,expectedVersion:1
+ })});
+ assert.equal(configuredPP.status,200,JSON.stringify(configuredPP.body));
+ const qr1=await request(tenantQR,tenantTokenA);
+ assert.equal(qr1.status,200,JSON.stringify(qr1.body));
+ assert.equal(qr1.body.amountSatang,413000);
+ assert.equal(qr1.body.recipientName,"Demo Account");
+ assert.equal(qr1.body.promptPayIdMasked,"******5678");
+ assert.equal(qr1.body.recipientVerifiedByBank,false);
+ assert.equal(qr1.body.paymentVerifiedByBank,false);
+ assert.equal(qr1.body.status,"DISPLAY_ONLY_MANUAL_REVIEW");
+ assert.ok(qr1.body.payload.includes("01130066812345678"));
+ assert.ok(qr1.body.payload.includes("54074130.00"));
+ const qrOwner=await request(ownerQR,token);
+ assert.equal(qrOwner.status,200);assert.equal(qrOwner.body.payload,qr1.body.payload);
+ assert.equal((await request(tenantQR,tenantTokenB)).status,404);
+ assert.equal((await request(tenantQR,"invalid-session")).status,401);
+ assert.equal((await request("/v1/properties/"+pb.id+"/invoices/"+issue.body.invoice.id+"/promptpay-qr",token)).status,403);
+ // Disabling property payment settings must disable QR immediately.
+ await db.update(paymentInstructions).set({active:"NO"}).where(eq(paymentInstructions.propertyId,pa.id));
+ assert.equal((await request(tenantQR,tenantTokenA)).status,404);
+ await db.update(paymentInstructions).set({active:"YES"}).where(eq(paymentInstructions.propertyId,pa.id));
+ console.log("PASS P3 PromptPay: 10-digit mobile payload, amount, masked recipient, owner/tenant scope, invalid ID 400, outsider 404, disabled settings 404, no bank verification");
+
  // Manager at org A can view property but cannot edit bank details or approve claims.
  await db.insert(memberships).values({organizationId:oa.id,userId:v.id,role:"MANAGER"});
  const managerToken=newSessionToken();
@@ -180,6 +215,7 @@ async function main(){
  const firstKey="dev-first-"+randomUUID();
  const first=await submitPayment(120000,"DEV-AAAA01",firstKey);
  assert.equal(first.status,201,JSON.stringify(first.body));ids.claims.push(first.body.claim.id);
+ assert.equal((await request(tenantQR,tenantTokenA)).status,409); // hide QR during pending claim to avoid duplicate transfers
  assert.equal(first.body.claim.evidenceKey,undefined);
  const evidenceReq=async(path:string,cookie:string)=>fetch(base+path,{headers:{cookie:"apartment_session="+cookie}});
  const ownerSlip="/v1/properties/"+pa.id+"/payment-claims/"+first.body.claim.id+"/evidence";
@@ -203,6 +239,12 @@ async function main(){
  const approvedPart=await request(decisionURL,token,{method:"POST",body:'{"action":"APPROVE"}'});
  assert.equal(approvedPart.status,200,JSON.stringify(approvedPart.body));assert.equal(approvedPart.body.outstandingSatang,293000);
  assert.equal((await request(decisionURL,token,{method:"POST",body:'{"action":"APPROVE"}'})).status,409);
+ const qrAfterPartial=await request(tenantQR,tenantTokenA);
+ assert.equal(qrAfterPartial.status,200,JSON.stringify(qrAfterPartial.body));
+ assert.equal(qrAfterPartial.body.amountSatang,293000);
+ assert.ok(qrAfterPartial.body.payload.includes("54072930.00"));
+ assert.notEqual(qrAfterPartial.body.payload,qr1.body.payload);
+
  const second=await submitPayment(150000,"DEV-BBBB02","dev-second-"+randomUUID());
  assert.equal(second.status,201,JSON.stringify(second.body));ids.claims.push(second.body.claim.id);
  const rejection=await request("/v1/properties/"+pa.id+"/payment-claims/"+second.body.claim.id+"/decision",
@@ -212,6 +254,8 @@ async function main(){
  assert.equal(finalClaim.status,201,JSON.stringify(finalClaim.body));ids.claims.push(finalClaim.body.claim.id);
  const full=await request("/v1/properties/"+pa.id+"/payment-claims/"+finalClaim.body.claim.id+"/decision",token,{method:"POST",body:'{"action":"APPROVE"}'});
  assert.equal(full.status,200,JSON.stringify(full.body));assert.equal(full.body.outstandingSatang,0);
+ assert.equal((await request(tenantQR,tenantTokenA)).status,409); // manually recorded full balance, no active QR
+
  const overpay=await submitPayment(1,"DEV-DDDD04","dev-overpay-"+randomUUID());
  assert.equal(overpay.status,422,JSON.stringify(overpay.body));
  summary=await request("/v1/tenant/invoices/"+issue.body.invoice.id+"/payment-summary",tenantTokenA);

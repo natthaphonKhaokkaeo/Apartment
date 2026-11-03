@@ -14,6 +14,7 @@ import {registerTenantRoutes} from "./routes/tenant.js";
 import {registerPaymentRoutes} from "./routes/payments.js";
 import {registerEvidenceUploadRoutes} from "./routes/evidence-uploads.js";
 import {registerBillingDocumentRoutes} from "./routes/billing-documents.js";
+import {registerPromptPayRoutes} from "./routes/promptpay.js";
 import {readingToMilli,parseDay} from "@apartment/domain";
 
 const app=Fastify({logger:{redact:["req.headers.cookie","req.headers.authorization","res.headers.set-cookie"]},bodyLimit:1048576});
@@ -257,4 +258,5 @@ await registerTenantRoutes(app);
 await registerPaymentRoutes(app);
 await registerEvidenceUploadRoutes(app);
 await registerBillingDocumentRoutes(app);
+await registerPromptPayRoutes(app);
 await app.listen({host:config.HOST,port:config.PORT});

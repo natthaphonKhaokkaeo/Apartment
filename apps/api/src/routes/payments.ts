@@ -6,6 +6,7 @@ import {db} from "../db/client.js";
 import {auditLogs,invoices,leases,organizations,paymentClaims,paymentInstructions,paymentLedger,properties,users,memberships} from "../db/schema.js";
 import {AppError,requireActor,requireProperty,type Actor} from "../security.js";
 import {assertApprovalAllowed,maskBankAccount,normalizePaymentReference,remainingSatang,PaymentInvariantError} from "../services/payment-rules.js";
+import {isValidPromptPayId} from "../services/promptpay.js";
 import {savePrivateEvidence,loadPrivateEvidence,deletePrivateEvidence} from "../services/evidence.js";
 
 const uuid=z.uuid(),satang=z.number().int().positive().max(2147483647);
@@ -16,7 +17,7 @@ const bankInput=z.object({
  bankName:z.string().trim().min(2).max(120),
  accountName:z.string().trim().min(3).max(160),
  accountNumber:z.string().trim().regex(/^\d{8,20}$/),
- promptPayId:z.string().trim().regex(/^\d{10,13}$/).nullable().default(null),
+ promptPayId:z.string().trim().refine(isValidPromptPayId,"INVALID_PROMPTPAY_ID").nullable().default(null),
  active:z.boolean().default(true),
  expectedVersion:z.number().int().positive().nullable()
 });
