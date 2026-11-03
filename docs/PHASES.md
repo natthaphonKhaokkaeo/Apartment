@@ -13,9 +13,9 @@
 
 ## Current checkpoint (live)
 
-- **Current phase:** P3 — Payment instructions and reconciliation design (P2 implemented locally; real LINE sandbox validation remains blocked).
-- **Immediate task:** P3-01 implement owner-configured payment instructions as display-only; then P3-02 secure evidence upload design. Never auto-mark paid. P2-06 requires real LINE sandbox credentials/HTTPS to unblock.
-- **Last verified:** 22 tests (11 domain + 11 API), API + web typecheck, React production build, real Postgres migrations and HTTP smoke (invoice issue + tenant invitation + cross-tenant access, expiry/replay/revoke, concurrent claims, disabled accounts/org) passed 2026-11-03.
+- **Current phase:** P3 — Manual payment review foundation implemented in DEV. Phase remains PARTIAL until signed private object storage, PromptPay QR validation, overpayment credit/refund policy and legal receipts are delivered. P2 real LINE sandbox E2E still blocked.
+- **Immediate task:** P3-02b private object store + signed upload/quarantine with media sanitation and E2E (requires storage choice/keys), or continue independent P3-05 receipt/PDF specification without claiming legal readiness. P3-01b verified PromptPay QR generation remains pending. Never auto-mark PAID. P2-06 needs LINE credentials + HTTPS.
+- **Last verified:** 30 tests (11 domain + 19 API), typecheck, React/Vite production build, Drizzle migrations 0003/0004 applied (15 tables), real PostgreSQL + HTTP smoke (bank settings CAS, owner-only decisions, private image upload/read, partial/full manual payment, no overpay, tenant IDOR, concurrent approval one-winner) passed 2026-11-03. Re-run final gate after changes.
 - **Deployment:** Postgres DEV on `127.0.0.1:55432`; API/web not deployed. Actual LINE credentials not configured.
 - **Git:** Preserve user files, check `git status --short` before edits; commit with evidence; no push or production deploy without explicit instruction. Last completed commit: see `git log -1 --oneline`.
 
@@ -57,15 +57,24 @@
 - [ ] P2-06 LINE sandbox E2E with real channel and linked test user (**BLOCKED:** LINE Channel ID + LIFF ID + HTTPS origin). Browser E2E of LIFF flow pending.
 - **Gate:** an unapproved LINE account cannot access tenant bills; replayed/expired/revoked invites rejected. A stolen *unused* invite may be claimed but requires explicit owner review/approval before any tenant information is disclosed. Owner must verify claimant identity before approving.
 
-## Phase P3 — Payment & settlement (NOT STARTED)
+## Phase P3 — Payment & settlement (PARTIAL — DEV IMPLEMENTED, NO BANK API / PRODUCTION OBJECT STORAGE)
 
-- [ ] P3-01 Payment instructions per property; minimum data, Bank/PromptPay QR as display only
-- [ ] P3-02 Tenant submits payment evidence metadata securely; private object storage + signed upload, image sanitation
-- [ ] P3-03 Owner review/approve/reject with transaction, unique reconciliation key, partial payment and overpay
-- [ ] P3-04 Ledger, outstanding balance, aging, refunds/adjustments, protected status transitions
-- [ ] P3-05 Receipts and PDF tax/document requirements, retention & legal review
-- [ ] P3-06 Cross-tenant and replay/concurrent approval tests + audited finance reconciliation
-- **Gate:** never mark bill paid without authorized, immutable reconciliation evidence.
+- [ ] P3-01 Payment instructions per property: bank and PromptPay fields implemented, **QR generation deferred**
+  - [x] P3-01a Owner/Super Admin-only bank settings with optimistic CAS, audit, property scope, disabled state and tenant invoice-bound read
+  - [ ] P3-01b Validated PromptPay QR presentation against provider/bank specs; never allow unverified destination encoding
+- [ ] P3-02 Tenant submits evidence securely; **DEV local private evidence implemented**, S3/presigned upload pending
+  - [x] P3-02a Authenticated multipart evidence upload with <4 MB, JPEG/PNG/WebP decoder, 12MP limit, EXIF-stripped WebP re-encode, private files 0600, directory 0700, authorized download and rate limit
+  - [ ] P3-02b Private S3-compatible object storage, scoped presigned/quarantined upload, threat scan, lifecycle/retention, cross-tenant E2E and restore proof (**BLOCKED on storage choice/keys**)
+  - [x] P3-02c Production startup fails until production evidence/security hardening is implemented
+- [x] P3-03 Owner-only manual review/approve/reject with transaction, transfer-reference unique per property, idempotency key, partial payments and overpayment **rejection**
+  - [ ] P3-03b Overpayment credit / refund / dispute policy and workflow; automatic bank verification not implemented
+- [ ] P3-04 Ledger and receivables reporting (**partial**)
+  - [x] P3-04a Append-only payment Ledger created transactionally with approval, immutable invoice still ISSUED, outstanding and manual-approved totals, overdue counts and aging amounts on Dashboard
+  - [ ] P3-04b Refunds, credit notes, adjustments and approved/reconciled reversals with dual control and traceable audit history
+- [ ] P3-05 Invoice/receipt PDFs, legal issuer + VAT/tax documentation, secure retention, receipt numbering, human legal review
+- [x] P3-06 DEV tenant-IDOR/manager-denial, replay/version-CAS, private evidence, payment status, partial/full/overpay and concurrent-owner approvals HTTP tests
+  - [ ] P3-06b Real bank reconciliation E2E, S3 signed-upload E2E, browser/LIFF and production performance/load gates
+- **Gate:** no implicit bank payment confirmation. Only recorded **manual owner-reviewed** approvals enter Ledger; immutable invoices remain ISSUED. Production launch needs bank verification policy, legal receipts, cloud evidence storage and security QA.
 
 ## Phase P4 — LINE OA integration (NOT STARTED)
 
@@ -117,6 +126,10 @@
 - 2026-11-03: Drizzle migrations `0001` + `0002` applied; `lease_invitations` table with hash/expiry/claim/approve/revoke audit state
 - 2026-11-03: API unit tests now **11**, domain **11** (22 total), web build passed
 - 2026-11-03: Tenant HTTP smoke passed: invite 201, claim 202 without invoice visibility, approve, tenant invoice 200, outsider invoice 404; expired/replaced/replay reject, one-winner concurrent claims, disabled identity/session 401, disabled org hides invoice
+- 2026-11-03 P3: `corepack pnpm test` — 11 domain + 19 API tests, `corepack pnpm typecheck` + web build.
+- 2026-11-03 P3: `corepack pnpm --filter @apartment/api smoke:http` bank update CAS, tenant-only bank view, manager denied, private sanitized evidence, review/reject, partial+full, replay and 422 overpay passed.
+- 2026-11-03 P3: `corepack pnpm --filter @apartment/api smoke:payments` concurrent decisions produce one APPROVE and one 422, ledger amount correct; rate limit responds 429.
+- Environment variables/keys: `docs/ENV_REQUIRED.md`. No real gateway, actual LINE OA or object storage credentials configured.
 - Keep `docs/implementation-status.md` as a short mirror; **this PHASES file supersedes its checklist**.
 
 ## NEXT SESSION START HERE (paste this to a new agent)
@@ -124,7 +137,7 @@
 You are continuing the Apartment SaaS project on **/root/Projects/Apartment** (DEV only). Before coding:
 1. Read `AGENTS.md`, `README.md`, and **`docs/PHASES.md`**, especially *Current checkpoint* and the first unchecked item in the active phase.
 2. Check `git status --short --branch` and `git log -1 --oneline`. Preserve uncommitted work; do NOT reset, stash, discard, push, deploy or send actual LINE notifications.
-3. Inspect targeted source files. Apply test-first behavior for the next unchecked item and reuse existing Fastify/Drizzle conventions. Default scope: **P3-01 display-only payment instructions and P3 design**; do not mark any invoice PAID. Independently run P2-06 only after real LINE sandbox configuration arrives.
+3. Inspect targeted source files. Apply test-first behavior for the next unchecked item and reuse existing Fastify/Drizzle conventions. Default scope: **P3-02b signed private object storage + P3-01b PromptPay QR / P3-05 document requirements**. Review `docs/ENV_REQUIRED.md`. Do not mark any invoice PAID automatically. Independently run P2-06 only after real LINE sandbox configuration arrives.
 4. Run `corepack pnpm test`, `corepack pnpm typecheck`, `corepack pnpm --filter @apartment/web build`, `corepack pnpm --filter @apartment/api smoke`, and `corepack pnpm --filter @apartment/api smoke:http` when the private Postgres DEV container is up.
 5. Update this file with exact checkbox evidence, pending risks, next task and git commit. Do not claim real LINE or finance E2E without keys or evidence.
 6. If external secrets or a product decision are required, leave that specific checkbox blocked and continue other independent work.
@@ -136,3 +149,4 @@ You are continuing the Apartment SaaS project on **/root/Projects/Apartment** (D
 - Receipt/tax invoice identity and regulation review with authorized expert
 - Legal admissibility of water/electric tariff values and proof for each property
 - Figma target plan selection
+- P3 evidence provider and storage keys; PromptPay QR reference standard, refund/credit policy, official receipt identity

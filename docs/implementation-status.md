@@ -31,5 +31,16 @@ A user may create their own organization and properties, but cannot access other
 3. Which entity issues receipts and potential tax invoices.
 4. Compliance reviewer evidence and tariff calculation basis.
 
+## Phase P3 DEV implementation — 2026-11-03
+- [x] Property payment instructions, owner-only versioned edits, audit and tenant invoice-scoped display
+- [x] Private DEV upload: max 4 MB JPEG/PNG/WebP, decoded / sanitized WebP, protected evidence reads, SHA256, secure file permissions
+- [x] Tenant payment claim submissions, owner manual approve/reject, ledger postings and outstanding balances
+- [x] Payment dashboard: manually approved, outstanding, overdue aging and count; no bank verification
+- [x] Real PostgreSQL + HTTP smoke: cross-tenant denial, version conflict, uploaded evidence, same-key replay, reject, partial+full, overpay denial, concurrent owner approvals
+- [x] Unit tests 30/30 total, TypeScript and web build
+- [ ] QR generation validation; object storage + signed uploads / malware scanning / restore test
+- [ ] Refunds/credits, real bank reconciliation, PDF/official receipts and legal approval
+- [ ] Actual LINE login/sandbox, browser E2E, production security review
+
 ## Current handoff
-Canonical phases: `docs/PHASES.md`. P2 local code complete; P2 LINE sandbox E2E blocked by actual LINE credentials. Continue P3-01 display-only payment instructions; never mark paid without reconciliation.
+Canonical phases: `docs/PHASES.md`. P2 local code complete; LINE sandbox E2E blocked by actual LINE credentials. P3 DEV manual payment foundation implemented; continue P3-02b signed object storage and P3-05 receipt/legal specification; never mark paid without reconciliation.

@@ -4,17 +4,18 @@ import liff from "@line/liff";
 import {Building2,LayoutDashboard,DoorOpen,ReceiptText,Gauge,Settings,ShieldCheck,LogOut,Plus,ChevronDown,CheckCircle2,AlertTriangle,Wallet,Users,Menu} from "lucide-react";
 import {OwnerInvitations} from "./components/OwnerInvitations.js";
 import {TenantPortal} from "./components/TenantPortal.js";
+import {PaymentCenter} from "./components/PaymentCenter.js";
 import "./styles.css";
 type Organization={id:string;name:string;status:string};
 type Property={id:string;name:string;organizationId:string;address:string;rentSatang:number;waterSatangPerUnit:number;electricSatangPerUnit:number;cadence:string;rollingAnchor:string|null;complianceReviewedAt:string|null};
 type Room={id:string;number:string;floor:number;status:string;rentOverrideSatang:number|null;waterOverrideSatang:number|null;electricOverrideSatang:number|null};
 type Invoice={id:string;roomId:string;amountSatang:number;periodStart:string;periodEnd:string;dueDate:string;status:string;createdAt:string};
 type Me={id:string;name:string;role:string};
-type Section="overview"|"rooms"|"meter"|"billing"|"invites"|"tenant"|"settings"|"admin";
+type Section="overview"|"rooms"|"meter"|"billing"|"payments"|"invites"|"tenant"|"settings"|"admin";
 const sections:[Section,string,React.ReactNode][]=[
  ["overview","ภาพรวม",<LayoutDashboard size={19}/>],["rooms","ห้องพัก",<DoorOpen size={19}/>],
  ["meter","จดมิเตอร์",<Gauge size={19}/>],["billing","ออกบิล",<ReceiptText size={19}/>],
- ["invites","เชิญผู้เช่า",<Users size={19}/>],["tenant","สำหรับผู้เช่า",<DoorOpen size={19}/>],
+ ["payments","รับชำระเงิน",<Wallet size={19}/>],["invites","เชิญผู้เช่า",<Users size={19}/>],["tenant","สำหรับผู้เช่า",<DoorOpen size={19}/>],
  ["settings","ตั้งค่า",<Settings size={19}/>],["admin","Super Admin",<ShieldCheck size={19}/>]];
 const money=(n:number|undefined|null)=>"฿"+((n??0)/100).toLocaleString("th-TH",{minimumFractionDigits:2,maximumFractionDigits:2});
 const satang=(s:string)=>Math.round(Number(s)*100);
@@ -42,7 +43,7 @@ function App(){
  const [me,setMe]=useState<Me|null>(null),[orgs,setOrgs]=useState<Organization[]>([]),[props,setProps]=useState<Property[]>([]);
  const [orgId,setOrgId]=useState(""),[propertyId,setPropertyId]=useState(""),[section,setSection]=useState<Section>("overview");
  const [rooms,setRooms]=useState<Room[]>([]),[invoices,setInvoices]=useState<Invoice[]>([]);
- const [overview,setOverview]=useState<{rooms:number;occupied:number;available:number;totalBilledSatang:number;issuedInvoices:number}|null>(null);
+ const [overview,setOverview]=useState<{rooms:number;occupied:number;available:number;totalBilledSatang:number;issuedInvoices:number;manuallyApprovedSatang:number;outstandingSatang:number;overdueSatang:number;overdueInvoiceCount:number}|null>(null);
  const [admin,setAdmin]=useState<{organizationCount:number;propertyCount:number;roomCount:number;invoiceCount:number}|null>(null);
  const [error,setError]=useState(""),[success,setSuccess]=useState(""),[busy,setBusy]=useState(false),[menu,setMenu]=useState(false);
  const [lineBusy,setLineBusy]=useState(false);
@@ -151,6 +152,7 @@ function App(){
        <div className="stat"><span>ห้องว่าง <Building2 size={17}/></span><strong>{overview?.available??"—"}</strong><small>พร้อมเปิดเช่า</small></div>
        <div className="stat"><span>ยอดออกบิลสะสม <Wallet size={17}/></span><strong>{money(overview?.totalBilledSatang)}</strong><small>ยังไม่ใช่ยอดรับชำระ</small></div>
       </div><Panel title="ภาพรวมห้องพัก" subtitle="สถานะห้องทั้งหมดในหอพัก"><div className="room-grid">{rooms.map(r=><div className="room-tile" key={r.id}><div className="room-icon"><DoorOpen size={19}/></div><b>{r.number}</b><small>ชั้น {r.floor}</small><span className={"pill "+(r.status==="OCCUPIED"?"occupied":"vacant")}>{r.status==="OCCUPIED"?"มีผู้เช่า":r.status==="AVAILABLE"?"ว่าง":"ซ่อมบำรุง"}</span></div>)}</div>{rooms.length===0&&<p className="empty">ยังไม่มีห้องพัก เริ่มสร้างจากเมนูห้องพัก</p>}</Panel>
+      <Panel title="ภาพรวมยอดเรียกเก็บและรับชำระ" subtitle="ยอดอนุมัติเป็นการตรวจสอบด้วยมือของเจ้าของหอพัก ไม่ใช่หลักฐานจาก Bank API"><div className="payment-figures"><div><small>อนุมัติรับชำระสะสม</small><strong>{money(overview?.manuallyApprovedSatang)}</strong></div><div><small>ยอดบิลคงเหลือทั้งหมด</small><strong>{money(overview?.outstandingSatang)}</strong></div><div><small>ยอดเลยกำหนด ({overview?.overdueInvoiceCount??0} ใบ)</small><strong>{money(overview?.overdueSatang)}</strong></div></div></Panel>
       <div className="two-col"><Panel title="ค่าบริการเริ่มต้น" subtitle="ห้องพักสามารถกำหนดราคาเฉพาะของตัวเอง"><div className="rate-row"><span>ค่าเช่ารายเดือน</span><b>{money(property.rentSatang)}</b></div><div className="rate-row"><span>ค่าน้ำ / หน่วย</span><b>{money(property.waterSatangPerUnit)}</b></div><div className="rate-row"><span>ค่าไฟ / หน่วย</span><b>{money(property.electricSatangPerUnit)}</b></div></Panel>
       <Panel title="สถานะออกบิล" subtitle="ความพร้อมก่อนส่งใบแจ้งหนี้"><div className="rate-row"><span>รอบบิล</span><b>{property.cadence}</b></div><div className="rate-row"><span>การยืนยันอัตราค่าน้ำไฟ</span><span className={"pill "+(property.complianceReviewedAt?"vacant":"occupied")}>{property.complianceReviewedAt?"ตรวจแล้ว":"รออนุมัติ"}</span></div><div className="rate-row"><span>ใบแจ้งหนี้ที่ออก</span><b>{overview?.issuedInvoices??0} ใบ</b></div></Panel></div>
     </>}
@@ -161,6 +163,7 @@ function App(){
     {property&&section==="meter"&&<><Panel title="จดเลขมิเตอร์" subtitle="กรอกเลขมิเตอร์น้ำและไฟ พร้อมวันที่อ่านจริง เลขต้องไม่ลดลง">{form(reading,<div className="cols2"><Field label="ห้องพัก"><select name="roomId">{rooms.map(r=><option key={r.id} value={r.id}>{r.number}</option>)}</select></Field><Field label="ประเภท"><select name="kind"><option value="WATER">ค่าน้ำ</option><option value="ELECTRIC">ค่าไฟ</option></select></Field><Field label="วันที่อ่าน"><input type="date" name="day" required defaultValue={dateNow()}/></Field><Field label="เลขมิเตอร์"><input name="value" required inputMode="decimal" placeholder="1234.000"/></Field></div>)}</Panel><div className="hint"><Gauge size={19}/> จำเป็นต้องมีค่ามิเตอร์ที่วันเริ่มและวันสิ้นสุดของรอบบิลก่อนออกบิล</div></>}
     {property&&section==="billing"&&<><Panel title="ออกใบแจ้งหนี้รายห้อง" subtitle="ทดลองคำนวณก่อน แล้วจึงกดออกบิลจริงภายหลังตรวจความถูกต้อง"><form className="form" onSubmit={e=>{e.preventDefault();void preview(new FormData(e.currentTarget),false);}}><div className="cols3"><Field label="ห้องพัก"><select name="roomId">{rooms.filter(r=>r.status==="OCCUPIED").map(r=><option key={r.id} value={r.id}>{r.number}</option>)}</select></Field><Field label="วันเริ่มรอบ"><input name="start" required type="date"/></Field><Field label="วันสิ้นสุด (ไม่รวมวันนี้)"><input name="end" required type="date"/></Field></div><div className="actions"><button className="btn outline" disabled={busy} type="submit">คำนวณยอดก่อนออกบิล</button><button className="btn primary" disabled={busy} type="button" onClick={e=>{const f=e.currentTarget.closest("form");if(f&&window.confirm("ยืนยันออกบิลจริงสำหรับห้องและรอบวันที่เลือก?"))void preview(new FormData(f),true);}}>ยืนยันออกบิล</button></div></form></Panel>
       <Panel title="ใบแจ้งหนี้ที่ออกแล้ว" subtitle="จำนวนเงินเป็นยอดตั้งหนี้ — ระบบบันทึกรับชำระยังอยู่ในแผนพัฒนา"><div className="table-scroll"><table><thead><tr><th>หมายเลขห้อง</th><th>รอบบิล</th><th>ครบกำหนด</th><th>ยอดเงิน</th><th>สถานะ</th></tr></thead><tbody>{invoices.map(i=><tr key={i.id}><td><b>{rooms.find(r=>r.id===i.roomId)?.number??"-"}</b></td><td>{i.periodStart} → {i.periodEnd}</td><td>{i.dueDate}</td><td>{money(i.amountSatang)}</td><td><span className="pill occupied">{i.status}</span></td></tr>)}</tbody></table>{invoices.length===0&&<p className="empty">ยังไม่มีบิล</p>}</div></Panel></>}
+    {property&&section==="payments"&&<PaymentCenter key={property.id} propertyId={property.id} api={api} post={post}/>}
     {property&&section==="invites"&&<OwnerInvitations key={property.id} propertyId={property.id} api={api} post={post}/>}
     {section==="tenant"&&<TenantPortal api={api} post={post}/>}
     {property&&section==="settings"&&<Panel title="ข้อมูล Master ของหอพัก" subtitle="สำหรับการตั้งค่าที่มีผลต่อการสร้างบิลใหม่เท่านั้น"><div className="rate-row"><span>ชื่อหอพัก</span><b>{property.name}</b></div><div className="rate-row"><span>ที่อยู่</span><b>{property.address||"—"}</b></div><div className="rate-row"><span>รอบออกบิล</span><b>{property.cadence}</b></div><div className="rate-row"><span>ค่าเช่า Master</span><b>{money(property.rentSatang)}</b></div><div className="rate-row"><span>ค่าน้ำ Master</span><b>{money(property.waterSatangPerUnit)}/หน่วย</b></div><div className="rate-row"><span>ค่าไฟ Master</span><b>{money(property.electricSatangPerUnit)}/หน่วย</b></div><div className="hint">การแก้ไข Master หลังสร้างเริ่มต้น จะเปิดใช้งานเมื่อเพิ่ม Pricing History แบบมีวันมีผล เพื่อป้องกันบิลย้อนหลังเปลี่ยนแปลง</div></Panel>}

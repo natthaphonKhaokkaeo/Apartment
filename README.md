@@ -35,3 +35,13 @@ See [docs/PHASES.md](docs/PHASES.md) for all checkboxes, validation gates, and e
 - React menu: "เชิญผู้เช่า" for owner; "สำหรับผู้เช่า" for read-only tenant. LINE LIFF E2E requires actual LINE Developers credentials and HTTPS.
 
 New agent? Read [docs/NEXT_SESSION.md](docs/NEXT_SESSION.md) first, then the canonical [docs/PHASES.md](docs/PHASES.md).
+
+## P3 DEV payments
+
+Owner endpoints: GET/PUT `/v1/properties/:propertyId/payment-instructions`, GET `/v1/properties/:propertyId/payment-claims`, POST `/v1/properties/:propertyId/payment-claims/:claimId/decision`. Owner or Super Admin may edit account settings and decide claims.
+
+Tenant endpoints: GET `/v1/tenant/invoices/:invoiceId/payment-instructions`, POST multipart `/v1/tenant/invoices/:invoiceId/payment-claims` with idempotency-key header, GET own claims and payment summary. Evidence can be read only via authorized endpoints.
+
+Private evidence is stored as sanitized WebP in a non-public DEV-only directory; `PAYMENT_EVIDENCE_DIR` is optional. Production startup is intentionally blocked. No bank verification, receipt PDFs, refunds, external payment APIs or signed object-store uploads yet.
+
+Additional concurrency test: `corepack pnpm --filter @apartment/api smoke:payments`. ENV checklist: [docs/ENV_REQUIRED.md](docs/ENV_REQUIRED.md).

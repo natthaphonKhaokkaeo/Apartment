@@ -1,5 +1,6 @@
 import {useEffect,useState} from "react";
 import {DoorOpen,ReceiptText,KeyRound,ShieldCheck,Clock3,FileText} from "lucide-react";
+import {TenantPayments} from "./TenantPayments.js";
 type Api={api:<T>(path:string,options?:RequestInit)=>Promise<T>;post:<T>(path:string,body:unknown)=>Promise<T>};
 type Lease={leaseId:string;tenantName:string;roomNumber:string;propertyName:string;propertyAddress:string;startDate:string;endDate:string|null};
 type Invoice={id:string;leaseId:string;propertyName:string;periodStart:string;periodEnd:string;dueDate:string;amountSatang:number;status:string};
@@ -58,7 +59,7 @@ export function TenantPortal({api,post}:Api){
    <button className="btn outline" onClick={()=>setDetail(null)}>ปิด</button></div>
    {detail.lines.map((l,i)=><div key={i} className="rate-row"><span>{l.description}</span><b>{baht(l.amountSatang)}</b></div>)}
    <div className="rate-row"><strong>ยอดรวม</strong><strong>{baht(detail.amountSatang)}</strong></div>
-   <p className="hint">ยังไม่เปิดรับชำระเงินหรืออัปโหลดสลิปในระบบ DEV นี้</p>
+   <TenantPayments invoiceId={detail.id} api={api}/>
   </section>}
  </div>;
 }

@@ -9,7 +9,10 @@ const schema = z.object({
  LINE_CHANNEL_ID: z.string().min(1),
  COOKIE_SECURE: z.enum(["true","false"]).default("true"),
  WEB_ORIGIN: z.string().url(),
- SUPER_ADMIN_LINE_USER_ID: z.string().optional()
+ SUPER_ADMIN_LINE_USER_ID: z.string().optional(),
+ PAYMENT_EVIDENCE_DIR: z.string().optional()
 });
 export const config = schema.parse(process.env);
 if(config.NODE_ENV === "production" && config.COOKIE_SECURE !== "true") throw new Error("COOKIE_SECURE is required in production");
+
+if(config.NODE_ENV === "production") throw new Error("PAYMENT_EVIDENCE_STORAGE_NOT_PRODUCTION_READY: configure private object storage and security review before production");

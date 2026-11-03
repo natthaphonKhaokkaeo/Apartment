@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX "uq_payment_claim_property_transfer" ON "payment_claims" USING btree ("property_id","transfer_reference");

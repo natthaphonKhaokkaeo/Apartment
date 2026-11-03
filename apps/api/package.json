@@ -9,6 +9,7 @@
     "test": "vitest run",
     "smoke": "tsx scripts/smoke.ts",
     "smoke:http": "tsx scripts/smoke-http.ts",
+    "smoke:payments": "tsx scripts/smoke-payment-concurrency.ts",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate"
   },
@@ -17,11 +18,13 @@
     "@fastify/cookie": "^11.0.0",
     "@fastify/cors": "^11.0.0",
     "@fastify/helmet": "^13.0.0",
+    "@fastify/multipart": "^9.4.0",
     "@fastify/rate-limit": "^10.0.0",
     "dotenv": "^17.0.0",
     "drizzle-orm": "^0.44.0",
     "fastify": "^5.6.0",
     "postgres": "^3.4.7",
+    "sharp": "^0.34.5",
     "zod": "^4.1.0"
   },
   "devDependencies": {

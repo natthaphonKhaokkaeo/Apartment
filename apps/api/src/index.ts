@@ -7,10 +7,11 @@ import {and,eq,desc,gt,isNull} from "drizzle-orm";
 import {z,ZodError} from "zod";
 import {config} from "./config.js";
 import {db,sqlClient} from "./db/client.js";
-import {users,sessions,organizations,memberships,properties,rooms,leases,meterReadings,invoices,invoiceLines,auditLogs} from "./db/schema.js";
+import {users,sessions,organizations,memberships,properties,rooms,leases,meterReadings,invoices,invoiceLines,auditLogs,paymentLedger} from "./db/schema.js";
 import {AppError,newSessionToken,tokenHash,requireActor,requireOrg,requireProperty,requireAdmin} from "./security.js";
 import {prepareInvoice} from "./services/billing.js";
 import {registerTenantRoutes} from "./routes/tenant.js";
+import {registerPaymentRoutes} from "./routes/payments.js";
 import {readingToMilli,parseDay} from "@apartment/domain";
 
 const app=Fastify({logger:{redact:["req.headers.cookie","req.headers.authorization","res.headers.set-cookie"]},bodyLimit:1048576});
@@ -31,7 +32,11 @@ async function getRoom(p:typeof properties.$inferSelect,id:string){
 app.setErrorHandler((e,req,res)=>{
  if(e instanceof ZodError)return res.code(400).send({error:"VALIDATION_ERROR",issues:e.issues.map(x=>({path:x.path,message:x.message}))});
  if(e instanceof AppError)return res.code(e.statusCode).send({error:e.code});
+ if(e instanceof Error && "code" in e && e.code==="FST_REQ_FILE_TOO_LARGE")return res.code(413).send({error:"EVIDENCE_FILE_TOO_LARGE"});
+ if(e instanceof Error && "code" in e && e.code==="FST_INVALID_MULTIPART_CONTENT_TYPE")return res.code(415).send({error:"MULTIPART_REQUIRED"});
  if(e instanceof Error && "code" in e && e.code==="23505")return res.code(409).send({error:"DUPLICATE_RESOURCE"});
+ if(e instanceof Error && "statusCode" in e && typeof e.statusCode==="number" && e.statusCode>=400 && e.statusCode<500)
+  return res.code(e.statusCode).send({error:e.statusCode===429?"RATE_LIMITED":"REQUEST_REJECTED"});
  req.log.error(e);return res.code(500).send({error:"INTERNAL_ERROR"});
 });
 app.addHook("onRequest",async req=>{
@@ -104,13 +109,28 @@ app.post("/v1/organizations/:orgId/properties",async(req,reply)=>{
 });
 app.get("/v1/properties/:propertyId/overview",async req=>{
  const a=await requireActor(req),p=await requireProperty(a,params(req.params));
- const [r,i]=await Promise.all([
-  db.select().from(rooms).where(eq(rooms.propertyId,p.id)),
-  db.select().from(invoices).where(and(eq(invoices.propertyId,p.id),eq(invoices.status,"ISSUED")))
+ const [r,i,ledger]=await Promise.all([
+  db.select().from(rooms).where(and(eq(rooms.propertyId,p.id),eq(rooms.organizationId,p.organizationId))),
+  db.select().from(invoices).where(and(eq(invoices.propertyId,p.id),eq(invoices.organizationId,p.organizationId),eq(invoices.status,"ISSUED"))),
+  db.select({invoiceId:paymentLedger.invoiceId,amountSatang:paymentLedger.amountSatang}).from(paymentLedger)
+   .where(and(eq(paymentLedger.propertyId,p.id),eq(paymentLedger.organizationId,p.organizationId)))
  ]);
+ const totals=new Map<string,number>();
+ for(const item of ledger)totals.set(item.invoiceId,(totals.get(item.invoiceId)??0)+item.amountSatang);
+ const today=new Intl.DateTimeFormat("sv-SE",{timeZone:"Asia/Bangkok",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date());
+ const due=i.map(bill=>({...bill,remaining:Math.max(0,bill.amountSatang-(totals.get(bill.id)??0))}));
+ const sum=(values:number[])=>values.reduce((n,v)=>n+v,0);
+ const totalBilledSatang=sum(i.map(x=>x.amountSatang)),
+  manuallyApprovedSatang=sum(due.map(x=>x.amountSatang-x.remaining)),
+  outstandingSatang=sum(due.map(x=>x.remaining)),
+  overdueSatang=sum(due.filter(x=>x.dueDate<today).map(x=>x.remaining));
+ if([totalBilledSatang,manuallyApprovedSatang,outstandingSatang,overdueSatang].some(x=>!Number.isSafeInteger(x)))
+  throw new AppError(500,"DASHBOARD_AMOUNT_OVERFLOW");
  return {property:{id:p.id,name:p.name,cadence:p.cadence},rooms:r.length,occupied:r.filter(x=>x.status==="OCCUPIED").length,
-  available:r.filter(x=>x.status==="AVAILABLE").length,totalBilledSatang:i.reduce((n,x)=>n+x.amountSatang,0),
-  issuedInvoices:i.length,paymentTracking:"NOT_IMPLEMENTED"};
+  available:r.filter(x=>x.status==="AVAILABLE").length,totalBilledSatang,
+  manuallyApprovedSatang,outstandingSatang,overdueSatang,
+  overdueInvoiceCount:due.filter(x=>x.remaining>0&&x.dueDate<today).length,
+  issuedInvoices:i.length,paymentTracking:"MANUAL_OWNER_APPROVAL_NO_BANK_VERIFICATION"};
 });
 app.get("/v1/properties/:propertyId/rooms",async req=>{
  const a=await requireActor(req),p=await requireProperty(a,params(req.params));
@@ -226,4 +246,5 @@ app.get("/v1/admin/overview",async req=>{
  return {organizationCount:o.length,propertyCount:p.length,roomCount:r.length,invoiceCount:i.length};
 });
 await registerTenantRoutes(app);
+await registerPaymentRoutes(app);
 await app.listen({host:config.HOST,port:config.PORT});

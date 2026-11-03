@@ -1,18 +1,20 @@
 import {spawn} from "node:child_process";
 import {randomUUID} from "node:crypto";
+import sharp from "sharp";
 import {strict as assert} from "node:assert";
 import {eq} from "drizzle-orm";
 import {db,sqlClient} from "../src/db/client.js";
-import {users,sessions,organizations,memberships,properties,rooms,leases,meterReadings,invoices,invoiceLines,auditLogs,leaseInvitations} from "../src/db/schema.js";
+import {users,sessions,organizations,memberships,properties,rooms,leases,meterReadings,invoices,invoiceLines,auditLogs,leaseInvitations,paymentClaims,paymentLedger,paymentInstructions} from "../src/db/schema.js";
 import {newSessionToken,tokenHash} from "../src/security.js";
+import {deletePrivateEvidence} from "../src/services/evidence.js";
 
-const ids:{users:string[];sessions:string[];orgs:string[];props:string[];rooms:string[];leases:string[];readings:string[];invoices:string[]}={
- users:[],sessions:[],orgs:[],props:[],rooms:[],leases:[],readings:[],invoices:[]
+const ids:{users:string[];sessions:string[];orgs:string[];props:string[];rooms:string[];leases:string[];readings:string[];invoices:string[];claims:string[]}={
+ users:[],sessions:[],orgs:[],props:[],rooms:[],leases:[],readings:[],invoices:[],claims:[]
 };
 const tag=randomUUID().slice(0,8),base="http://127.0.0.1:8088";
 const child=spawn("node",["--import","tsx","src/index.ts"],{cwd:process.cwd(),stdio:"ignore",env:process.env});
 async function request(path:string,token:string,options:RequestInit={}){
- const r=await fetch(base+path,{...options,headers:{"content-type":"application/json",cookie:"apartment_session="+token,...options.headers}});
+ const r=await fetch(base+path,{...options,headers:{...(options.body instanceof FormData?{}:{"content-type":"application/json"}),cookie:"apartment_session="+token,...options.headers}});
  return {status:r.status,body:await r.json() as any};
 }
 async function main(){
@@ -136,12 +138,103 @@ async function main(){
  await db.update(organizations).set({status:"ACTIVE"}).where(eq(organizations.id,oa.id));
  assert.equal((await request("/v1/tenant/invoices",tenantTokenA)).body.length,1);
  console.log("PASS P2 hardening: one winner on concurrent claim, expired/replaced reject, disabled identity 401, disabled org hides tenant bills");
+ // P3 local payment configuration, evidence submission, approval and balance smoke.
+ const settingsPath="/v1/properties/"+pa.id+"/payment-instructions";
+ assert.equal((await request(settingsPath,token)).body,null);
+ const noSettings=await request("/v1/tenant/invoices/"+issue.body.invoice.id+"/payment-instructions",tenantTokenA);
+ assert.equal(noSettings.status,404);
+ const ownerBank=await request(settingsPath,token,{method:"PUT",body:JSON.stringify({
+  bankName:"Demo Bank (test only)",accountName:"Demo Account",accountNumber:"1234567890",promptPayId:null,
+  active:true,expectedVersion:null
+ })});
+ assert.equal(ownerBank.status,200,JSON.stringify(ownerBank.body));assert.equal(ownerBank.body.version,1);
+ assert.equal(ownerBank.body.accountNumberMasked,"••••••7890");
+ const bankTenant=await request("/v1/tenant/invoices/"+issue.body.invoice.id+"/payment-instructions",tenantTokenA);
+ assert.equal(bankTenant.status,200);
+ assert.equal(bankTenant.body.accountNumber,"1234567890");
+ assert.equal((await request("/v1/tenant/invoices/"+issue.body.invoice.id+"/payment-instructions",tenantTokenB)).status,404);
+ assert.equal((await request(settingsPath,token,{method:"PUT",body:JSON.stringify({
+  bankName:"Demo Bank",accountName:"Demo Account",accountNumber:"1234567890",promptPayId:null,
+  active:true,expectedVersion:null
+ })})).status,409);
+ // Manager at org A can view property but cannot edit bank details or approve claims.
+ await db.insert(memberships).values({organizationId:oa.id,userId:v.id,role:"MANAGER"});
+ const managerToken=newSessionToken();
+ const [managerSession]=await db.insert(sessions).values({userId:v.id,tokenHash:tokenHash(managerToken),expiresAt:new Date(Date.now()+60000)}).returning();
+ ids.sessions.push(managerSession.id);
+ assert.equal((await request(settingsPath,managerToken,{method:"PUT",body:JSON.stringify({
+  bankName:"Malicious Bank",accountName:"Hacker",accountNumber:"9876543210",promptPayId:null,
+  active:true,expectedVersion:1
+ })})).status,403);
+ const samplePng=await sharp({create:{width:4,height:4,channels:3,background:{r:250,g:250,b:245}}}).png().toBuffer();
+ const claimURL="/v1/tenant/invoices/"+issue.body.invoice.id+"/payment-claims";
+ async function submitPayment(amount:number,reference:string,key:string,buffer:Buffer=samplePng,mime="image/png",url=claimURL){
+  const form=new FormData();
+  form.append("amountSatang",String(amount));
+  form.append("paidAt",new Date().toISOString());
+  form.append("transferReference",reference);
+  form.append("evidence",new File([new Uint8Array(buffer)],"demo.png",{type:mime}));
+  return request(url,tenantTokenA,{method:"POST",body:form,headers:{"idempotency-key":key}});
+ }
+ const firstKey="dev-first-"+randomUUID();
+ const first=await submitPayment(120000,"DEV-AAAA01",firstKey);
+ assert.equal(first.status,201,JSON.stringify(first.body));ids.claims.push(first.body.claim.id);
+ assert.equal(first.body.claim.evidenceKey,undefined);
+ const evidenceReq=async(path:string,cookie:string)=>fetch(base+path,{headers:{cookie:"apartment_session="+cookie}});
+ const ownerSlip="/v1/properties/"+pa.id+"/payment-claims/"+first.body.claim.id+"/evidence";
+ const evidenceOwner=await evidenceReq(ownerSlip,token);
+ assert.equal(evidenceOwner.status,200);
+ assert.equal(evidenceOwner.headers.get("content-type"),"image/webp");
+ assert.equal(evidenceOwner.headers.get("cache-control"),"no-store");
+ assert.equal((await evidenceReq(ownerSlip,managerToken)).status,403);
+ assert.equal((await evidenceReq("/v1/tenant/payment-claims/"+first.body.claim.id+"/evidence",tenantTokenB)).status,404);
+ assert.equal((await evidenceReq("/v1/tenant/payment-claims/"+first.body.claim.id+"/evidence",tenantTokenA)).status,200);
+ const duplicateClaim=await submitPayment(120000,"DEV-AAAA01",firstKey);
+ assert.equal(duplicateClaim.status,200);
+ assert.equal(duplicateClaim.body.claim.id,first.body.claim.id);
+ const badMime=await submitPayment(120000,"DEV-BAD001","badmime-"+randomUUID(),Buffer.from("not an image"),"text/plain");
+ assert.equal(badMime.status,415,JSON.stringify(badMime.body));
+ let summary=await request("/v1/tenant/invoices/"+issue.body.invoice.id+"/payment-summary",tenantTokenA);
+ assert.equal(summary.status,200);assert.equal(summary.body.manuallyApprovedSatang,0);
+ assert.equal(summary.body.outstandingSatang,413000);
+ const decisionURL="/v1/properties/"+pa.id+"/payment-claims/"+first.body.claim.id+"/decision";
+ assert.equal((await request(decisionURL,managerToken,{method:"POST",body:'{"action":"APPROVE"}'})).status,403);
+ const approvedPart=await request(decisionURL,token,{method:"POST",body:'{"action":"APPROVE"}'});
+ assert.equal(approvedPart.status,200,JSON.stringify(approvedPart.body));assert.equal(approvedPart.body.outstandingSatang,293000);
+ assert.equal((await request(decisionURL,token,{method:"POST",body:'{"action":"APPROVE"}'})).status,409);
+ const second=await submitPayment(150000,"DEV-BBBB02","dev-second-"+randomUUID());
+ assert.equal(second.status,201,JSON.stringify(second.body));ids.claims.push(second.body.claim.id);
+ const rejection=await request("/v1/properties/"+pa.id+"/payment-claims/"+second.body.claim.id+"/decision",
+  token,{method:"POST",body:'{"action":"REJECT","reason":"Payment not confirmed in bank records"}'});
+ assert.equal(rejection.status,200);assert.equal(rejection.body.outstandingSatang,293000);
+ const finalClaim=await submitPayment(293000,"DEV-CCCC03","dev-final-"+randomUUID());
+ assert.equal(finalClaim.status,201,JSON.stringify(finalClaim.body));ids.claims.push(finalClaim.body.claim.id);
+ const full=await request("/v1/properties/"+pa.id+"/payment-claims/"+finalClaim.body.claim.id+"/decision",token,{method:"POST",body:'{"action":"APPROVE"}'});
+ assert.equal(full.status,200,JSON.stringify(full.body));assert.equal(full.body.outstandingSatang,0);
+ const overpay=await submitPayment(1,"DEV-DDDD04","dev-overpay-"+randomUUID());
+ assert.equal(overpay.status,422,JSON.stringify(overpay.body));
+ summary=await request("/v1/tenant/invoices/"+issue.body.invoice.id+"/payment-summary",tenantTokenA);
+ assert.equal(summary.body.manuallyApprovedSatang,413000);
+ assert.equal(summary.body.settlementState,"FULLY_RECORDED");
+ const list=await request("/v1/properties/"+pa.id+"/payment-claims",token);
+ assert.equal(list.status,200);assert.equal(list.body.length,3);
+ assert.equal((await request("/v1/properties/"+pb.id+"/payment-claims",token)).status,403);
+ const savedInvoice=await request("/v1/properties/"+pa.id+"/invoices/"+issue.body.invoice.id,token);
+ assert.equal(savedInvoice.body.status,"ISSUED");
+ console.log("PASS P3 HTTP: bank version CAS, tenant IDOR 404, manager cannot edit/approve, image sanitized, approval/rejection/partial/full, no overpay/replay");
+
+
 
 
 }
 try{await main();}
 finally{
  child.kill("SIGTERM");
+ const savedClaims=ids.claims.length?await db.select({id:paymentClaims.id,evidenceKey:paymentClaims.evidenceKey}).from(paymentClaims):[];
+ for(const claim of savedClaims.filter(r=>ids.claims.includes(r.id))) await deletePrivateEvidence(claim.evidenceKey);
+ for(const id of ids.claims)await db.delete(paymentLedger).where(eq(paymentLedger.claimId,id));
+ for(const id of ids.claims)await db.delete(paymentClaims).where(eq(paymentClaims.id,id));
+ for(const id of ids.props)await db.delete(paymentInstructions).where(eq(paymentInstructions.propertyId,id));
  for(const id of ids.invoices)await db.delete(invoiceLines).where(eq(invoiceLines.invoiceId,id));
  for(const id of ids.invoices)await db.delete(invoices).where(eq(invoices.id,id));
  for(const id of ids.readings)await db.delete(meterReadings).where(eq(meterReadings.id,id));

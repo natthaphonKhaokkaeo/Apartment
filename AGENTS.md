@@ -5,3 +5,7 @@
 - Invoice issue transaction + immutable snapshot + idempotency and audit; guard unverified tariffs.
 - Never skip tests or bypass verification. Do not push/deploy/schedule external messages or take real payments without authorization.
 - Do not put LINE credentials, cookies, or DB passwords in source control.
+
+- P3 payment amounts must remain integer satang. Manual Ledger approvals are NOT independently bank-verified funds.
+- Evidence is private: re-encode images, limit size, authorize reads, do not expose static files.
+- Consult docs/ENV_REQUIRED.md for missing keys; never log banking data, access tokens or uploaded files.

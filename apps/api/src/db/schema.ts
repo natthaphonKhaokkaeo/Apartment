@@ -134,6 +134,57 @@ export const invoiceLines = pgTable("invoice_lines", {
   amountSatang: integer("amount_satang").notNull(),
   snapshot: jsonb("snapshot").notNull()
 });
+export const paymentInstructions = pgTable("property_payment_instructions", {
+ id: uuid("id").primaryKey().defaultRandom(),
+ organizationId: uuid("organization_id").notNull().references(() => organizations.id),
+ propertyId: uuid("property_id").notNull().references(() => properties.id),
+ bankName: varchar("bank_name", {length:120}).notNull(),
+ accountName: varchar("account_name", {length:160}).notNull(),
+ accountNumber: varchar("account_number", {length:20}).notNull(),
+ promptPayId: varchar("promptpay_id", {length:20}),
+ active: varchar("active", {length:8}).notNull().default("YES"),
+ version: integer("version").notNull().default(1),
+ updatedAt: timestamp("updated_at", {withTimezone:true}).notNull().defaultNow(),
+ updatedBy: uuid("updated_by").notNull().references(() => users.id)
+}, t=>[uniqueIndex("uq_property_payment_instruction").on(t.propertyId)]);
+
+export const paymentClaimStatus = pgEnum("payment_claim_status", ["PENDING","APPROVED","REJECTED"]);
+export const paymentClaims = pgTable("payment_claims", {
+ id: uuid("id").primaryKey().defaultRandom(),
+ organizationId: uuid("organization_id").notNull().references(() => organizations.id),
+ propertyId: uuid("property_id").notNull().references(() => properties.id),
+ invoiceId: uuid("invoice_id").notNull().references(() => invoices.id),
+ leaseId: uuid("lease_id").notNull().references(() => leases.id),
+ submittedBy: uuid("submitted_by").notNull().references(() => users.id),
+ amountSatang: integer("amount_satang").notNull(),
+ paidAt: timestamp("paid_at", {withTimezone:true}).notNull(),
+ transferReference: varchar("transfer_reference", {length:80}),
+ evidenceKey: uuid("evidence_key").notNull().unique(),
+ evidenceSha256: varchar("evidence_sha256", {length:64}).notNull(),
+ idempotencyKey: varchar("idempotency_key", {length:128}).notNull(),
+ status: paymentClaimStatus("status").notNull().default("PENDING"),
+ createdAt: timestamp("created_at", {withTimezone:true}).notNull().defaultNow(),
+ decidedAt: timestamp("decided_at", {withTimezone:true}),
+ decidedBy: uuid("decided_by").references(() => users.id),
+ rejectionReason: varchar("rejection_reason", {length:500})
+}, t=>[
+  index("idx_payment_claim_property_status").on(t.propertyId,t.status),
+  index("idx_payment_claim_invoice").on(t.invoiceId),
+  uniqueIndex("uq_payment_claim_user_idem").on(t.submittedBy,t.idempotencyKey),
+  uniqueIndex("uq_payment_claim_property_transfer").on(t.propertyId,t.transferReference)
+]);
+
+export const paymentLedger = pgTable("payment_ledger", {
+ id: uuid("id").primaryKey().defaultRandom(),
+ organizationId: uuid("organization_id").notNull().references(() => organizations.id),
+ propertyId: uuid("property_id").notNull().references(() => properties.id),
+ invoiceId: uuid("invoice_id").notNull().references(() => invoices.id),
+ claimId: uuid("claim_id").notNull().references(() => paymentClaims.id).unique(),
+ amountSatang: integer("amount_satang").notNull(),
+ createdBy: uuid("created_by").notNull().references(() => users.id),
+ createdAt: timestamp("created_at", {withTimezone:true}).notNull().defaultNow()
+},t=>[index("idx_payment_ledger_invoice").on(t.invoiceId)]);
+
 export const auditLogs = pgTable("audit_logs", {
   id: uuid("id").primaryKey().defaultRandom(),
   actorId: uuid("actor_id").notNull().references(() => users.id),

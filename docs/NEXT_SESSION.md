@@ -6,7 +6,11 @@
 
 Continue the Apartment LINE-first multi-tenant SaaS in `/root/Projects/Apartment`.
 
-**Start with P3-01** after confirming clean branch and completed P2 DEV checks. Implement owner-controlled **display-only** payment instructions scoped to a property: bank name, account name, bank number and optional PromptPay identifier. Do not implement transfers, payment success, settlement, or paid status in P3-01. Treat bank-detail modifications as security-sensitive: OWNER/SUPER_ADMIN only, audit every change, tenant can read only when an approved active lease links their LINE identity. Build tests before code. Keep default empty, no fake real bank details. PromptPay QR and provider/bank verification can be a separately gated follow-up.
+**Start with P3-02b / P3-05** after confirming tests, and read `docs/ENV_REQUIRED.md`. P3-01a owner payment settings, P3-02a DEV private sanitized images, P3-03 owner manual payment review / ledger and P3-04a outstanding/aging are implemented locally. The whole P3 is **NOT complete**: real object storage with signed/quarantined upload, malware scanning/retention, PromptPay QR verification, refunds and official receipts remain pending. If cloud provider keys are not available, work on legal/receipt specification and security/test coverage without prematurely enabling production.
+
+**Do not assume that a manually approved slip proves receipt of money.** Ledger postings are manually reviewed only; invoice status remains ISSUED. Do not send real bank transactions or auto-mark PAID.
+
+
 
 ## First commands
 
@@ -22,6 +26,7 @@ corepack pnpm --filter @apartment/web build
 docker compose --env-file .env -f infra/compose.dev.yaml ps
 corepack pnpm --filter @apartment/api smoke
 corepack pnpm --filter @apartment/api smoke:http
+corepack pnpm --filter @apartment/api smoke:payments
 ```
 
 Do **not** execute `db:migrate` blindly on any shared or production DB; this is a dedicated local DEV database. New migrations must be reviewed first.
@@ -37,12 +42,18 @@ Do **not** execute `db:migrate` blindly on any shared or production DB; this is 
 - `apps/web/src/components/OwnerInvitations.tsx`: generate/copy invite and manually approve claimant.
 - `apps/web/src/components/TenantPortal.tsx`: pending claims, own leases, own invoice lines.
 - `docs/PHASES.md`: source of truth, each phase's checkbox and acceptance gate.
+- `docs/ENV_REQUIRED.md`: keys needed now (LINE Login) and future-only LINE OA/object-store keys.
+- `apps/api/src/routes/payments.ts`: banking instructions, tenant evidence claims, owner manual reviews, ledger.
+- `apps/api/src/services/evidence.ts`: DEV-only sanitized WebP private storage.
+- `apps/api/src/services/payment-rules.ts`: integer satang, overpayment reject and reference rules.
+- `apps/api/scripts/smoke-payment-concurrency.ts`: invoice lock and one-winner owner review.
+- `apps/web/src/components/PaymentCenter.tsx`, `TenantPayments.tsx`: owner and tenant payment screens.
 
 ## P2 state / known blockers
 
 - Locally implemented and verified: invite+approval+read-only tenant portal and database migration, unit tests, actual Postgres/HTTP smoke. Invoice visibility only **after** owner approval.
 - Not verified: actual LINE Developers sandbox login + LIFF integration + external HTTPS, visual browser E2E. The local HTTP smoke uses temporary DB sessions and is **not** real LINE E2E.
-- No payment ledger, slips, messages, settlement, receipts, PromptPay QR, PDF or background jobs yet.
+- P3 has DEV-only payment Ledger, sanitized image uploads and owner manual review. Still **no actual bank API, external payment settlement confirmation, S3 signed URLs, receipts, PromptPay QR, or background jobs**.
 - For Figma creation the user still needs to select a workspace/team; do not assume the organization's team.
 
 ## End-of-session policy
