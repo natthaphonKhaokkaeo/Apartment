@@ -192,3 +192,9 @@ Read docs/P1_PROPERTY_RATE_HISTORY.md.
 - [x] Partial MOVE_IN from lease start to billing-period end with actual boundary meters; prorated satang rent, idempotency and no interval double bill.
 - [x] Pure boundary/date tests, PostgreSQL/HTTP rate/old bill/partial issue tests, full existing regression green.
 - [ ] P1-03c meter replacement, MOVE_OUT partial final bill, deposits/credits and legal acceptance. See docs/P1_PARTIAL_BILLING_AND_ROOM_RATES.md.
+
+### P1-03a/b verified DEV deployment
+- [x] Feature commit ccbd4fb pushed; Apartment-only API/Web/Observer rebuilt and Healthy, existing PostgreSQL Healthy with 27 tables.
+- [x] Public HTTPS/readyz 200, unauthenticated room price GET and MOVE_IN preview POST 401; LINE outbound disabled, backup timer active.
+- [x] 70 unit tests and full PostgreSQL/HTTP/payment/finance/LINE/S3/cleanup regression passed. P1-03 remains partial.
+- [ ] P1-03c partial MOVE_OUT, meter replacement continuity, deposit policies and legal/security acceptance pending.

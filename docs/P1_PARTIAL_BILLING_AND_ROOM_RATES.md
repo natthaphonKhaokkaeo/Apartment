@@ -80,3 +80,6 @@ Remaining P1-03c: meter swap events (old/new serials, closing/opening
 readings, continuity across multiple replacements), a safe move-out
 partial/final invoice contract, occupancy/deposit/refund policy and legal
 review; P1-04 staff membership and P7 load/security UAT are also open.
+
+## Verified DEV deployment
+Feature commit ccbd4fb deployed into the existing Apartment Dokploy DEV Compose (API/Web/Observer only). All containers and PostgreSQL Healthy, 27 tables, HTTPS site and readiness 200 trusted TLS. Unauthenticated rate and partial invoice endpoints return 401. Full 70 unit tests and existing HTTP/finance/payment/LINE/S3/cleanup regression green. No real LINE messages sent; offsite backup and provider acceptance still required before Production.

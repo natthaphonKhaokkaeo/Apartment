@@ -200,3 +200,11 @@ Domain checkpoint: https://apartme.makemarket.space now works (HTTPS trusted; we
 - Web: owner room dated-override scheduling, on-demand history, Billing full vs move-in-partial choice.
 - Tests: tests/room-rates.test.ts, billing-partial.test.ts and extended real PostgreSQL HTTP smoke-http.ts.
 - NOT COMPLETED: meter replacement, partial MOVE_OUT, refunds/deposits, historical room amendments and P1-04 staff. See docs/P1_PARTIAL_BILLING_AND_ROOM_RATES.md.
+
+## Verified P1-03a/b Dokploy DEV rollout (2026-11-03)
+- Feature commit ccbd4fb pushed to origin/main, existing Apartment DEV API/Web/Observer rebuilt/recreated, all Healthy; PostgreSQL still Healthy with 27 tables after migration 0013.
+- Public https://apartme.makemarket.space/ and /readyz both 200 with TLS verification 0. Unauthenticated room-rates GET and MOVE_IN bill preview both 401.
+- LINE_WORKER_MODE=observe, LINE_WORKER_APPROVED=false, LINE_OUTBOUND_MODE=disabled; no actual LINE messages sent.
+- Verified root-only PostgreSQL backup before migration; apartment-postgres-backup.timer active, next 2026-11-04 03:30 Asia/Bangkok.
+- 70 Unit Tests (11 domain + 59 API) and full PostgreSQL/payment/finance/LINE/S3/cleanup smoke, TypeScript, frontend build, Compose validation passed.
+- NEXT: P1-03c meter-replacement serial/closing/opening readings and mid-cycle MOVE_OUT safe billing; P1-04 staff authorization after. DO NOT mark P1/P1-03 complete or enable live provider.
