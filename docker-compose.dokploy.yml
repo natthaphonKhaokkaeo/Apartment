@@ -48,6 +48,8 @@ services:
       LINE_WORKER_APPROVED: "false"
       LINE_OUTBOUND_MODE: disabled
       LINE_WORKER_INTERVAL_MS: "60000"
+      LINE_GLOBAL_PER_MINUTE: "20"
+      LINE_ORG_PER_MINUTE: "5"
     depends_on:
       api:
         condition: service_healthy
