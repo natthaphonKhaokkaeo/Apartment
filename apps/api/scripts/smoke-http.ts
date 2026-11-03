@@ -127,6 +127,95 @@ async function main(){
  assert.ok((await db.select().from(auditLogs).where(eq(auditLogs.actorId,u.id)))
   .some(a=>a.action==="PROPERTY_RATE_SCHEDULED"&&a.targetId===scheduled.body.id));
  console.log("PASS P1-02: baseline trigger, owner scope, future full-period version, upper legal cap, audit, old immutable bill and new tariff preview");
+ const roomPath="/v1/properties/"+pa.id+"/rooms/"+room.id+"/rates";
+ const baseRoom=await request(roomPath,token);
+ assert.equal(baseRoom.status,200);assert.equal(baseRoom.body.length,1);
+ assert.equal(baseRoom.body[0].rentOverrideSatang,null);
+ assert.equal(oldStill.body.lines[0].snapshot.roomRateVersionId,baseRoom.body[0].id);
+ assert.equal((await request("/v1/properties/"+pa.id+"/rooms/"+room.id,token,{
+  method:"PATCH",body:JSON.stringify({rentOverrideSatang:500000})
+ })).status,409);
+ const overrideNext={effectiveFrom:rateStart,rentOverrideSatang:500000,
+  waterOverrideSatang:null,electricOverrideSatang:350,
+  reason:"New tenant rent and verified electricity unit price"};
+ assert.equal((await request(roomPath,rateManagerToken,{
+  method:"POST",body:JSON.stringify(overrideNext)
+ })).status,403);
+ assert.equal((await request(roomPath,token,{method:"POST",
+  body:JSON.stringify({...overrideNext,effectiveFrom:"2020-01-01"})
+ })).status,422);
+ assert.equal((await request(roomPath,token,{method:"POST",
+  body:JSON.stringify({...overrideNext,waterOverrideSatang:999999})
+ })).status,422);
+ const changedRoom=await request(roomPath,token,{
+  method:"POST",body:JSON.stringify(overrideNext)
+ });
+ assert.equal(changedRoom.status,201,JSON.stringify(changedRoom.body));
+ assert.equal((await request(roomPath,token,{
+  method:"POST",body:JSON.stringify(overrideNext)
+ })).status,409);
+ const newPreview=await request("/v1/properties/"+pa.id+"/bills/preview",token,{
+  method:"POST",body:JSON.stringify({roomId:room.id,
+   start:rateStart,endExclusive:rateEnd})
+ });
+ assert.equal(newPreview.status,200,JSON.stringify(newPreview.body));
+ assert.equal(newPreview.body.totalSatang,512750);
+ assert.ok(newPreview.body.lines.every((v:any)=>
+  v.snapshot.roomRateVersionId===changedRoom.body.id));
+ const oldInvoice=await request("/v1/properties/"+pa.id+"/invoices/"+issue.body.invoice.id,token);
+ assert.equal(oldInvoice.body.lines.reduce((n:number,l:any)=>n+l.amountSatang,0),413000);
+ assert.equal(oldInvoice.body.lines[0].snapshot.roomRateVersionId,baseRoom.body[0].id);
+ assert.ok((await db.select().from(auditLogs).where(eq(auditLogs.actorId,u.id)))
+  .some(v=>v.action==="ROOM_RATE_SCHEDULED"&&v.targetId===changedRoom.body.id));
+ console.log("PASS P1-03a: future room rates, immutable invoice, owner scope, audit");
+ const [shortRoom]=await db.insert(rooms).values({
+  organizationId:oa.id,propertyId:pa.id,number:"P103",status:"OCCUPIED"
+ }).returning();ids.rooms.push(shortRoom.id);
+ const [shortLease]=await db.insert(leases).values({
+  organizationId:oa.id,propertyId:pa.id,roomId:shortRoom.id,
+  tenantName:"Move In Fixture",startDate:"2026-11-10"
+ }).returning();ids.leases.push(shortLease.id);
+ const shortReadings=[];
+ for(const kind of ["WATER","ELECTRIC"] as const)
+  for(const [readingDate,value] of [
+   ["2026-11-10",kind==="WATER"?"100.000":"200.000"],
+   ["2026-12-01",kind==="WATER"?"105.000":"210.000"]
+  ] as const)shortReadings.push({
+   organizationId:oa.id,propertyId:pa.id,roomId:shortRoom.id,
+   readAt:readingDate,kind,value,createdBy:u.id
+  });
+ const insertedReadings=await db.insert(meterReadings).values(shortReadings).returning();
+ ids.readings.push(...insertedReadings.map(x=>x.id));
+ const moveInBody={roomId:shortRoom.id,start:"2026-11-10",
+  endExclusive:"2026-12-01",partialMode:"MOVE_IN"};
+ const moveInPath="/v1/properties/"+pa.id+"/bills/";
+ assert.equal((await request(moveInPath+"preview",token,{
+  method:"POST",body:JSON.stringify({...moveInBody,partialMode:undefined})
+ })).status,422);
+ assert.equal((await request(moveInPath+"preview",token,{
+  method:"POST",body:JSON.stringify({...moveInBody,endExclusive:"2026-11-25"})
+ })).status,422);
+ const partialPreview=await request(moveInPath+"preview",token,{
+  method:"POST",body:JSON.stringify(moveInBody)
+ });
+ assert.equal(partialPreview.status,200,JSON.stringify(partialPreview.body));
+ assert.equal(partialPreview.body.totalSatang,293000);
+ const partialIssue=await request(moveInPath+"issue",token,{
+  method:"POST",body:JSON.stringify(moveInBody),
+  headers:{"idempotency-key":"partial-"+randomUUID()}
+ });
+ assert.equal(partialIssue.status,201,JSON.stringify(partialIssue.body));
+ ids.invoices.push(partialIssue.body.invoice.id);
+ assert.equal((await request(moveInPath+"issue",token,{
+  method:"POST",body:JSON.stringify(moveInBody),
+  headers:{"idempotency-key":"partial-duplicate-"+randomUUID()}
+ })).status,409);
+ const partialDocument=await request("/v1/properties/"+pa.id+"/invoices/"+partialIssue.body.invoice.id,token);
+ assert.equal(partialDocument.body.lines[0].snapshot.partialMode,"MOVE_IN");
+ console.log("PASS P1-03b: exact lease-start move-in proration, partial rent, utility boundaries and no double bill");
+
+
+
 
  // P2 — claimed invite must not grant invoice access until owner approval.
  const [tenantA,tenantB]=await db.insert(users).values([

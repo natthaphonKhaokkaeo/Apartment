@@ -6,6 +6,7 @@ import {OwnerInvitations} from "./components/OwnerInvitations.js";
 import {TenantPortal} from "./components/TenantPortal.js";
 import {LineOperationsAdmin} from "./components/LineOperationsAdmin.js";
 import {PropertyRateSettings} from "./components/PropertyRateSettings.js";
+import {RoomRateHistory} from "./components/RoomRateHistory.js";
 import {PaymentCenter} from "./components/PaymentCenter.js";
 import "./styles.css";
 type Organization={id:string;name:string;status:string};
@@ -25,6 +26,19 @@ const money=(n:number|undefined|null)=>"฿"+((n??0)/100).toLocaleString("th-TH"
 const satang=(s:string)=>Math.round(Number(s)*100);
 function dateNow(){return new Date(Date.now()+7*3600000).toISOString().slice(0,10);}
 const labels:Record<string,string>={
+ INVALID_MOVE_IN_PARTIAL_PERIOD:"บิลย้ายเข้ากลางรอบต้องเริ่มตรงวันเริ่มสัญญาและสิ้นสุดตรงปลายรอบบิลเท่านั้น",
+ PERIOD_OVERLAP_ALREADY_BILLED:"ช่วงวันที่เลือกทับกับใบแจ้งหนี้ที่ออกไปแล้ว",
+ ROOM_OVERRIDE_REQUIRES_EFFECTIVE_DATE:"ต้องนัดเปลี่ยนราคาโดยระบุวันเริ่มมีผลและเหตุผล",
+ ROOM_RATE_OWNER_REQUIRED:"การปรับอัตรารายห้องต้องให้ Owner ขององค์กรดำเนินการ",
+ ROOM_RATE_BACKDATE_FORBIDDEN:"ไม่รองรับการเปลี่ยนอัตรารายห้องย้อนหลัง",
+ ROOM_RATE_NOT_PERIOD_START:"วันที่มีผลต้องตรงกับวันเริ่มรอบบิล",
+ ROOM_RATE_ALREADY_SCHEDULED:"มีอัตรารายห้องที่วันมีผลนี้หรือวันหลังจากนั้นแล้ว",
+ ROOM_RATE_UNCHANGED:"อัตรารายห้องไม่เปลี่ยนจากเวอร์ชันก่อนหน้า",
+ ROOM_RATE_FUTURE_BILL_EXISTS:"มีบิลอนาคตที่ออกแล้ว ห้ามเปลี่ยนอัตราให้กระทบบิลเดิม",
+ ROOM_RATE_COMPLIANCE_REQUIRED:"ต้องผ่านการตรวจอัตราค่าน้ำไฟก่อน",
+ ROOM_RATE_ABOVE_REVIEWED_LIMIT:"ค่าน้ำหรือค่าไฟสูงกว่าเพดานที่ผ่านการตรวจสอบ",
+ ROOM_RATE_CHANGE_WITHIN_BILLING_PERIOD:"มีการเปลี่ยนอัตรารายห้องกลางรอบ ต้องแยกบิลตามรอบ",
+ ROOM_RATE_HISTORY_MISSING:"ไม่พบประวัติราคาห้อง",
  PROPERTY_RATE_OWNER_REQUIRED:"ปรับราคา Master ได้เฉพาะ OWNER ขององค์กร",
  RATE_BACKDATE_FORBIDDEN:"ไม่สามารถนัดอัตราใหม่ย้อนหลังได้",
  RATE_EFFECTIVE_DATE_NOT_PERIOD_START:"วันที่เริ่มใช้อัตราต้องตรงกับวันเริ่มรอบบิล",
@@ -123,8 +137,11 @@ function App(){
   const id=String(form.get("roomId"));const b:Record<string,number|null>={};
   for(const k of ["rent","water","electric"]){const raw=String(form.get(k)??"").trim();
     b[k+"OverrideSatang"]=raw===""?null:satang(raw);}
-  await api("/properties/"+property.id+"/rooms/"+id,{method:"PATCH",body:JSON.stringify(b)});
-  await loadProperty(property.id);notify("บันทึกราคาห้องแล้ว");
+  await post("/properties/"+property.id+"/rooms/"+id+"/rates",{
+   ...b,effectiveFrom:String(form.get("effectiveFrom")),
+   reason:String(form.get("reason")||"").trim()
+  });
+  await loadProperty(property.id);notify("บันทึกอัตราห้องตามวันที่มีผลแล้ว โดยไม่แก้ไขบิลเก่า");
  });}
  async function createLease(form:FormData){if(!property)return;await run(async()=>{
   await post("/properties/"+property.id+"/leases",{roomId:String(form.get("roomId")),
@@ -153,7 +170,10 @@ function App(){
   notify("บันทึกเลขมิเตอร์เรียบร้อย");
  });}
  async function preview(form:FormData,issue:boolean){if(!property)return;await run(async()=>{
-  const payload={roomId:String(form.get("roomId")),start:String(form.get("start")),endExclusive:String(form.get("end"))};
+  const partialMode=String(form.get("partialMode")||"");
+  const payload={roomId:String(form.get("roomId")),start:String(form.get("start")),
+   endExclusive:String(form.get("end")),
+   ...(partialMode==="MOVE_IN"?{partialMode:"MOVE_IN" as const}:{})};
   if(issue){const key=crypto.randomUUID();
    const result=await post<{invoice:Invoice}>("/properties/"+property.id+"/bills/issue",payload,{"idempotency-key":key});
    notify("ออกบิลสำเร็จ "+money(result.invoice.amountSatang));await loadProperty(property.id);
@@ -202,8 +222,14 @@ function App(){
       <Panel title="สถานะออกบิล" subtitle="ความพร้อมก่อนส่งใบแจ้งหนี้"><div className="rate-row"><span>รอบบิล</span><b>{property.cadence}</b></div><div className="rate-row"><span>การยืนยันอัตราค่าน้ำไฟ</span><span className={"pill "+(property.complianceReviewedAt?"vacant":"occupied")}>{property.complianceReviewedAt?"ตรวจแล้ว":"รออนุมัติ"}</span></div><div className="rate-row"><span>ใบแจ้งหนี้ที่ออก</span><b>{overview?.issuedInvoices??0} ใบ</b></div></Panel></div>
     </>}
     {property&&section==="rooms"&&<><Panel title="เพิ่มห้องพักใหม่" subtitle="ห้องใหม่จะใช้ราคา Master จนกว่าจะกำหนดราคาเฉพาะห้อง">{form(createRoom,<div className="cols2"><Field label="หมายเลขห้อง"><input name="number" required placeholder="A101"/></Field><Field label="ชั้น"><input name="floor" type="number" min="0" defaultValue="1" required/></Field></div>)}</Panel>
-      <Panel title="รายการห้องพัก" subtitle="เลือกแก้ไขราคา: เว้นว่างเพื่อกลับไปใช้ราคา Master"><div className="room-list">{rooms.map(r=><details className="room-detail" key={r.id}><summary><span className="room-number"><DoorOpen size={20}/>{r.number} <small>ชั้น {r.floor}</small></span><span className={"pill "+(r.status==="OCCUPIED"?"occupied":"vacant")}>{r.status==="OCCUPIED"?"มีผู้เช่า":r.status==="AVAILABLE"?"ว่าง":"ซ่อมบำรุง"}</span><ChevronDown size={17}/></summary>
-      {form(overrideRoom,<><input name="roomId" type="hidden" value={r.id}/><div className="cols3"><Field label="ค่าเช่า (บาท)"><input name="rent" type="number" min="0" step=".01" placeholder={String(property.rentSatang/100)} defaultValue={r.rentOverrideSatang===null?"":String(r.rentOverrideSatang/100)}/></Field><Field label="ค่าน้ำ (บาท)"><input name="water" type="number" min="0" step=".01" placeholder={String(property.waterSatangPerUnit/100)} defaultValue={r.waterOverrideSatang===null?"":String(r.waterOverrideSatang/100)}/></Field><Field label="ค่าไฟ (บาท)"><input name="electric" type="number" min="0" step=".01" placeholder={String(property.electricSatangPerUnit/100)} defaultValue={r.electricOverrideSatang===null?"":String(r.electricOverrideSatang/100)}/></Field></div></>)}</details>)}</div></Panel>
+      <Panel title="รายการห้องพัก" subtitle="นัดเปลี่ยนอัตรารายห้องตามวันที่เริ่มรอบบิล: เว้นว่างเพื่อสืบทอด Master"><div className="room-list">{rooms.map(r=><details className="room-detail" key={r.id}><summary><span className="room-number"><DoorOpen size={20}/>{r.number} <small>ชั้น {r.floor}</small></span><span className={"pill "+(r.status==="OCCUPIED"?"occupied":"vacant")}>{r.status==="OCCUPIED"?"มีผู้เช่า":r.status==="AVAILABLE"?"ว่าง":"ซ่อมบำรุง"}</span><ChevronDown size={17}/></summary>
+      {form(overrideRoom,<><input name="roomId" type="hidden" value={r.id}/><div className="cols3"><Field label="ค่าเช่า (บาท)"><input name="rent" type="number" min="0" step=".01" placeholder={String(property.rentSatang/100)} defaultValue={r.rentOverrideSatang===null?"":String(r.rentOverrideSatang/100)}/></Field><Field label="ค่าน้ำ (บาท)"><input name="water" type="number" min="0" step=".01" placeholder={String(property.waterSatangPerUnit/100)} defaultValue={r.waterOverrideSatang===null?"":String(r.waterOverrideSatang/100)}/></Field><Field label="ค่าไฟ (บาท)"><input name="electric" type="number" min="0" step=".01" placeholder={String(property.electricSatangPerUnit/100)} defaultValue={r.electricOverrideSatang===null?"":String(r.electricOverrideSatang/100)}/></Field></div><div className="cols3"><Field label="วันที่มีผล (วันเริ่มรอบบิล)">
+       <input name="effectiveFrom" required type="date" min={dateNow()}/>
+      </Field><Field label="เหตุผลปรับราคา">
+       <input name="reason" required minLength={12} maxLength={500}
+        placeholder="ระบุเหตุผลการเปลี่ยนอัตราห้อง"/>
+      </Field></div></>)}<RoomRateHistory propertyId={property.id}
+        roomId={r.id} api={api}/></details>)}</div></Panel>
       <Panel title="เปิดสัญญาเช่าห้อง" subtitle="เริ่มต้นผูกผู้เช่าเข้ากับห้องว่างก่อนจดมิเตอร์และออกบิล">{form(createLease,<div className="cols3"><Field label="ห้องว่าง"><select name="roomId" required>{rooms.filter(r=>r.status==="AVAILABLE").map(r=><option key={r.id} value={r.id}>{r.number}</option>)}</select></Field><Field label="ชื่อผู้เช่า"><input name="name" placeholder="ชื่อ-นามสกุล" required/></Field><Field label="วันเริ่มสัญญา"><input name="start" type="date" required defaultValue={dateNow()}/></Field></div>)}</Panel></>}
     {property&&section==="rooms"&&
       <Panel title="สิ้นสุดสัญญาและย้ายออก (Owner)"
@@ -226,7 +252,14 @@ function App(){
         </div>):<p className="hint">ไม่มีสัญญาเช่าที่กำลังใช้งาน</p>}
       </Panel>}
     {property&&section==="meter"&&<><Panel title="จดเลขมิเตอร์" subtitle="กรอกเลขมิเตอร์น้ำและไฟ พร้อมวันที่อ่านจริง เลขต้องไม่ลดลง">{form(reading,<div className="cols2"><Field label="ห้องพัก"><select name="roomId">{rooms.map(r=><option key={r.id} value={r.id}>{r.number}</option>)}</select></Field><Field label="ประเภท"><select name="kind"><option value="WATER">ค่าน้ำ</option><option value="ELECTRIC">ค่าไฟ</option></select></Field><Field label="วันที่อ่าน"><input type="date" name="day" required defaultValue={dateNow()}/></Field><Field label="เลขมิเตอร์"><input name="value" required inputMode="decimal" placeholder="1234.000"/></Field></div>)}</Panel><div className="hint"><Gauge size={19}/> จำเป็นต้องมีค่ามิเตอร์ที่วันเริ่มและวันสิ้นสุดของรอบบิลก่อนออกบิล</div></>}
-    {property&&section==="billing"&&<><Panel title="ออกใบแจ้งหนี้รายห้อง" subtitle="ทดลองคำนวณก่อน แล้วจึงกดออกบิลจริงภายหลังตรวจความถูกต้อง"><form className="form" onSubmit={e=>{e.preventDefault();void preview(new FormData(e.currentTarget),false);}}><div className="cols3"><Field label="ห้องพัก"><select name="roomId">{rooms.filter(r=>r.status==="OCCUPIED").map(r=><option key={r.id} value={r.id}>{r.number}</option>)}</select></Field><Field label="วันเริ่มรอบ"><input name="start" required type="date"/></Field><Field label="วันสิ้นสุด (ไม่รวมวันนี้)"><input name="end" required type="date"/></Field></div><div className="actions"><button className="btn outline" disabled={busy} type="submit">คำนวณยอดก่อนออกบิล</button><button className="btn primary" disabled={busy} type="button" onClick={e=>{const f=e.currentTarget.closest("form");if(f&&window.confirm("ยืนยันออกบิลจริงสำหรับห้องและรอบวันที่เลือก?"))void preview(new FormData(f),true);}}>ยืนยันออกบิล</button></div></form></Panel>
+    {property&&section==="billing"&&<><Panel title="ออกใบแจ้งหนี้รายห้อง" subtitle="ทดลองคำนวณก่อน แล้วจึงกดออกบิลจริงภายหลังตรวจความถูกต้อง"><form className="form" onSubmit={e=>{e.preventDefault();void preview(new FormData(e.currentTarget),false);}}><div className="cols3"><Field label="ห้องพัก"><select name="roomId">{rooms.filter(r=>r.status==="OCCUPIED").map(r=><option key={r.id} value={r.id}>{r.number}</option>)}</select></Field><Field label="วันเริ่มรอบ"><input name="start" required type="date"/></Field><Field label="วันสิ้นสุด (ไม่รวมวันนี้)"><input name="end" required type="date"/></Field></div><Field label="ประเภทการออกบิล">
+       <select name="partialMode" defaultValue="">
+        <option value="">รอบบิลเต็มตามปกติ</option>
+        <option value="MOVE_IN">ย้ายเข้ากลางรอบ (เริ่มตรงวันเริ่มสัญญาเท่านั้น)</option>
+       </select>
+      </Field><p className="hint">บิลย้ายเข้ากลางรอบต้องมีเลขมิเตอร์น้ำและไฟ ณ วันเริ่มสัญญาและวันสิ้นรอบบิล
+       ระบบจะคิดค่าเช่าตามจำนวนวันที่พักจริง และไม่อนุญาตให้ออกบิลซ้อนช่วงที่เรียกเก็บแล้ว</p>
+      <div className="actions"><button className="btn outline" disabled={busy} type="submit">คำนวณยอดก่อนออกบิล</button><button className="btn primary" disabled={busy} type="button" onClick={e=>{const f=e.currentTarget.closest("form");if(f&&window.confirm("ยืนยันออกบิลจริงสำหรับห้องและรอบวันที่เลือก?"))void preview(new FormData(f),true);}}>ยืนยันออกบิล</button></div></form></Panel>
       <Panel title="ใบแจ้งหนี้ที่ออกแล้ว" subtitle="จำนวนเงินเป็นยอดตั้งหนี้ — ระบบบันทึกรับชำระยังอยู่ในแผนพัฒนา"><div className="table-scroll"><table><thead><tr><th>หมายเลขห้อง</th><th>รอบบิล</th><th>ครบกำหนด</th><th>ยอดเงิน</th><th>สถานะ</th><th>PDF</th></tr></thead><tbody>{invoices.map(i=><tr key={i.id}><td><b>{rooms.find(r=>r.id===i.roomId)?.number??"-"}</b></td><td>{i.periodStart} → {i.periodEnd}</td><td>{i.dueDate}</td><td>{money(i.amountSatang)}</td><td><span className="pill occupied">{i.status}</span></td><td><a className="btn outline" href={"/v1/properties/"+property.id+"/invoices/"+i.id+"/billing-notice.pdf"} target="_blank" rel="noopener noreferrer">ดาวน์โหลด PDF</a></td></tr>)}</tbody></table>{invoices.length===0&&<p className="empty">ยังไม่มีบิล</p>}</div></Panel></>}
     {property&&section==="payments"&&<PaymentCenter key={property.id} propertyId={property.id} api={api} post={post}/>}
     {property&&section==="invites"&&<OwnerInvitations key={property.id} propertyId={property.id} api={api} post={post}/>}

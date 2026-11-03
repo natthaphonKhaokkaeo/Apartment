@@ -86,6 +86,23 @@ export const rooms = pgTable("rooms", {
   electricOverrideSatang: integer("electric_override_satang"),
   createdAt: timestamp("created_at", {withTimezone:true}).notNull().defaultNow()
 }, t => [uniqueIndex("uq_room_number").on(t.propertyId,t.number), index("idx_room_org_prop").on(t.organizationId,t.propertyId)]);
+export const roomRateVersions=pgTable("room_rate_versions",{
+ id:uuid("id").primaryKey().defaultRandom(),
+ organizationId:uuid("organization_id").notNull().references(()=>organizations.id),
+ propertyId:uuid("property_id").notNull().references(()=>properties.id),
+ roomId:uuid("room_id").notNull().references(()=>rooms.id,{onDelete:"cascade"}),
+ effectiveFrom:date("effective_from").notNull(),
+ rentOverrideSatang:integer("rent_override_satang"),
+ waterOverrideSatang:integer("water_override_satang"),
+ electricOverrideSatang:integer("electric_override_satang"),
+ reason:varchar("reason",{length:500}).notNull(),
+ createdBy:uuid("created_by").references(()=>users.id),
+ createdAt:timestamp("created_at",{withTimezone:true}).notNull().defaultNow()
+},t=>[
+ uniqueIndex("uq_room_rate_effective_date").on(t.roomId,t.effectiveFrom),
+ index("idx_room_rates_scope").on(t.organizationId,t.propertyId,t.roomId,t.effectiveFrom)
+]);
+
 export const leases = pgTable("leases", {
   id: uuid("id").primaryKey().defaultRandom(),
   organizationId: uuid("organization_id").notNull().references(() => organizations.id),

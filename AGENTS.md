@@ -41,3 +41,12 @@
   shared with billing. Preserve masterRateVersionId in each invoice line
   snapshot. Never backdate or rewrite historical rates. See
   docs/P1_PROPERTY_RATE_HISTORY.md; P1-03 room override dates remain open.
+
+- P1-03a: room_rate_versions appended for new override schedules; do not PATCH
+  room rate fields directly. Schedule full nullable values at canonical billing
+  starts, owner-only, audit, legal utility ceiling. Billing snapshots both
+  masterRateVersionId and roomRateVersionId and never rewrites issued invoices.
+- P1-03b MOVE_IN partial: allow ONLY real lease.startDate through canonical
+  billing interval end, actual water/electric meter boundary readings, prorated
+  rent, property lock and no overlapping ISSUED lease intervals. Arbitrary
+  manual partial periods, MOVE_OUT and meter replacement are not implemented.

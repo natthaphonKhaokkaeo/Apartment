@@ -102,3 +102,11 @@ for future complete billing periods. Rate history is preserved, and new bills
 snapshot the selected version without repricing old invoices. Migration 0012
 seeds existing and new property baselines. See docs/P1_PROPERTY_RATE_HISTORY.md.
 Room overrides and midcycle proration remain P1-03.
+
+## P1-03a/b Room rate history and move-in partial invoices (DEV)
+Owner Room Settings now schedule rate overrides by effective billing-cycle start;
+history and master/override snapshots are retained without repricing old bills.
+Billing now offers a guarded MOVE_IN partial invoice, calculated from actual
+lease.startDate to the canonical period end and from boundary meter readings.
+Overlapping invoices are blocked. Meter replacement and MOVE_OUT partial bills
+are not yet supported. See docs/P1_PARTIAL_BILLING_AND_ROOM_RATES.md.

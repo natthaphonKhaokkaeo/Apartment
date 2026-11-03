@@ -184,3 +184,11 @@ See docs/P1_LEASE_MOVE_OUT.md.
 - [x] 66 unit tests, PostgreSQL HTTP billing/authorization, full regression, typecheck, build, Docker DEV deployment and HTTPS smoke passed.
 - [ ] P1-03 dated room overrides, midcycle prorating/meter replacement; P7 notices, correction policy and legal signoff.
 Read docs/P1_PROPERTY_RATE_HISTORY.md.
+
+## P1-03a/b — Room tariff history and exact move-in proration (DEV)
+- [x] Room rate version history migration 0013 with existing-room backfill and new-room baseline trigger. No historical invoice recalculation.
+- [x] OWNER-only date/version/cap scheduling, historical GET, deprecated unsafe direct PATCH rates. Current room read model and owner history UI.
+- [x] Billing resolves as-of master + room rate IDs for each RENT/WATER/ELECTRIC snapshot.
+- [x] Partial MOVE_IN from lease start to billing-period end with actual boundary meters; prorated satang rent, idempotency and no interval double bill.
+- [x] Pure boundary/date tests, PostgreSQL/HTTP rate/old bill/partial issue tests, full existing regression green.
+- [ ] P1-03c meter replacement, MOVE_OUT partial final bill, deposits/credits and legal acceptance. See docs/P1_PARTIAL_BILLING_AND_ROOM_RATES.md.

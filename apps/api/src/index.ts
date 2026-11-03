@@ -3,7 +3,7 @@ import cookie from "@fastify/cookie";
 import cors from "@fastify/cors";
 import helmet from "@fastify/helmet";
 import rateLimit from "@fastify/rate-limit";
-import {and,eq,desc,gt,isNull,lte,inArray} from "drizzle-orm";
+import {and,eq,desc,gt,isNull,lte,inArray,lt} from "drizzle-orm";
 import {z,ZodError} from "zod";
 import {config} from "./config.js";
 import {db,sqlClient} from "./db/client.js";
@@ -21,8 +21,9 @@ import {registerLineConsentRoutes} from "./routes/line-consent.js";
 import {registerLineOperationsRoutes} from "./routes/line-operations.js";
 import {registerLeaseLifecycleRoutes} from "./routes/lease-lifecycle.js";
 import {registerPropertyRateRoutes} from "./routes/property-rates.js";
+import {registerRoomRateRoutes} from "./routes/room-rates.js";
 import {bangkokToday} from "./services/property-rates.js";
-import {propertyRateVersions} from "./db/schema.js";
+import {propertyRateVersions,roomRateVersions} from "./db/schema.js";
 import {queueInvoiceIssuedTx} from "./services/line-notifications.js";
 import {readingToMilli,parseDay} from "@apartment/domain";
 
@@ -171,7 +172,23 @@ app.get("/v1/properties/:propertyId/overview",async req=>{
 });
 app.get("/v1/properties/:propertyId/rooms",async req=>{
  const a=await requireActor(req),p=await requireProperty(a,params(req.params));
- return db.select().from(rooms).where(and(eq(rooms.propertyId,p.id),eq(rooms.organizationId,p.organizationId))).orderBy(rooms.number);
+ const all=await db.select().from(rooms).where(and(
+  eq(rooms.propertyId,p.id),eq(rooms.organizationId,p.organizationId)
+ )).orderBy(rooms.number);
+ if(!all.length)return all;
+ const dated=await db.select().from(roomRateVersions).where(and(
+  eq(roomRateVersions.propertyId,p.id),
+  eq(roomRateVersions.organizationId,p.organizationId),
+  inArray(roomRateVersions.roomId,all.map(r=>r.id)),
+  lte(roomRateVersions.effectiveFrom,bangkokToday())
+ )).orderBy(desc(roomRateVersions.effectiveFrom));
+ return all.map(room=>{
+  const version=dated.find(v=>v.roomId===room.id);
+  return version?{...room,
+   rentOverrideSatang:version.rentOverrideSatang,
+   waterOverrideSatang:version.waterOverrideSatang,
+   electricOverrideSatang:version.electricOverrideSatang}:room;
+ });
 });
 const override=z.object({rentOverrideSatang:satang.nullable().optional(),waterOverrideSatang:satang.nullable().optional(),electricOverrideSatang:satang.nullable().optional()});
 app.post("/v1/properties/:propertyId/rooms",async(req,reply)=>{
@@ -184,7 +201,11 @@ app.patch("/v1/properties/:propertyId/rooms/:roomId",async req=>{
  const a=await requireActor(req),p=await requireProperty(a,params(req.params),true);
  const {roomId}=take(z.object({roomId:uuid}),req.params);await getRoom(p,roomId);
  const b=take(override.extend({number:z.string().trim().min(1).max(50).optional()}).refine(v=>Object.keys(v).length>0),req.body);
- const [r]=await db.update(rooms).set(b).where(and(eq(rooms.id,roomId),eq(rooms.propertyId,p.id))).returning();
+ if(["rentOverrideSatang","waterOverrideSatang","electricOverrideSatang"]
+  .some(k=>Object.prototype.hasOwnProperty.call(b,k)))
+  throw new AppError(409,"ROOM_OVERRIDE_REQUIRES_EFFECTIVE_DATE");
+ const [r]=await db.update(rooms).set({number:b.number})
+  .where(and(eq(rooms.id,roomId),eq(rooms.propertyId,p.id))).returning();
  await audit(a,p.organizationId,"ROOM_UPDATED",r.id);return r;
 });
 app.get("/v1/properties/:propertyId/leases",async req=>{
@@ -228,7 +249,8 @@ app.post("/v1/properties/:propertyId/readings",async(req,reply)=>{
  });
  return reply.code(201).send(created);
 });
-const billing=z.object({roomId:uuid,start:day,endExclusive:day});
+const billing=z.object({roomId:uuid,start:day,endExclusive:day,
+ partialMode:z.enum(["MOVE_IN"]).optional()});
 app.post("/v1/properties/:propertyId/bills/preview",async req=>{
  const a=await requireActor(req),p=await requireProperty(a,params(req.params));
  return prepareInvoice(take(billing,req.body),p);
@@ -249,6 +271,15 @@ app.post("/v1/properties/:propertyId/bills/issue",async(req,reply)=>{
   const [duplicate]=await tx.select().from(invoices).where(and(eq(invoices.leaseId,preview.lease.id),
     eq(invoices.periodStart,b.start),eq(invoices.periodEnd,b.endExclusive)));
   if(duplicate)throw new AppError(409,"PERIOD_ALREADY_BILLED");
+  // A different invoice interval may still overlap this period. Serialize
+  // through the property lock above to avoid double charging on concurrent requests.
+  const [overlap]=await tx.select({id:invoices.id}).from(invoices)
+   .where(and(eq(invoices.leaseId,preview.lease.id),
+    eq(invoices.organizationId,p.organizationId),
+    eq(invoices.status,"ISSUED"),
+    lt(invoices.periodStart,b.endExclusive),
+    gt(invoices.periodEnd,b.start))).limit(1);
+  if(overlap)throw new AppError(409,"PERIOD_OVERLAP_ALREADY_BILLED");
   const [org]=await tx.select({name:organizations.name,status:organizations.status})
     .from(organizations).where(eq(organizations.id,locked.organizationId)).limit(1);
   if(!org||org.status!=="ACTIVE")throw new AppError(409,"ORGANIZATION_NOT_ACTIVE");
@@ -302,4 +333,5 @@ await registerLineConsentRoutes(app);
 await registerLineOperationsRoutes(app);
 await registerLeaseLifecycleRoutes(app);
 await registerPropertyRateRoutes(app);
+await registerRoomRateRoutes(app);
 await app.listen({host:config.HOST,port:config.PORT});

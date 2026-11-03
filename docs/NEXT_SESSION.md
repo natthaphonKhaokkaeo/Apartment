@@ -192,3 +192,11 @@ Domain checkpoint: https://apartme.makemarket.space now works (HTTPS trusted; we
 - Full tests PASS: 66 unit tests, real PostgreSQL rate-scope/snapshot smoke, payment/finance/LINE/S3/cleanup and frontend build.
 - Public HTTPS and /readyz=200, new rate endpoints unauthenticated 401, API/Web/Observer/Postgres healthy; backup timer active; no real LINE sends.
 - Next P1-03 partial-period invoices, historical room overrides and meter replacement; legal notices and scheduled rate correction pending.
+
+## P1-03a/b room rates and move-in partial billing (DEV)
+- Migration 0013_numerous_joseph.sql: room_rate_versions backfill and new-room trigger, legacy historical rate inferred only at migration baseline. No prior invoice modified. This is 27th public table.
+- API: routes/room-rates.ts, services/room-rates.ts; GET/POST by room, OWNER-only future canonical billing boundary, no backdate/cap exceed/future-issued invoice conflict. Existing PATCH room overrides rejected; room number still patchable.
+- Billing: services/billing.ts joins effective property and room version by periodStart; new invoice line snapshots store both version IDs. Explicit partialMode MOVE_IN accepts only actual lease.startDate to canonical period end, with real meter readings and existing compliance checks; invoice issue checks overlapping ISSUED lease periods.
+- Web: owner room dated-override scheduling, on-demand history, Billing full vs move-in-partial choice.
+- Tests: tests/room-rates.test.ts, billing-partial.test.ts and extended real PostgreSQL HTTP smoke-http.ts.
+- NOT COMPLETED: meter replacement, partial MOVE_OUT, refunds/deposits, historical room amendments and P1-04 staff. See docs/P1_PARTIAL_BILLING_AND_ROOM_RATES.md.
