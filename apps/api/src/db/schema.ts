@@ -1,7 +1,8 @@
 import {isNull} from "drizzle-orm";
 import {pgTable, pgEnum, uuid, text, timestamp, varchar, date, integer, numeric, boolean, jsonb, uniqueIndex, index} from "drizzle-orm/pg-core";
 
-export const roles = pgEnum("membership_role", ["OWNER","MANAGER"]);
+export const roles = pgEnum("membership_role", ["OWNER","MANAGER","STAFF"]);
+export const staffGrantLevel = pgEnum("property_staff_level", ["VIEWER","METER_READER"]);
 export const cadence = pgEnum("billing_cadence", ["MONTHLY","SEMI_MONTHLY","EVERY_15_DAYS"]);
 export const roomStatus = pgEnum("room_status", ["AVAILABLE","OCCUPIED","MAINTENANCE"]);
 export const meterKind = pgEnum("meter_kind", ["WATER","ELECTRIC"]);
@@ -55,6 +56,41 @@ export const properties = pgTable("properties", {
   electricAllowedMax: integer("electric_allowed_max"),
   createdAt: timestamp("created_at", {withTimezone:true}).notNull().defaultNow()
 }, t=>[index("idx_properties_org").on(t.organizationId)]);
+/** Explicit property-only authorization. A STAFF org membership alone grants NO property access. */
+export const propertyStaffGrants=pgTable("property_staff_grants",{
+ id:uuid("id").primaryKey().defaultRandom(),
+ organizationId:uuid("organization_id").notNull().references(()=>organizations.id),
+ propertyId:uuid("property_id").notNull().references(()=>properties.id),
+ userId:uuid("user_id").notNull().references(()=>users.id),
+ level:staffGrantLevel("level").notNull(),
+ status:accountStatus("status").notNull().default("ACTIVE"),
+ updatedBy:uuid("updated_by").notNull().references(()=>users.id),
+ updatedAt:timestamp("updated_at",{withTimezone:true}).notNull().defaultNow()
+},t=>[
+ uniqueIndex("uq_property_staff_user").on(t.propertyId,t.userId),
+ index("idx_property_staff_scope").on(t.organizationId,t.userId,t.status)
+]);
+
+/** A claimed invite has no effect until a separate owner approval. No plaintext tokens at rest. */
+export const staffInvitations=pgTable("staff_invitations",{
+ id:uuid("id").primaryKey().defaultRandom(),
+ organizationId:uuid("organization_id").notNull().references(()=>organizations.id),
+ propertyId:uuid("property_id").references(()=>properties.id),
+ role:roles("role").notNull(),
+ level:staffGrantLevel("level"),
+ tokenHash:text("token_hash").notNull().unique(),
+ expiresAt:timestamp("expires_at",{withTimezone:true}).notNull(),
+ createdBy:uuid("created_by").notNull().references(()=>users.id),
+ claimedBy:uuid("claimed_by").references(()=>users.id),
+ claimedAt:timestamp("claimed_at",{withTimezone:true}),
+ approvedBy:uuid("approved_by").references(()=>users.id),
+ approvedAt:timestamp("approved_at",{withTimezone:true}),
+ revokedAt:timestamp("revoked_at",{withTimezone:true}),
+ createdAt:timestamp("created_at",{withTimezone:true}).notNull().defaultNow()
+},t=>[
+ index("idx_staff_invitations_org").on(t.organizationId,t.createdAt)
+]);
+
 /** Immutable property-master tariffs. 1900-01-01 marks the legacy baseline.
  * Existing issued invoice lines remain frozen even when future rates change.
  */

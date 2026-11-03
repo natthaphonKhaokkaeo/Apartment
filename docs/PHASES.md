@@ -13,8 +13,8 @@
 
 ## Current checkpoint (live)
 
-- **Current phase:** P1-03c DEV core implementation: meter replacement with cross-meter consumption and final MOVE_OUT partial billing is complete in code/tests. Production meter certification, tenant notice and deposits remain OPEN. P1/P5 maintenance workflow and P1-04 staff authorization still pending.
-- **Immediate task:** P1-04 property-level staff permissions and org membership invite/revoke with strict multi-tenant security and tests, then P1-05 negative/boundary/concurrency/load gates. Continue P1-01b/P5 maintenance and deposits separately. Keep LINE provider off.
+- **Current phase:** P1-04 DEV property-scoped staff authorization, 24h token invite/claim/OWNER approval/revoke, dedicated OWNER staff UI and STAFF room/meter UI implemented and verified in code + real PostgreSQL/HTTP. P1-03c meter continuity and MOVE_OUT partial remain DEV complete; legal evidence/deposit acceptance OPEN.
+- **Immediate task:** P1-05 negative amount/overflow/duplicate/concurrency/load gates; then P1-01b/P5 maintenance and deposit workflows. LINE Login/LIFF sandbox and live messaging remain blocked on real provider/legal acceptance. Keep LINE outbound disabled.
 - **Last verified:** P1-03c 75 Unit Tests (11 domain + 64 API), real PostgreSQL HTTP meter swap/segmented usage/final MOVE_OUT unpaid/paid closure tests, all API/payment/finance/S3/cleanup/LINE smoke, TypeScript, React build and Compose checks PASS. Migration 0014 after SHA-256 verified DB backup, 28 tables. Git feature fc4ed64 pushed and Apartment-only DEV API/Web/Observer deployed Healthy; PostgreSQL Healthy, HTTPS / and /readyz 200 valid TLS, unauthenticated meter/final bill preview 401; LINE outbound disabled, daily backup timer active.
 
 - **Deployment:** Apartment DEV is publicly accessible at https://apartme.makemarket.space through Dokploy Traefik -> Nginx (DEV, not Production). DNS matches VPS; HTTP 301 HTTPS; HTTPS 200 with trusted certificate; API /readyz 200, unauthorized 401, valid HTTPS Origin POST 200, unsigned LINE webhook 503. Runtime WEB_ORIGIN and secure cookies configured. Separate PostgreSQL and other services unchanged. Traefik ACME storage is read-only, so automatic certificate persistence/renewal still requires maintenance.
@@ -55,7 +55,8 @@
   - [x] P1-03c.1 Meter replacement records (0014), old closing/new opening, serial continuity, owner-only audit, segment-aware reading validation and immutable invoice usage snapshots
   - [x] P1-03c.2 Strict final MOVE_OUT partial invoice; actual boundary meters/usage, prorated rent, no overlap, then separate settled-invoice lease closure
   - [ ] P1-03c.3 Legal meter evidence verification, tenant notices, deposit/refund/credit settlement and Production financial-security acceptance
-- [ ] P1-04 Property-level staff permissions, org membership invitation/revocation
+- [x] P1-04 DEV property-level STAFF grants (VIEWER/METER_READER), OWNER-only invite/claim/approve/revoke, manager-denied member management, safe staff property/room listings, auth-scope + in-TX meter grant locks, auditable flows, owner/staff React screens, 0015 migration, real PostgreSQL/HTTP replay/race/IDOR tests
+  - [ ] Real LINE Login/LIFF user acceptance, independent security/load QA and worker operational signoff (P2/P7; not Production-ready). See `docs/P1_STAFF_ACCESS.md`
 - [ ] P1-05 Negative-amount/overflow/duplicate/concurrency verification gates under load
 - **Gate:** owner cannot access another organization's property, lease, or invoice; previously issued bill never changes.
 

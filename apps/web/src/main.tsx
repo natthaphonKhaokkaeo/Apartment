@@ -9,6 +9,7 @@ import {PropertyRateSettings} from "./components/PropertyRateSettings.js";
 import {RoomRateHistory} from "./components/RoomRateHistory.js";
 import {MeterReplacementHistory} from "./components/MeterReplacementHistory.js";
 import {PaymentCenter} from "./components/PaymentCenter.js";
+import {StaffManagement,StaffInviteClaim,StaffMeterReadings} from "./components/StaffManagement.js";
 import "./styles.css";
 type Organization={id:string;name:string;status:string};
 type Property={id:string;name:string;organizationId:string;address:string;rentSatang:number;waterSatangPerUnit:number;electricSatangPerUnit:number;cadence:string;rollingAnchor:string|null;complianceReviewedAt:string|null};
@@ -16,12 +17,14 @@ type Lease={id:string;roomId:string;tenantName:string;startDate:string;
  endDate:string|null;status:string};
 type Room={id:string;number:string;floor:number;status:string;rentOverrideSatang:number|null;waterOverrideSatang:number|null;electricOverrideSatang:number|null};
 type Invoice={id:string;roomId:string;amountSatang:number;periodStart:string;periodEnd:string;dueDate:string;status:string;createdAt:string};
-type Me={id:string;name:string;role:string};
-type Section="overview"|"rooms"|"meter"|"billing"|"payments"|"invites"|"tenant"|"settings"|"admin";
+type Me={id:string;name:string;role:string;memberships?:{organizationId:string;role:"OWNER"|"MANAGER"|"STAFF"}[];
+ propertyGrants?:{propertyId:string;level:"VIEWER"|"METER_READER"}[]};
+type Section="overview"|"rooms"|"meter"|"billing"|"payments"|"invites"|"staff"|"tenant"|"settings"|"admin";
 const sections:[Section,string,React.ReactNode][]=[
  ["overview","ภาพรวม",<LayoutDashboard size={19}/>],["rooms","ห้องพัก",<DoorOpen size={19}/>],
  ["meter","จดมิเตอร์",<Gauge size={19}/>],["billing","ออกบิล",<ReceiptText size={19}/>],
- ["payments","รับชำระเงิน",<Wallet size={19}/>],["invites","เชิญผู้เช่า",<Users size={19}/>],["tenant","สำหรับผู้เช่า",<DoorOpen size={19}/>],
+ ["payments","รับชำระเงิน",<Wallet size={19}/>],["invites","เชิญผู้เช่า",<Users size={19}/>],
+ ["staff","จัดการพนักงาน",<Users size={19}/>],["tenant","สำหรับผู้เช่า",<DoorOpen size={19}/>],
  ["settings","ตั้งค่า",<Settings size={19}/>],["admin","Super Admin",<ShieldCheck size={19}/>]];
 const money=(n:number|undefined|null)=>"฿"+((n??0)/100).toLocaleString("th-TH",{minimumFractionDigits:2,maximumFractionDigits:2});
 const satang=(s:string)=>Math.round(Number(s)*100);
@@ -97,6 +100,9 @@ function App(){
  const [error,setError]=useState(""),[success,setSuccess]=useState(""),[busy,setBusy]=useState(false),[menu,setMenu]=useState(false);
  const [lineBusy,setLineBusy]=useState(false);
  const org=orgs.find(o=>o.id===orgId),property=props.find(p=>p.id===propertyId);
+ const orgRole=me?.memberships?.find(m=>m.organizationId===orgId)?.role;
+ const isStaff=orgRole==="STAFF";
+ const staffGrantLevel=me?.propertyGrants?.find(g=>g.propertyId===propertyId)?.level;
  const notify=(message:string)=>{setError("");setSuccess(message);};
  const loadMe=useCallback(async()=>{
   try{const result=await api<Me>("/me");setMe(result);return result;}catch{return null;}
@@ -104,7 +110,11 @@ function App(){
  const loadOrgs=useCallback(async()=>{const items=await api<Organization[]>("/organizations");setOrgs(items);setOrgId(v=>items.some(o=>o.id===v)?v:(items[0]?.id||""));if(items.length===0)setSection("tenant");},[]);
  const loadProps=useCallback(async(org:string)=>{const data=await api<Property[]>("/organizations/"+org+"/properties");
   setProps(data);setPropertyId(prev=>data.some(p=>p.id===prev)?prev:(data[0]?.id||""));},[]);
- const loadProperty=useCallback(async(p:string)=>{
+ const loadProperty=useCallback(async(p:string,staff=false)=>{
+  if(staff){
+   const rs=await api<Room[]>("/properties/"+p+"/rooms");
+   setRooms(rs);setInvoices([]);setOverview(null);setLeases([]);return;
+  }
   const [rs,ins,ov,ls]=await Promise.all([
     api<Room[]>("/properties/"+p+"/rooms"),
     api<Invoice[]>("/properties/"+p+"/invoices"),
@@ -115,7 +125,8 @@ function App(){
  },[]);
  useEffect(()=>{void loadMe().then(user=>{if(user)void loadOrgs();});},[loadMe,loadOrgs]);
  useEffect(()=>{if(orgId)void loadProps(orgId).catch(e=>setError(e.message));else {setProps([]);setPropertyId("");}},[orgId,loadProps]);
- useEffect(()=>{if(propertyId)void loadProperty(propertyId).catch(e=>setError(e.message));else {setRooms([]);setLeases([]);setInvoices([]);setOverview(null);}},[propertyId,loadProperty]);
+ useEffect(()=>{if(propertyId)void loadProperty(propertyId,isStaff).catch(e=>setError(e.message));else {setRooms([]);setLeases([]);setInvoices([]);setOverview(null);}},[propertyId,isStaff,loadProperty]);
+ useEffect(()=>{if(isStaff&&!["rooms","meter","tenant"].includes(section))setSection("rooms");},[isStaff,section]);
  useEffect(()=>{if(section==="admin"&&me?.role==="SUPER_ADMIN")void api<typeof admin>("/admin/overview").then(setAdmin).catch(e=>setError(e.message));},[section,me?.role]);
  async function run(task:()=>Promise<void>){setBusy(true);setError("");setSuccess("");try{await task();}catch(e){setError((e as Error).message);}finally{setBusy(false);}}
  async function login(){
@@ -218,8 +229,13 @@ function App(){
  return <div className="shell">
   {me&&<aside className={"sidebar "+(menu?"expanded":"")}><div className="brand"><div className="brand-symbol"><Building2 size={23}/></div><span>Apartment<span className="brand-dot">.</span><small>PROPERTY MANAGEMENT</small></span></div>
    <div className="nav-caption">WORKSPACE</div>
-   <nav aria-label="เมนูหลัก">{sections.filter(s=>s[0]!=="admin"||me.role==="SUPER_ADMIN").map(([id,label,icon])=><button key={id} onClick={()=>{setSection(id);setMenu(false);setError("");setSuccess("");}} className={"nav-item "+(section===id?"selected":"")}>{icon}<span>{label}</span></button>)}</nav>
-   <div className="aside-bottom"><div className="avatar">{me.name.slice(0,1).toUpperCase()}</div><div><b>{me.name}</b><small>{me.role==="SUPER_ADMIN"?"Super Admin":"เจ้าของ/ผู้จัดการ"}</small></div><button onClick={()=>void logout()} aria-label="ออกจากระบบ" className="logout"><LogOut size={18}/></button></div>
+   <nav aria-label="เมนูหลัก">{sections.filter(([id])=>{
+    if(id==="admin")return me.role==="SUPER_ADMIN";
+    if(id==="staff")return orgRole==="OWNER";
+    if(isStaff)return ["rooms","meter","tenant"].includes(id);
+    return true;
+   }).map(([id,label,icon])=><button key={id} onClick={()=>{setSection(id);setMenu(false);setError("");setSuccess("");}} className={"nav-item "+(section===id?"selected":"")}>{icon}<span>{label}</span></button>)}</nav>
+   <div className="aside-bottom"><div className="avatar">{me.name.slice(0,1).toUpperCase()}</div><div><b>{me.name}</b><small>{me.role==="SUPER_ADMIN"?"Super Admin":isStaff?"พนักงาน":orgRole==="OWNER"?"เจ้าของ":"ผู้จัดการ"}</small></div><button onClick={()=>void logout()} aria-label="ออกจากระบบ" className="logout"><LogOut size={18}/></button></div>
   </aside>}
   <div className="workspace">
    <header className="topbar"><div className="top-left">{me&&<button className="menu-btn" onClick={()=>setMenu(!menu)} aria-label="เมนู"><Menu size={23}/></button>}<div><div className="eyebrow">APARTMENT CONSOLE</div><h1>{me?(sections.find(s=>s[0]===section)?.[1]||"ภาพรวม"):"ยินดีต้อนรับ"}</h1></div></div>
@@ -232,7 +248,7 @@ function App(){
     {!me?<div className="welcome"><div className="welcome-art"><Building2 size={48}/></div><h2>หอพักของคุณ จัดการง่ายในที่เดียว</h2><p>ดูห้องพัก จดน้ำไฟ ออกบิลใน LINE OA อย่างเป็นระบบและปลอดภัย</p><button className="btn primary large" disabled={lineBusy} onClick={()=>void login()}>{lineBusy?"กำลังเชื่อมต่อ...":"เข้าสู่ระบบด้วย LINE"}</button><small>ระบบจะตรวจสอบ LINE ID Token จากฝั่งเซิร์ฟเวอร์ก่อนเข้าสู่ระบบ</small></div>:
     <>
     {orgs.length===0&&section==="overview"&&<Panel title="สร้างบัญชีเจ้าของหอพัก" subtitle="ผู้ใช้หนึ่งคนสามารถมีหลายบัญชีและหลายหอพักได้">{form(createOrg,<Field label="ชื่อบัญชีเจ้าของ"><input name="name" required minLength={2} placeholder="เช่น บริษัท บ้านรุ่งเรือง"/></Field>)}</Panel>}
-    {orgId&&props.length===0&&section!=="tenant"&&<Panel title="เพิ่มหอพักแห่งแรก" subtitle="ตั้งราคา Master ที่ทุกห้องจะได้รับโดยอัตโนมัติ">{form(createProperty,<><Field label="ชื่อหอพัก"><input name="name" required placeholder="บ้านสุขใจ"/></Field><Field label="ที่อยู่"><input name="address" placeholder="ที่อยู่หอพัก"/></Field>
+    {orgId&&props.length===0&&!isStaff&&section!=="tenant"&&<Panel title="เพิ่มหอพักแห่งแรก" subtitle="ตั้งราคา Master ที่ทุกห้องจะได้รับโดยอัตโนมัติ">{form(createProperty,<><Field label="ชื่อหอพัก"><input name="name" required placeholder="บ้านสุขใจ"/></Field><Field label="ที่อยู่"><input name="address" placeholder="ที่อยู่หอพัก"/></Field>
       <div className="cols3"><Field label="ค่าเช่า / เดือน (บาท)"><input name="rent" type="number" step=".01" min="0" required defaultValue="4000"/></Field><Field label="ค่าน้ำ / หน่วย (บาท)"><input name="water" type="number" step=".01" min="0" required defaultValue="18"/></Field><Field label="ค่าไฟ / หน่วย (บาท)"><input name="electric" type="number" step=".01" min="0" required defaultValue="4"/></Field></div>
       <Field label="รอบบิล"><select name="cadence" defaultValue="MONTHLY"><option value="MONTHLY">รายเดือน</option><option value="SEMI_MONTHLY">เดือนละ 2 รอบ</option><option value="EVERY_15_DAYS">ทุก 15 วัน (ต้องระบุ Anchor)</option></select></Field><Field label="วันที่ Anchor (เมื่อใช้ทุก 15 วัน)"><input name="anchor" type="date"/></Field></>)}</Panel>}
     {property&&section==="overview"&&<>
@@ -247,7 +263,12 @@ function App(){
       <div className="two-col"><Panel title="ค่าบริการเริ่มต้น" subtitle="ห้องพักสามารถกำหนดราคาเฉพาะของตัวเอง"><div className="rate-row"><span>ค่าเช่ารายเดือน</span><b>{money(property.rentSatang)}</b></div><div className="rate-row"><span>ค่าน้ำ / หน่วย</span><b>{money(property.waterSatangPerUnit)}</b></div><div className="rate-row"><span>ค่าไฟ / หน่วย</span><b>{money(property.electricSatangPerUnit)}</b></div></Panel>
       <Panel title="สถานะออกบิล" subtitle="ความพร้อมก่อนส่งใบแจ้งหนี้"><div className="rate-row"><span>รอบบิล</span><b>{property.cadence}</b></div><div className="rate-row"><span>การยืนยันอัตราค่าน้ำไฟ</span><span className={"pill "+(property.complianceReviewedAt?"vacant":"occupied")}>{property.complianceReviewedAt?"ตรวจแล้ว":"รออนุมัติ"}</span></div><div className="rate-row"><span>ใบแจ้งหนี้ที่ออก</span><b>{overview?.issuedInvoices??0} ใบ</b></div></Panel></div>
     </>}
-    {property&&section==="rooms"&&<><Panel title="เพิ่มห้องพักใหม่" subtitle="ห้องใหม่จะใช้ราคา Master จนกว่าจะกำหนดราคาเฉพาะห้อง">{form(createRoom,<div className="cols2"><Field label="หมายเลขห้อง"><input name="number" required placeholder="A101"/></Field><Field label="ชั้น"><input name="floor" type="number" min="0" defaultValue="1" required/></Field></div>)}</Panel>
+    {property&&section==="rooms"&&isStaff&&<Panel title="ห้องพักที่ได้รับสิทธิ์" subtitle="แสดงเฉพาะหอพักที่เจ้าของอนุญาต ไม่มีข้อมูลค่าเช่าหรือข้อมูลส่วนตัวผู้เช่า">
+      <div className="room-grid">{rooms.map(r=><div className="room-tile" key={r.id}>
+       <b>{r.number}</b><small>ชั้น {r.floor}</small><span className="pill">{r.status}</span>
+      </div>)}</div>{rooms.length===0&&<p className="empty">ยังไม่มีห้องพัก</p>}
+     </Panel>}
+    {property&&section==="rooms"&&!isStaff&&<><Panel title="เพิ่มห้องพักใหม่" subtitle="ห้องใหม่จะใช้ราคา Master จนกว่าจะกำหนดราคาเฉพาะห้อง">{form(createRoom,<div className="cols2"><Field label="หมายเลขห้อง"><input name="number" required placeholder="A101"/></Field><Field label="ชั้น"><input name="floor" type="number" min="0" defaultValue="1" required/></Field></div>)}</Panel>
       <Panel title="รายการห้องพัก" subtitle="นัดเปลี่ยนอัตรารายห้องตามวันที่เริ่มรอบบิล: เว้นว่างเพื่อสืบทอด Master"><div className="room-list">{rooms.map(r=><details className="room-detail" key={r.id}><summary><span className="room-number"><DoorOpen size={20}/>{r.number} <small>ชั้น {r.floor}</small></span><span className={"pill "+(r.status==="OCCUPIED"?"occupied":"vacant")}>{r.status==="OCCUPIED"?"มีผู้เช่า":r.status==="AVAILABLE"?"ว่าง":"ซ่อมบำรุง"}</span><ChevronDown size={17}/></summary>
       {form(overrideRoom,<><input name="roomId" type="hidden" value={r.id}/><div className="cols3"><Field label="ค่าเช่า (บาท)"><input name="rent" type="number" min="0" step=".01" placeholder={String(property.rentSatang/100)} defaultValue={r.rentOverrideSatang===null?"":String(r.rentOverrideSatang/100)}/></Field><Field label="ค่าน้ำ (บาท)"><input name="water" type="number" min="0" step=".01" placeholder={String(property.waterSatangPerUnit/100)} defaultValue={r.waterOverrideSatang===null?"":String(r.waterOverrideSatang/100)}/></Field><Field label="ค่าไฟ (บาท)"><input name="electric" type="number" min="0" step=".01" placeholder={String(property.electricSatangPerUnit/100)} defaultValue={r.electricOverrideSatang===null?"":String(r.electricOverrideSatang/100)}/></Field></div><div className="cols3"><Field label="วันที่มีผล (วันเริ่มรอบบิล)">
        <input name="effectiveFrom" required type="date" min={dateNow()}/>
@@ -257,7 +278,7 @@ function App(){
       </Field></div></>)}<RoomRateHistory propertyId={property.id}
         roomId={r.id} api={api}/></details>)}</div></Panel>
       <Panel title="เปิดสัญญาเช่าห้อง" subtitle="เริ่มต้นผูกผู้เช่าเข้ากับห้องว่างก่อนจดมิเตอร์และออกบิล">{form(createLease,<div className="cols3"><Field label="ห้องว่าง"><select name="roomId" required>{rooms.filter(r=>r.status==="AVAILABLE").map(r=><option key={r.id} value={r.id}>{r.number}</option>)}</select></Field><Field label="ชื่อผู้เช่า"><input name="name" placeholder="ชื่อ-นามสกุล" required/></Field><Field label="วันเริ่มสัญญา"><input name="start" type="date" required defaultValue={dateNow()}/></Field></div>)}</Panel></>}
-    {property&&section==="rooms"&&
+    {property&&section==="rooms"&&!isStaff&&
       <Panel title="สิ้นสุดสัญญาและย้ายออก (Owner)"
        subtitle="ต้องมีเลขมิเตอร์วันสิ้นสุด บิลรอบสุดท้าย และชำระยอดครบทุกใบก่อนคืนห้อง">
        {leases.some(l=>l.status==="ACTIVE")?
@@ -277,7 +298,7 @@ function App(){
           ระบบจะไม่ตัดยอดหนี้หรือคืนเงินให้อัตโนมัติ</p>
         </div>):<p className="hint">ไม่มีสัญญาเช่าที่กำลังใช้งาน</p>}
       </Panel>}
-    {property&&section==="meter"&&<><Panel title="จดเลขมิเตอร์" subtitle="กรอกเลขมิเตอร์น้ำและไฟ พร้อมวันที่อ่านจริง เลขต้องไม่ลดลง">{form(reading,<div className="cols2"><Field label="ห้องพัก"><select name="roomId">{rooms.map(r=><option key={r.id} value={r.id}>{r.number}</option>)}</select></Field><Field label="ประเภท"><select name="kind"><option value="WATER">ค่าน้ำ</option><option value="ELECTRIC">ค่าไฟ</option></select></Field><Field label="วันที่อ่าน"><input type="date" name="day" required defaultValue={dateNow()}/></Field><Field label="เลขมิเตอร์"><input name="value" required inputMode="decimal" placeholder="1234.000"/></Field></div>)}</Panel><Panel title="เปลี่ยนมิเตอร์น้ำ/ไฟ (Owner)"
+    {property&&section==="meter"&&<>{(!isStaff||staffGrantLevel==="METER_READER")&&<Panel title="จดเลขมิเตอร์" subtitle="กรอกเลขมิเตอร์น้ำและไฟ พร้อมวันที่อ่านจริง เลขต้องไม่ลดลง">{form(reading,<div className="cols2"><Field label="ห้องพัก"><select name="roomId">{rooms.map(r=><option key={r.id} value={r.id}>{r.number}</option>)}</select></Field><Field label="ประเภท"><select name="kind"><option value="WATER">ค่าน้ำ</option><option value="ELECTRIC">ค่าไฟ</option></select></Field><Field label="วันที่อ่าน"><input type="date" name="day" required defaultValue={dateNow()}/></Field><Field label="เลขมิเตอร์"><input name="value" required inputMode="decimal" placeholder="1234.000"/></Field></div>)}</Panel>}{!isStaff&&<Panel title="เปลี่ยนมิเตอร์น้ำ/ไฟ (Owner)"
        subtitle="บันทึกหมายเลขเครื่อง ค่าปิดเก่า ค่าเริ่มใหม่ และเลขอ้างอิงหลักฐาน">
        {form(meterSwap,<div className="cols2">
         <Field label="ห้อง"><select name="roomId">
@@ -299,9 +320,10 @@ function App(){
         <Field label="เหตุผล"><input name="reason" required minLength={12}
          maxLength={500}/></Field>
        </div>)}
-      </Panel>
-      <MeterReplacementHistory propertyId={property.id} rooms={rooms} api={api}/>
-      <div className="hint"><Gauge size={19}/> ระบบบันทึกค่าเริ่มใหม่ในวันที่เปลี่ยนโดยอัตโนมัติ และรวมหน่วยการใช้งานข้ามมิเตอร์ก่อนออกบิล ต้องมีค่าที่ต้นและปลายรอบบิลด้วย</div></>}
+      </Panel>}
+      {!isStaff&&<MeterReplacementHistory propertyId={property.id} rooms={rooms} api={api}/>}
+      {isStaff&&<StaffMeterReadings key={property.id} propertyId={property.id} rooms={rooms} api={api}/>}
+      {!isStaff&&<div className="hint"><Gauge size={19}/> ระบบบันทึกค่าเริ่มใหม่ในวันที่เปลี่ยนโดยอัตโนมัติ และรวมหน่วยการใช้งานข้ามมิเตอร์ก่อนออกบิล ต้องมีค่าที่ต้นและปลายรอบบิลด้วย</div>}</>}
     {property&&section==="billing"&&<><Panel title="ออกใบแจ้งหนี้รายห้อง" subtitle="ทดลองคำนวณก่อน แล้วจึงกดออกบิลจริงภายหลังตรวจความถูกต้อง"><form className="form" onSubmit={e=>{e.preventDefault();void preview(new FormData(e.currentTarget),false);}}><div className="cols3"><Field label="ห้องพัก"><select name="roomId">{rooms.filter(r=>r.status==="OCCUPIED").map(r=><option key={r.id} value={r.id}>{r.number}</option>)}</select></Field><Field label="วันเริ่มรอบ"><input name="start" required type="date"/></Field><Field label="วันสิ้นสุด (ไม่รวมวันนี้)"><input name="end" required type="date"/></Field></div><Field label="ประเภทการออกบิล">
        <select name="partialMode" defaultValue="">
         <option value="">รอบบิลเต็มตามปกติ</option>
@@ -314,7 +336,8 @@ function App(){
       <Panel title="ใบแจ้งหนี้ที่ออกแล้ว" subtitle="จำนวนเงินเป็นยอดตั้งหนี้ — ระบบบันทึกรับชำระยังอยู่ในแผนพัฒนา"><div className="table-scroll"><table><thead><tr><th>หมายเลขห้อง</th><th>รอบบิล</th><th>ครบกำหนด</th><th>ยอดเงิน</th><th>สถานะ</th><th>PDF</th></tr></thead><tbody>{invoices.map(i=><tr key={i.id}><td><b>{rooms.find(r=>r.id===i.roomId)?.number??"-"}</b></td><td>{i.periodStart} → {i.periodEnd}</td><td>{i.dueDate}</td><td>{money(i.amountSatang)}</td><td><span className="pill occupied">{i.status}</span></td><td><a className="btn outline" href={"/v1/properties/"+property.id+"/invoices/"+i.id+"/billing-notice.pdf"} target="_blank" rel="noopener noreferrer">ดาวน์โหลด PDF</a></td></tr>)}</tbody></table>{invoices.length===0&&<p className="empty">ยังไม่มีบิล</p>}</div></Panel></>}
     {property&&section==="payments"&&<PaymentCenter key={property.id} propertyId={property.id} api={api} post={post}/>}
     {property&&section==="invites"&&<OwnerInvitations key={property.id} propertyId={property.id} api={api} post={post}/>}
-    {section==="tenant"&&<TenantPortal api={api} post={post}/>}
+    {section==="staff"&&orgRole==="OWNER"&&<StaffManagement key={orgId} orgId={orgId} properties={props} api={api} post={post}/>}
+    {section==="tenant"&&<><StaffInviteClaim post={post}/><TenantPortal api={api} post={post}/></>}
     {property&&section==="settings"&&<PropertyRateSettings key={property.id} propertyId={property.id} cadence={property.cadence} current={property} api={api} post={post} onSaved={()=>void loadProps(orgId)}/>}
     {property&&section==="settings"&&<Panel title="ข้อมูล Master ของหอพัก" subtitle="สำหรับการตั้งค่าที่มีผลต่อการสร้างบิลใหม่เท่านั้น"><div className="rate-row"><span>ชื่อหอพัก</span><b>{property.name}</b></div><div className="rate-row"><span>ที่อยู่</span><b>{property.address||"—"}</b></div><div className="rate-row"><span>รอบออกบิล</span><b>{property.cadence}</b></div><div className="rate-row"><span>ค่าเช่า Master</span><b>{money(property.rentSatang)}</b></div><div className="rate-row"><span>ค่าน้ำ Master</span><b>{money(property.waterSatangPerUnit)}/หน่วย</b></div><div className="rate-row"><span>ค่าไฟ Master</span><b>{money(property.electricSatangPerUnit)}/หน่วย</b></div><div className="hint">การแก้ไข Master หลังสร้างเริ่มต้น จะเปิดใช้งานเมื่อเพิ่ม Pricing History แบบมีวันมีผล เพื่อป้องกันบิลย้อนหลังเปลี่ยนแปลง</div></Panel>}
     {section==="admin"&&me.role==="SUPER_ADMIN"&&<><LineOperationsAdmin organizationId={orgId} api={api} post={post}/><div className="stats"><div className="stat"><span>เจ้าของทั้งหมด</span><strong>{admin?.organizationCount??"—"}</strong></div><div className="stat"><span>หอพักทั้งหมด</span><strong>{admin?.propertyCount??"—"}</strong></div><div className="stat"><span>ห้องทั้งหมด</span><strong>{admin?.roomCount??"—"}</strong></div><div className="stat"><span>ใบแจ้งหนี้</span><strong>{admin?.invoiceCount??"—"}</strong></div></div>

@@ -51,7 +51,8 @@
   rent, property lock and no overlapping ISSUED lease intervals. Arbitrary
   manual partial periods, MOVE_OUT and meter replacement are not implemented.
 
-- P1-03c: any meter swap needs owner authorization, property→room lock,
+- P1-04 STAFF: org membership alone never authorizes any property; require active per-property grant. Staff read routes must explicitly opt in using STAFF_READ; all invoice, lease, bank and rate routes remain forbidden. METER_READER write rechecks membership + grant under org SHARE lock inside the same transaction, serialized against OWNER revoke. OWNER alone manages invitations and grants, never MANAGER/SUPER_ADMIN bypass. Avoid tokens in logs/audit. See docs/P1_STAFF_ACCESS.md.
+\n- P1-03c: any meter swap needs owner authorization, property→room lock,
   immutable event with old closing/new opening values and serial continuity.
   Insert the opening reading on replacement day; ordinary reading monotonicity
   applies only within physical meter segments. Billing sums swaps in

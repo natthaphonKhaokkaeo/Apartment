@@ -7,7 +7,7 @@ import {and,eq,desc,gt,isNull,lte,inArray,lt} from "drizzle-orm";
 import {z,ZodError} from "zod";
 import {config} from "./config.js";
 import {db,sqlClient} from "./db/client.js";
-import {users,sessions,organizations,memberships,properties,rooms,leases,meterReadings,invoices,invoiceLines,auditLogs,paymentLedger,financeAdjustmentEntries} from "./db/schema.js";
+import {users,sessions,organizations,memberships,properties,rooms,leases,meterReadings,invoices,invoiceLines,auditLogs,paymentLedger,financeAdjustmentEntries,propertyStaffGrants} from "./db/schema.js";
 import {AppError,newSessionToken,tokenHash,requireActor,requireOrg,requireProperty,requireAdmin} from "./security.js";
 import {prepareInvoice} from "./services/billing.js";
 import {registerTenantRoutes} from "./routes/tenant.js";
@@ -23,6 +23,7 @@ import {registerLeaseLifecycleRoutes} from "./routes/lease-lifecycle.js";
 import {registerPropertyRateRoutes} from "./routes/property-rates.js";
 import {registerRoomRateRoutes} from "./routes/room-rates.js";
 import {registerMeterReplacementRoutes} from "./routes/meter-replacement.js";
+import {registerStaffRoutes} from "./routes/staff.js";
 import {readingSegmentIndex} from "./services/meter-replacement.js";
 import {meterReplacements} from "./db/schema.js";
 import {bangkokToday} from "./services/property-rates.js";
@@ -89,7 +90,13 @@ app.post("/v1/auth/logout",async(req,reply)=>{
 app.get("/v1/me",async req=>{
  const a=await requireActor(req);
  const m=await db.select({organizationId:memberships.organizationId,role:memberships.role}).from(memberships).where(and(eq(memberships.userId,a.id),eq(memberships.status,"ACTIVE")));
- return {...a,memberships:m};
+ const grants=await db.select({propertyId:propertyStaffGrants.propertyId,
+  level:propertyStaffGrants.level}).from(propertyStaffGrants)
+  .innerJoin(memberships,and(eq(propertyStaffGrants.organizationId,memberships.organizationId),
+   eq(propertyStaffGrants.userId,memberships.userId))).where(and(
+  eq(propertyStaffGrants.userId,a.id),eq(propertyStaffGrants.status,"ACTIVE"),
+  eq(memberships.role,"STAFF"),eq(memberships.status,"ACTIVE")));
+ return {...a,memberships:m,propertyGrants:grants};
 });
 app.get("/v1/organizations",async req=>{
  const a=await requireActor(req);
@@ -110,8 +117,28 @@ app.post("/v1/organizations",async(req,reply)=>{
 });
 app.get("/v1/organizations/:orgId/properties",async req=>{
  const {orgId}=take(z.object({orgId:uuid}),req.params),a=await requireActor(req);
- await requireOrg(a,orgId);
- const all=await db.select().from(properties).where(eq(properties.organizationId,orgId)).orderBy(properties.name);
+ // STAFF sees only assigned properties, never the organization-wide directory.
+ let scopedIds:string[]|null=null;
+ if(a.role!=="SUPER_ADMIN"){
+  const [org]=await db.select({id:organizations.id}).from(organizations)
+   .where(and(eq(organizations.id,orgId),eq(organizations.status,"ACTIVE"))).limit(1);
+  if(!org)throw new AppError(404,"ORGANIZATION_NOT_FOUND");
+  const [member]=await db.select().from(memberships).where(and(
+   eq(memberships.organizationId,orgId),eq(memberships.userId,a.id),eq(memberships.status,"ACTIVE")
+  )).limit(1);
+  if(!member)throw new AppError(403,"ORG_ACCESS_DENIED");
+  if(member.role==="STAFF"){
+   const grants=await db.select({propertyId:propertyStaffGrants.propertyId}).from(propertyStaffGrants)
+    .where(and(eq(propertyStaffGrants.organizationId,orgId),
+     eq(propertyStaffGrants.userId,a.id),eq(propertyStaffGrants.status,"ACTIVE")));
+   scopedIds=grants.map(g=>g.propertyId);
+  }else await requireOrg(a,orgId);
+ }
+ const all=scopedIds!==null?(scopedIds.length===0?[]:await db.select().from(properties).where(and(
+  eq(properties.organizationId,orgId),inArray(properties.id,scopedIds))).orderBy(properties.name)):
+  await db.select().from(properties).where(eq(properties.organizationId,orgId)).orderBy(properties.name);
+ if(scopedIds!==null)return all.map(p=>({id:p.id,organizationId:p.organizationId,
+  name:p.name,address:p.address,cadence:p.cadence,createdAt:p.createdAt}));
  if(!all.length)return all;
  const rateRows=await db.select().from(propertyRateVersions).where(and(
   eq(propertyRateVersions.organizationId,orgId),
@@ -174,10 +201,15 @@ app.get("/v1/properties/:propertyId/overview",async req=>{
   issuedInvoices:i.length,paymentTracking:"MANUAL_OWNER_APPROVAL_NO_BANK_VERIFICATION"};
 });
 app.get("/v1/properties/:propertyId/rooms",async req=>{
- const a=await requireActor(req),p=await requireProperty(a,params(req.params));
+ const a=await requireActor(req),p=await requireProperty(a,params(req.params),"STAFF_READ");
  const all=await db.select().from(rooms).where(and(
   eq(rooms.propertyId,p.id),eq(rooms.organizationId,p.organizationId)
  )).orderBy(rooms.number);
+ const [member]=await db.select({role:memberships.role}).from(memberships).where(and(
+  eq(memberships.organizationId,p.organizationId),eq(memberships.userId,a.id),
+  eq(memberships.status,"ACTIVE"))).limit(1);
+ if(member?.role==="STAFF")return all.map(r=>({id:r.id,organizationId:r.organizationId,
+  propertyId:r.propertyId,number:r.number,floor:r.floor,status:r.status,createdAt:r.createdAt}));
  if(!all.length)return all;
  const dated=await db.select().from(roomRateVersions).where(and(
   eq(roomRateVersions.propertyId,p.id),
@@ -228,14 +260,30 @@ app.post("/v1/properties/:propertyId/leases",async(req,reply)=>{
  return reply.code(201).send(lease);
 });
 app.get("/v1/properties/:propertyId/readings",async req=>{
- const a=await requireActor(req),p=await requireProperty(a,params(req.params));
+ const a=await requireActor(req),p=await requireProperty(a,params(req.params),"STAFF_READ");
  return db.select().from(meterReadings).where(eq(meterReadings.propertyId,p.id)).orderBy(desc(meterReadings.readAt));
 });
 app.post("/v1/properties/:propertyId/readings",async(req,reply)=>{
- const a=await requireActor(req),p=await requireProperty(a,params(req.params),true);
+ const a=await requireActor(req),p=await requireProperty(a,params(req.params),"METER_READING");
  const b=take(z.object({roomId:uuid,kind:z.enum(["WATER","ELECTRIC"]),readAt:day,
    value:z.string().regex(/^\d{1,11}(\.\d{1,3})?$/)}),req.body);
  const created=await db.transaction(async tx=>{
+  // Serialize revocations with an org lock and re-check active grant inside the write transaction.
+  if(a.role!=="SUPER_ADMIN"){
+   const [activeOrg]=await tx.select({id:organizations.id}).from(organizations).where(and(
+    eq(organizations.id,p.organizationId),eq(organizations.status,"ACTIVE"))).for("share");
+   if(!activeOrg)throw new AppError(403,"ORG_ACCESS_DENIED");
+   const [activeMember]=await tx.select({role:memberships.role}).from(memberships).where(and(
+    eq(memberships.organizationId,p.organizationId),eq(memberships.userId,a.id),
+    eq(memberships.status,"ACTIVE"))).for("share");
+   if(!activeMember)throw new AppError(403,"ORG_ACCESS_DENIED");
+   if(activeMember.role==="STAFF"){
+    const [grant]=await tx.select({level:propertyStaffGrants.level}).from(propertyStaffGrants).where(and(
+     eq(propertyStaffGrants.organizationId,p.organizationId),eq(propertyStaffGrants.propertyId,p.id),
+     eq(propertyStaffGrants.userId,a.id),eq(propertyStaffGrants.status,"ACTIVE"))).for("share");
+    if(grant?.level!=="METER_READER")throw new AppError(403,"PROPERTY_ACCESS_DENIED");
+   }
+  }
   // Lock the room to serialize simultaneous inserts with different reading dates.
   const [locked]=await tx.select().from(rooms).where(and(eq(rooms.id,b.roomId),eq(rooms.propertyId,p.id),eq(rooms.organizationId,p.organizationId))).for("update");
   if(!locked)throw new AppError(404,"ROOM_NOT_FOUND");
@@ -350,4 +398,5 @@ await registerLeaseLifecycleRoutes(app);
 await registerPropertyRateRoutes(app);
 await registerRoomRateRoutes(app);
 await registerMeterReplacementRoutes(app);
+await registerStaffRoutes(app);
 await app.listen({host:config.HOST,port:config.PORT});

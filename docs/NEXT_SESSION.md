@@ -6,7 +6,7 @@
 
 Continue the Apartment LINE-first multi-tenant SaaS in `/root/Projects/Apartment`.
 
-**Start with P4-05 LINE Login/LIFF and Messaging Sandbox E2E once provider keys are set.** Without keys, continue P4-03c worker operations (manual/scheduled fail-closed, dead-letter monitoring and quotas) or P4-04d owner consent/audit UI, test-first. Never activate live messaging before real consent/privacy and provider validation.
+**Current next phase: P1-05 security/edge/load gates after P1-04 staff access.** P1-04 adds OWNER-only manager/staff invitations, property grants, safe read/write scopes and owner/staff React UI (migration 0015, real PostgreSQL smoke). See `docs/P1_STAFF_ACCESS.md`. Then P1-01b/P5 maintenance/deposit workflows. P4-05 real LINE Login/LIFF and Messaging Sandbox E2E still require provider credentials and acceptance; never activate live messaging without real consent/privacy/provider verification.
 
 **P3-02b.6 DEV code completed:** manual dry-run-first cleanup with Legal Hold, EXPIRED retry state and no Payment Claim deletion; optional fail-closed ClamAV TCP INSTREAM adapter. Production gating, actual scanner, lifecycle, admin retention and scheduler are still NOT done. Read docs/P3_EVIDENCE_RETENTION_MALWARE.md.
 
@@ -19,6 +19,11 @@ P3-02b Signed S3 upload code is implemented for DEV and passes `smoke:s3` using 
 **Do not assume that a manually approved slip proves receipt of money.** Ledger postings are manually reviewed only; invoice status remains ISSUED. Do not send real bank transactions or auto-mark PAID.
 
 
+
+## P1-04 latest implementation (read before continuing)
+- Source: `apps/api/src/routes/staff.ts`, `apps/api/src/services/staff-permissions.ts`, `apps/api/src/security.ts`, `apps/api/drizzle/0015_bright_loki.sql` and owner/STAFF UI `apps/web/src/components/StaffManagement.tsx`.
+- Test: `corepack pnpm --filter @apartment/api smoke:staff` (real PostgreSQL & HTTP), unit + typecheck + web build and all existing smoke suites. Never grant STAFF the generic `requireProperty` read access; property read must explicitly opt in through `STAFF_READ`.
+- Owner must confirm recipient identity before approval. Live LINE provider remains OFF and Production unavailable until real E2E and security/legal acceptance. See `docs/P1_STAFF_ACCESS.md`.
 
 ## First commands
 
