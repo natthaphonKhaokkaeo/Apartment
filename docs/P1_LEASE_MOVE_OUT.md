@@ -34,3 +34,6 @@ Repeating a move-out returns 409. A new lease can be created when the room is AV
 - This P1-01a flow has no database migration; lease status and endDate already exist. Do not run irreversible move-out against real occupants while still in DEV.
 
 Remaining P1-01b/P5: maintenance ticket/room refurbishment, move-out disputes, security deposits, partial-period bills, final notice, tenant access to past records, concurrency/load/security UAT.
+
+## Actual DEV deployment verification
+Code commit f94e6a4 deployed to existing Dokploy Apartment DEV Compose. API/Web/Observer and PostgreSQL Healthy; HTTPS and readiness 200 with trusted TLS, unauthenticated move-out POST 401. LINE outbound remains disabled. All 64 unit tests and existing smoke suites passed. This is not authorization to close any real tenant's contract without human settlement and handover checks.

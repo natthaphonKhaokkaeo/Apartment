@@ -169,3 +169,9 @@ See docs/P4_LINE_QUOTAS_ALERTS.md.
 - [x] Unit date policy + HTTP/PostgreSQL IDOR/settlement/duplicate/reuse smoke.
 - [ ] P1-01b maintenance ticket and tenant-history/deposit/partial period support. Not full P1 completion.
 See docs/P1_LEASE_MOVE_OUT.md.
+
+### P1-01a DEV rollout verification
+- [x] Commit f94e6a4 pushed; Apartment-only API/Web/LINE observer rebuilt/deployed Healthy, PostgreSQL Healthy.
+- [x] Public HTTPS/readyz 200, unauthed move-out POST 401, LINE outbound disabled; daily backup timer active.
+- [x] Full regression and 64 unit tests, real DB move-out permissions/settlement/replay/room reuse passed.
+- [ ] P1-01b repair/deposit, midcycle bill, former-tenant history and production safety still pending.

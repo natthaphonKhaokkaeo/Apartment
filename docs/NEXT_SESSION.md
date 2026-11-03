@@ -177,3 +177,9 @@ Domain checkpoint: https://apartme.makemarket.space now works (HTTPS trusted; we
 - Success: ENDED lease/endDate, room AVAILABLE or MAINTENANCE, revoke invitations, LINE consents and queued/retry/sending Outbox; audit. No existing invoice or ledger mutated.
 - Test: apps/api/tests/lease-lifecycle.test.ts and extended apps/api/scripts/smoke-line-consent.ts with owner/manager/IDOR, pending/unsettled, retry, LINE revoke and room reuse.
 - No DB migration needed. P1-01b maintenance repair/deposit, P1-02 effective-dated rates and P1-03 midcycle invoices, former-tenant history remain pending. Read docs/P1_LEASE_MOVE_OUT.md.
+
+## P1-01a deployed DEV validation
+- Feature commit f94e6a4 pushed. Existing Dokploy Apartment DEV API/Web/Observer rebuilt and Healthy, PostgreSQL Healthy and backup timer active.
+- Public HTTPS/readyz 200 with valid TLS; unauthorized move-out POST 401; LINE observer outbound disabled.
+- 64 unit tests (11 domain, 53 API), full payments/finance/S3/LINE/cleanup HTTP and PostgreSQL smoke, TypeScript, Vite and Compose checks passed.
+- No migration. P1-01b repair, deposits, midcycle and former-tenant history still pending. Continue P1-02 rate history and P1-03 prorating next.
