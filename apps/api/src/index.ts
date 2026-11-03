@@ -22,6 +22,9 @@ import {registerLineOperationsRoutes} from "./routes/line-operations.js";
 import {registerLeaseLifecycleRoutes} from "./routes/lease-lifecycle.js";
 import {registerPropertyRateRoutes} from "./routes/property-rates.js";
 import {registerRoomRateRoutes} from "./routes/room-rates.js";
+import {registerMeterReplacementRoutes} from "./routes/meter-replacement.js";
+import {readingSegmentIndex} from "./services/meter-replacement.js";
+import {meterReplacements} from "./db/schema.js";
 import {bangkokToday} from "./services/property-rates.js";
 import {propertyRateVersions,roomRateVersions} from "./db/schema.js";
 import {queueInvoiceIssuedTx} from "./services/line-notifications.js";
@@ -237,11 +240,23 @@ app.post("/v1/properties/:propertyId/readings",async(req,reply)=>{
   const [locked]=await tx.select().from(rooms).where(and(eq(rooms.id,b.roomId),eq(rooms.propertyId,p.id),eq(rooms.organizationId,p.organizationId))).for("update");
   if(!locked)throw new AppError(404,"ROOM_NOT_FOUND");
   const milli=readingToMilli(b.value);
-  const past=await tx.select().from(meterReadings).where(and(eq(meterReadings.roomId,b.roomId),eq(meterReadings.kind,b.kind)));
+  const past=await tx.select().from(meterReadings).where(and(
+   eq(meterReadings.roomId,b.roomId),eq(meterReadings.kind,b.kind)));
+  const swaps=await tx.select().from(meterReplacements).where(and(
+   eq(meterReplacements.roomId,b.roomId),eq(meterReplacements.kind,b.kind)
+  )).orderBy(meterReplacements.replacedAt);
+  const segment=readingSegmentIndex(b.readAt,swaps);
+  const previousSwap=swaps[segment-1],followingSwap=swaps[segment];
+  if(previousSwap&&milli<readingToMilli(previousSwap.newOpeningValue))
+   throw new AppError(422,"NON_MONOTONIC_READING");
+  if(followingSwap&&milli>readingToMilli(followingSwap.oldClosingValue))
+   throw new AppError(422,"NON_MONOTONIC_READING");
   for(const r of past){
    if(r.readAt===b.readAt)throw new AppError(409,"DUPLICATE_READING");
+   if(readingSegmentIndex(r.readAt,swaps)!==segment)continue;
    const old=readingToMilli(r.value);
-   if((r.readAt<b.readAt&&old>milli)||(r.readAt>b.readAt&&old<milli))throw new AppError(422,"NON_MONOTONIC_READING");
+   if((r.readAt<b.readAt&&old>milli)||(r.readAt>b.readAt&&old<milli))
+    throw new AppError(422,"NON_MONOTONIC_READING");
   }
   const [r]=await tx.insert(meterReadings).values({...b,organizationId:p.organizationId,propertyId:p.id,createdBy:a.id}).returning();
   await tx.insert(auditLogs).values({actorId:a.id,organizationId:p.organizationId,action:"READING_CREATED",targetId:r.id,metadata:{kind:b.kind,readAt:b.readAt}});
@@ -250,7 +265,7 @@ app.post("/v1/properties/:propertyId/readings",async(req,reply)=>{
  return reply.code(201).send(created);
 });
 const billing=z.object({roomId:uuid,start:day,endExclusive:day,
- partialMode:z.enum(["MOVE_IN"]).optional()});
+ partialMode:z.enum(["MOVE_IN","MOVE_OUT"]).optional()});
 app.post("/v1/properties/:propertyId/bills/preview",async req=>{
  const a=await requireActor(req),p=await requireProperty(a,params(req.params));
  return prepareInvoice(take(billing,req.body),p);
@@ -334,4 +349,5 @@ await registerLineOperationsRoutes(app);
 await registerLeaseLifecycleRoutes(app);
 await registerPropertyRateRoutes(app);
 await registerRoomRateRoutes(app);
+await registerMeterReplacementRoutes(app);
 await app.listen({host:config.HOST,port:config.PORT});

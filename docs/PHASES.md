@@ -13,9 +13,9 @@
 
 ## Current checkpoint (live)
 
-- **Current phase:** P1-03a dated room tariffs and P1-03b strict move-in-partial invoices implemented in DEV; P1-03 remains PARTIAL pending meter replacement and move-out proration. Prior P1-02 and P1-01a remain DEV-only.
-- **Immediate task:** P1-03c meter replacement events with old/new reading continuity and audit; safe MOVE_OUT partial/final invoice policy integrated with lease closure. Then P1-04 owner/staff access and P1-05 load verification.
-- **Last verified:** P1-03a/b 70/70 Unit Tests (11 domain + 59 API), full PostgreSQL HTTP/payment/finance/LINE/S3/cleanup regression, TypeScript, Vite and Compose checks PASS; verified pre-migration backup, migration 0013 applied (27 tables). Feature commit ccbd4fb pushed and Apartment-only DEV API/Web/line-observer deployed Healthy, PostgreSQL Healthy; HTTPS/readyz 200 trusted TLS, unauthenticated room-rate/partial-preview endpoints 401, LINE outbound disabled, daily backup timer active.
+- **Current phase:** P1-03c DEV core implementation: meter replacement with cross-meter consumption and final MOVE_OUT partial billing is complete in code/tests. Production meter certification, tenant notice and deposits remain OPEN. P1/P5 maintenance workflow and P1-04 staff authorization still pending.
+- **Immediate task:** P1-04 property-level staff permissions and org membership invite/revoke with strict multi-tenant security and tests, then P1-05 negative/boundary/concurrency/load gates. Continue P1-01b/P5 maintenance and deposits separately. Keep LINE provider off.
+- **Last verified:** P1-03c PostgreSQL HTTP/finance meter replacement and paid final move-out tests plus unit boundary/segment tests PASS; schema migration 0014 applied after checksum-verified live backup (28 tables). Full regression, commit, deploy and public runtime health verification to be completed before release signoff.
 
 - **Deployment:** Apartment DEV is publicly accessible at https://apartme.makemarket.space through Dokploy Traefik -> Nginx (DEV, not Production). DNS matches VPS; HTTP 301 HTTPS; HTTPS 200 with trusted certificate; API /readyz 200, unauthorized 401, valid HTTPS Origin POST 200, unsigned LINE webhook 503. Runtime WEB_ORIGIN and secure cookies configured. Separate PostgreSQL and other services unchanged. Traefik ACME storage is read-only, so automatic certificate persistence/renewal still requires maintenance.
 - **Git:** Preserve user files, check `git status --short` before edits; commit with evidence; no push or production deploy without explicit instruction. Last completed commit: see `git log -1 --oneline`.
@@ -52,7 +52,9 @@
 - [ ] P1-03 Active-rate validity for partial leases, mid-cycle adjustments, meter replacement (PARTIAL — DEV)
   - [x] P1-03a Effective-dated room override versions (migration 0013), owner-only full-period schedule, room/current read models, historical billing snapshots and audit
   - [x] P1-03b Explicit MOVE_IN partial billing from actual lease start to canonical period end, prorated rent with real boundary meters, overlap/idempotency guards and UI
-  - [ ] P1-03c Mid-cycle MOVE_OUT final invoice, meter replacement with continuity/serial evidence, deposit/credit policy and external legal acceptance
+  - [x] P1-03c.1 Meter replacement records (0014), old closing/new opening, serial continuity, owner-only audit, segment-aware reading validation and immutable invoice usage snapshots
+  - [x] P1-03c.2 Strict final MOVE_OUT partial invoice; actual boundary meters/usage, prorated rent, no overlap, then separate settled-invoice lease closure
+  - [ ] P1-03c.3 Legal meter evidence verification, tenant notices, deposit/refund/credit settlement and Production financial-security acceptance
 - [ ] P1-04 Property-level staff permissions, org membership invitation/revocation
 - [ ] P1-05 Negative-amount/overflow/duplicate/concurrency verification gates under load
 - **Gate:** owner cannot access another organization's property, lease, or invoice; previously issued bill never changes.

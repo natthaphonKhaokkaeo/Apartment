@@ -8,6 +8,7 @@ import {db,sqlClient} from "../src/db/client.js";
 import {users,sessions,organizations,memberships,properties,rooms,leases,meterReadings,invoices,invoiceLines,auditLogs,leaseInvitations,paymentClaims,paymentLedger,paymentInstructions} from "../src/db/schema.js";
 import {newSessionToken,tokenHash} from "../src/security.js";
 import {bangkokToday} from "../src/services/property-rates.js";
+import {meterReplacements} from "../src/db/schema.js";
 import {deletePrivateEvidence} from "../src/services/evidence.js";
 
 const ids:{users:string[];sessions:string[];orgs:string[];props:string[];rooms:string[];leases:string[];readings:string[];invoices:string[];claims:string[]}={
@@ -213,6 +214,121 @@ async function main(){
  const partialDocument=await request("/v1/properties/"+pa.id+"/invoices/"+partialIssue.body.invoice.id,token);
  assert.equal(partialDocument.body.lines[0].snapshot.partialMode,"MOVE_IN");
  console.log("PASS P1-03b: exact lease-start move-in proration, partial rent, utility boundaries and no double bill");
+ const [swapRoom]=await db.insert(rooms).values({
+  organizationId:oa.id,propertyId:pa.id,number:"P103C",status:"OCCUPIED"
+ }).returning();ids.rooms.push(swapRoom.id);
+ const [swapLease]=await db.insert(leases).values({
+  organizationId:oa.id,propertyId:pa.id,roomId:swapRoom.id,
+  tenantName:"Meter Swap Fixture",startDate:"2026-11-01"
+ }).returning();ids.leases.push(swapLease.id);
+ const meterInitial=await db.insert(meterReadings).values([
+  {organizationId:oa.id,propertyId:pa.id,roomId:swapRoom.id,kind:"WATER",
+   readAt:"2026-11-01",value:"100.000",createdBy:u.id},
+  {organizationId:oa.id,propertyId:pa.id,roomId:swapRoom.id,kind:"ELECTRIC",
+   readAt:"2026-11-01",value:"200.000",createdBy:u.id}
+ ]).returning();ids.readings.push(...meterInitial.map(x=>x.id));
+ const swapPath="/v1/properties/"+pa.id+"/rooms/"+swapRoom.id+"/meter-replacements";
+ const swapInfo={roomId:swapRoom.id,kind:"WATER",
+  replacedAt:"2026-11-02",oldSerial:"WATER-OLD-001",newSerial:"WATER-NEW-002",
+  oldClosingValue:"125.000",newOpeningValue:"3.000",
+  evidenceRef:"DEV_TEST_PHOTO_REF_"+tag,
+  reason:"Damaged meter replaced with handover readings"};
+ assert.equal((await request(swapPath,rateManagerToken,{
+  method:"POST",body:JSON.stringify(swapInfo)
+ })).status,403);
+ assert.equal((await request(swapPath,token,{
+  method:"POST",body:JSON.stringify({...swapInfo,oldClosingValue:"99.000"})
+ })).status,422);
+ const changed=await request(swapPath,token,{
+  method:"POST",body:JSON.stringify(swapInfo)
+ });
+ assert.equal(changed.status,201,JSON.stringify(changed.body));
+ ids.readings.push(changed.body.openingReading.id);
+ assert.equal((await request(swapPath,token,{
+  method:"POST",body:JSON.stringify(swapInfo)
+ })).status,409);
+ const readingPath="/v1/properties/"+pa.id+"/readings";
+ const newReading=await request(readingPath,token,{
+  method:"POST",body:JSON.stringify({roomId:swapRoom.id,
+   kind:"WATER",readAt:"2026-11-03",value:"4.000"})
+ });
+ assert.equal(newReading.status,201,JSON.stringify(newReading.body));
+ ids.readings.push(newReading.body.id);
+ const newLast=await db.insert(meterReadings).values([
+  {organizationId:oa.id,propertyId:pa.id,roomId:swapRoom.id,kind:"WATER",
+   readAt:"2026-12-01",value:"8.000",createdBy:u.id},
+  {organizationId:oa.id,propertyId:pa.id,roomId:swapRoom.id,kind:"ELECTRIC",
+   readAt:"2026-12-01",value:"210.000",createdBy:u.id}
+ ]).returning();ids.readings.push(...newLast.map(x=>x.id));
+ const swapPreview=await request("/v1/properties/"+pa.id+"/bills/preview",token,{
+  method:"POST",body:JSON.stringify({roomId:swapRoom.id,
+   start:"2026-11-01",endExclusive:"2026-12-01"})
+ });
+ assert.equal(swapPreview.status,200,JSON.stringify(swapPreview.body));
+ const waterLine=swapPreview.body.lines.find((l:any)=>l.type==="WATER");
+ assert.equal(waterLine.unitsMilli,30000);
+ assert.deepEqual(waterLine.snapshot.meterReplacementIds,[changed.body.replacement.id]);
+ assert.equal(waterLine.amountSatang,54000);
+ assert.equal((await request("/v1/properties/"+pb.id+"/rooms/"+swapRoom.id+"/meter-replacements",token)).status,403);
+ console.log("PASS P1-03c meter swap: owner-only, closing/opening readings, actual 30 unit billing and immutable replacement evidence");
+ // Final move-out invoice spans Nov 1 -> physical Nov 3 handover only.
+ const electricityAtExit=await request(readingPath,token,{
+  method:"POST",body:JSON.stringify({roomId:swapRoom.id,
+   kind:"ELECTRIC",readAt:"2026-11-03",value:"202.000"})
+ });
+ assert.equal(electricityAtExit.status,201,JSON.stringify(electricityAtExit.body));
+ ids.readings.push(electricityAtExit.body.id);
+ const finalBody={roomId:swapRoom.id,start:"2026-11-01",
+  endExclusive:"2026-11-03",partialMode:"MOVE_OUT"};
+ assert.equal((await request("/v1/properties/"+pa.id+"/bills/preview",token,{
+  method:"POST",body:JSON.stringify({...finalBody,endExclusive:"2026-11-05"})
+ })).status,422);
+ const finalPreview=await request("/v1/properties/"+pa.id+"/bills/preview",token,{
+  method:"POST",body:JSON.stringify(finalBody)
+ });
+ assert.equal(finalPreview.status,200,JSON.stringify(finalPreview.body));
+ assert.equal(finalPreview.body.lines.find((l:any)=>l.type==="WATER").unitsMilli,26000);
+ assert.equal(finalPreview.body.lines[0].snapshot.partialMode,"MOVE_OUT");
+ const finalIssue=await request("/v1/properties/"+pa.id+"/bills/issue",token,{
+  method:"POST",body:JSON.stringify(finalBody),
+  headers:{"idempotency-key":"final-moveout-"+randomUUID()}
+ });
+ assert.equal(finalIssue.status,201,JSON.stringify(finalIssue.body));
+ ids.invoices.push(finalIssue.body.invoice.id);
+ const exitPath="/v1/properties/"+pa.id+"/leases/"+swapLease.id+"/move-out";
+ const exitBody={endExclusive:"2026-11-03",
+  roomDisposition:"MAINTENANCE",confirmedHandover:true};
+ const unpaidExit=await request(exitPath,token,{
+  method:"POST",body:JSON.stringify(exitBody)
+ });
+ assert.equal(unpaidExit.status,409,JSON.stringify(unpaidExit.body));
+ assert.equal(unpaidExit.body.error,"MOVE_OUT_UNSETTLED_INVOICES");
+ const [paidClaim]=await db.insert(paymentClaims).values({
+  organizationId:oa.id,propertyId:pa.id,invoiceId:finalIssue.body.invoice.id,
+  leaseId:swapLease.id,submittedBy:u.id,
+  amountSatang:finalIssue.body.invoice.amountSatang,
+  paidAt:new Date(),transferReference:"FINAL-P103C-"+tag,
+  evidenceKey:randomUUID(),evidenceSha256:"e".repeat(64),
+  idempotencyKey:"p103c-payment-"+randomUUID(),status:"APPROVED"
+ }).returning();
+ ids.claims.push(paidClaim.id);
+ await db.insert(paymentLedger).values({
+  organizationId:oa.id,propertyId:pa.id,invoiceId:finalIssue.body.invoice.id,
+  claimId:paidClaim.id,amountSatang:finalIssue.body.invoice.amountSatang,
+  createdBy:u.id
+ });
+ const closed=await request(exitPath,token,{
+  method:"POST",body:JSON.stringify(exitBody)
+ });
+ assert.equal(closed.status,200,JSON.stringify(closed.body));
+ assert.equal(closed.body.status,"ENDED");
+ assert.equal(closed.body.roomStatus,"MAINTENANCE");
+ assert.equal((await request(exitPath,token,{
+  method:"POST",body:JSON.stringify(exitBody)
+ })).status,409);
+ console.log("PASS P1-03c final bill: partial MOVE_OUT, swapped meter continuity, unpaid closure denied, settled lease ends and room maintenance");
+
+
 
 
 
@@ -422,7 +538,7 @@ async function main(){
  assert.equal(summary.body.manuallyApprovedSatang,413000);
  assert.equal(summary.body.settlementState,"FULLY_RECORDED");
  const list=await request("/v1/properties/"+pa.id+"/payment-claims",token);
- assert.equal(list.status,200);assert.equal(list.body.length,3);
+ assert.equal(list.status,200);assert.equal(list.body.filter((c:any)=>c.invoiceId===issue.body.invoice.id).length,3);
  assert.equal((await request("/v1/properties/"+pb.id+"/payment-claims",token)).status,403);
  const savedInvoice=await request("/v1/properties/"+pa.id+"/invoices/"+issue.body.invoice.id,token);
  assert.equal(savedInvoice.body.status,"ISSUED");
@@ -499,6 +615,7 @@ finally{
  for(const id of ids.readings)await db.delete(meterReadings).where(eq(meterReadings.id,id));
  for(const id of ids.leases)await db.delete(leaseInvitations).where(eq(leaseInvitations.leaseId,id));
  for(const id of ids.leases)await db.delete(leases).where(eq(leases.id,id));
+ for(const id of ids.rooms)await db.delete(meterReplacements).where(eq(meterReplacements.roomId,id));
  for(const id of ids.rooms)await db.delete(rooms).where(eq(rooms.id,id));
  for(const id of ids.props)await db.delete(properties).where(eq(properties.id,id));
  for(const id of ids.orgs)await db.delete(memberships).where(eq(memberships.organizationId,id));

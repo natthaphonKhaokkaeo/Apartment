@@ -7,6 +7,7 @@ import {TenantPortal} from "./components/TenantPortal.js";
 import {LineOperationsAdmin} from "./components/LineOperationsAdmin.js";
 import {PropertyRateSettings} from "./components/PropertyRateSettings.js";
 import {RoomRateHistory} from "./components/RoomRateHistory.js";
+import {MeterReplacementHistory} from "./components/MeterReplacementHistory.js";
 import {PaymentCenter} from "./components/PaymentCenter.js";
 import "./styles.css";
 type Organization={id:string;name:string;status:string};
@@ -26,6 +27,15 @@ const money=(n:number|undefined|null)=>"฿"+((n??0)/100).toLocaleString("th-TH"
 const satang=(s:string)=>Math.round(Number(s)*100);
 function dateNow(){return new Date(Date.now()+7*3600000).toISOString().slice(0,10);}
 const labels:Record<string,string>={
+ INVALID_MOVE_OUT_PARTIAL_PERIOD:"บิลย้ายออกกลางรอบต้องเริ่มต้นรอบหรือวันเริ่มสัญญา และสิ้นสุดไม่เกินวันนี้",
+ METER_REPLACEMENT_OWNER_REQUIRED:"เปลี่ยนมิเตอร์ได้เฉพาะ Owner ขององค์กร",
+ METER_REPLACEMENT_CONFLICTS_WITH_READING:"มีเลขอ่านวันที่เท่ากันหรือใหม่กว่าวันเปลี่ยนมิเตอร์",
+ METER_OLD_CLOSING_BELOW_LAST_READING:"เลขปิดมิเตอร์เก่าต้องไม่น้อยกว่าเลขอ่านล่าสุด",
+ METER_SERIAL_CHAIN_INVALID:"หมายเลขมิเตอร์ไม่ต่อเนื่อง หรือวันเปลี่ยนซ้ำกับประวัติ",
+ METER_SERIAL_UNCHANGED:"มิเตอร์เก่าและใหม่ต้องมีหมายเลขต่างกัน",
+ METER_REPLACEMENT_FUTURE_DATE:"ไม่อนุญาตบันทึกเหตุการณ์เปลี่ยนมิเตอร์ในอนาคต",
+ METER_REPLACEMENT_AFTER_INVOICE_ISSUED:"มีใบแจ้งหนี้ที่ออกครอบคลุมช่วงนี้แล้ว",
+ METER_REPLACEMENT_INCONSISTENT:"ค่าการใช้มิเตอร์ไม่สอดคล้องกับข้อมูลเปลี่ยนมิเตอร์",
  INVALID_MOVE_IN_PARTIAL_PERIOD:"บิลย้ายเข้ากลางรอบต้องเริ่มตรงวันเริ่มสัญญาและสิ้นสุดตรงปลายรอบบิลเท่านั้น",
  PERIOD_OVERLAP_ALREADY_BILLED:"ช่วงวันที่เลือกทับกับใบแจ้งหนี้ที่ออกไปแล้ว",
  ROOM_OVERRIDE_REQUIRES_EFFECTIVE_DATE:"ต้องนัดเปลี่ยนราคาโดยระบุวันเริ่มมีผลและเหตุผล",
@@ -169,11 +179,27 @@ function App(){
    readAt:String(form.get("day")),value:String(form.get("value"))});
   notify("บันทึกเลขมิเตอร์เรียบร้อย");
  });}
+ async function meterSwap(form:FormData){
+  if(!property)return;
+  if(!window.confirm("ยืนยันเปลี่ยนมิเตอร์จริง? ระบบจะเก็บค่าปิดมิเตอร์เก่าและค่าเปิดมิเตอร์ใหม่เป็นประวัติถาวร"))return;
+  await run(async()=>{
+   const roomId=String(form.get("roomId"));
+   await post("/properties/"+property.id+"/rooms/"+roomId+"/meter-replacements",{
+    roomId,kind:String(form.get("kind")),replacedAt:String(form.get("replacedAt")),
+    oldSerial:String(form.get("oldSerial")),newSerial:String(form.get("newSerial")),
+    oldClosingValue:String(form.get("oldClosingValue")),
+    newOpeningValue:String(form.get("newOpeningValue")),
+    evidenceRef:String(form.get("evidenceRef")),reason:String(form.get("reason"))
+   });
+   notify("บันทึกการเปลี่ยนมิเตอร์พร้อมค่าปิดเก่า/ค่าเริ่มใหม่แล้ว");
+  });
+ }
  async function preview(form:FormData,issue:boolean){if(!property)return;await run(async()=>{
   const partialMode=String(form.get("partialMode")||"");
   const payload={roomId:String(form.get("roomId")),start:String(form.get("start")),
    endExclusive:String(form.get("end")),
-   ...(partialMode==="MOVE_IN"?{partialMode:"MOVE_IN" as const}:{})};
+   ...(partialMode==="MOVE_IN"||partialMode==="MOVE_OUT"?
+    {partialMode:partialMode as "MOVE_IN"|"MOVE_OUT"}:{})};
   if(issue){const key=crypto.randomUUID();
    const result=await post<{invoice:Invoice}>("/properties/"+property.id+"/bills/issue",payload,{"idempotency-key":key});
    notify("ออกบิลสำเร็จ "+money(result.invoice.amountSatang));await loadProperty(property.id);
@@ -251,14 +277,39 @@ function App(){
           ระบบจะไม่ตัดยอดหนี้หรือคืนเงินให้อัตโนมัติ</p>
         </div>):<p className="hint">ไม่มีสัญญาเช่าที่กำลังใช้งาน</p>}
       </Panel>}
-    {property&&section==="meter"&&<><Panel title="จดเลขมิเตอร์" subtitle="กรอกเลขมิเตอร์น้ำและไฟ พร้อมวันที่อ่านจริง เลขต้องไม่ลดลง">{form(reading,<div className="cols2"><Field label="ห้องพัก"><select name="roomId">{rooms.map(r=><option key={r.id} value={r.id}>{r.number}</option>)}</select></Field><Field label="ประเภท"><select name="kind"><option value="WATER">ค่าน้ำ</option><option value="ELECTRIC">ค่าไฟ</option></select></Field><Field label="วันที่อ่าน"><input type="date" name="day" required defaultValue={dateNow()}/></Field><Field label="เลขมิเตอร์"><input name="value" required inputMode="decimal" placeholder="1234.000"/></Field></div>)}</Panel><div className="hint"><Gauge size={19}/> จำเป็นต้องมีค่ามิเตอร์ที่วันเริ่มและวันสิ้นสุดของรอบบิลก่อนออกบิล</div></>}
+    {property&&section==="meter"&&<><Panel title="จดเลขมิเตอร์" subtitle="กรอกเลขมิเตอร์น้ำและไฟ พร้อมวันที่อ่านจริง เลขต้องไม่ลดลง">{form(reading,<div className="cols2"><Field label="ห้องพัก"><select name="roomId">{rooms.map(r=><option key={r.id} value={r.id}>{r.number}</option>)}</select></Field><Field label="ประเภท"><select name="kind"><option value="WATER">ค่าน้ำ</option><option value="ELECTRIC">ค่าไฟ</option></select></Field><Field label="วันที่อ่าน"><input type="date" name="day" required defaultValue={dateNow()}/></Field><Field label="เลขมิเตอร์"><input name="value" required inputMode="decimal" placeholder="1234.000"/></Field></div>)}</Panel><Panel title="เปลี่ยนมิเตอร์น้ำ/ไฟ (Owner)"
+       subtitle="บันทึกหมายเลขเครื่อง ค่าปิดเก่า ค่าเริ่มใหม่ และเลขอ้างอิงหลักฐาน">
+       {form(meterSwap,<div className="cols2">
+        <Field label="ห้อง"><select name="roomId">
+         {rooms.map(r=><option key={r.id} value={r.id}>{r.number}</option>)}
+        </select></Field>
+        <Field label="ประเภท"><select name="kind">
+         <option value="WATER">น้ำ</option><option value="ELECTRIC">ไฟ</option>
+        </select></Field>
+        <Field label="วันที่เปลี่ยน"><input type="date" required
+         name="replacedAt" max={dateNow()} defaultValue={dateNow()}/></Field>
+        <Field label="Serial มิเตอร์เก่า"><input name="oldSerial" required minLength={3}/></Field>
+        <Field label="Serial มิเตอร์ใหม่"><input name="newSerial" required minLength={3}/></Field>
+        <Field label="เลขปิดมิเตอร์เก่า"><input name="oldClosingValue" required
+         inputMode="decimal" placeholder="123.000"/></Field>
+        <Field label="เลขเริ่มมิเตอร์ใหม่"><input name="newOpeningValue" required
+         inputMode="decimal" placeholder="0.000"/></Field>
+        <Field label="เลขอ้างอิงหลักฐานการส่งมอบ"><input name="evidenceRef" required minLength={8}
+         placeholder="เลขเอกสารหรือ ID รูปที่จัดเก็บ"/></Field>
+        <Field label="เหตุผล"><input name="reason" required minLength={12}
+         maxLength={500}/></Field>
+       </div>)}
+      </Panel>
+      <MeterReplacementHistory propertyId={property.id} rooms={rooms} api={api}/>
+      <div className="hint"><Gauge size={19}/> ระบบบันทึกค่าเริ่มใหม่ในวันที่เปลี่ยนโดยอัตโนมัติ และรวมหน่วยการใช้งานข้ามมิเตอร์ก่อนออกบิล ต้องมีค่าที่ต้นและปลายรอบบิลด้วย</div></>}
     {property&&section==="billing"&&<><Panel title="ออกใบแจ้งหนี้รายห้อง" subtitle="ทดลองคำนวณก่อน แล้วจึงกดออกบิลจริงภายหลังตรวจความถูกต้อง"><form className="form" onSubmit={e=>{e.preventDefault();void preview(new FormData(e.currentTarget),false);}}><div className="cols3"><Field label="ห้องพัก"><select name="roomId">{rooms.filter(r=>r.status==="OCCUPIED").map(r=><option key={r.id} value={r.id}>{r.number}</option>)}</select></Field><Field label="วันเริ่มรอบ"><input name="start" required type="date"/></Field><Field label="วันสิ้นสุด (ไม่รวมวันนี้)"><input name="end" required type="date"/></Field></div><Field label="ประเภทการออกบิล">
        <select name="partialMode" defaultValue="">
         <option value="">รอบบิลเต็มตามปกติ</option>
         <option value="MOVE_IN">ย้ายเข้ากลางรอบ (เริ่มตรงวันเริ่มสัญญาเท่านั้น)</option>
+        <option value="MOVE_OUT">บิลสุดท้ายย้ายออกกลางรอบ (ถึงวันส่งมอบจริง)</option>
        </select>
       </Field><p className="hint">บิลย้ายเข้ากลางรอบต้องมีเลขมิเตอร์น้ำและไฟ ณ วันเริ่มสัญญาและวันสิ้นรอบบิล
-       ระบบจะคิดค่าเช่าตามจำนวนวันที่พักจริง และไม่อนุญาตให้ออกบิลซ้อนช่วงที่เรียกเก็บแล้ว</p>
+       ระบบจะคิดค่าเช่าตามจำนวนวันที่พักจริง รวมหน่วยมิเตอร์ก่อนและหลังการเปลี่ยนมิเตอร์ และไม่อนุญาตให้ออกบิลซ้อนช่วงที่เรียกเก็บแล้ว</p>
       <div className="actions"><button className="btn outline" disabled={busy} type="submit">คำนวณยอดก่อนออกบิล</button><button className="btn primary" disabled={busy} type="button" onClick={e=>{const f=e.currentTarget.closest("form");if(f&&window.confirm("ยืนยันออกบิลจริงสำหรับห้องและรอบวันที่เลือก?"))void preview(new FormData(f),true);}}>ยืนยันออกบิล</button></div></form></Panel>
       <Panel title="ใบแจ้งหนี้ที่ออกแล้ว" subtitle="จำนวนเงินเป็นยอดตั้งหนี้ — ระบบบันทึกรับชำระยังอยู่ในแผนพัฒนา"><div className="table-scroll"><table><thead><tr><th>หมายเลขห้อง</th><th>รอบบิล</th><th>ครบกำหนด</th><th>ยอดเงิน</th><th>สถานะ</th><th>PDF</th></tr></thead><tbody>{invoices.map(i=><tr key={i.id}><td><b>{rooms.find(r=>r.id===i.roomId)?.number??"-"}</b></td><td>{i.periodStart} → {i.periodEnd}</td><td>{i.dueDate}</td><td>{money(i.amountSatang)}</td><td><span className="pill occupied">{i.status}</span></td><td><a className="btn outline" href={"/v1/properties/"+property.id+"/invoices/"+i.id+"/billing-notice.pdf"} target="_blank" rel="noopener noreferrer">ดาวน์โหลด PDF</a></td></tr>)}</tbody></table>{invoices.length===0&&<p className="empty">ยังไม่มีบิล</p>}</div></Panel></>}
     {property&&section==="payments"&&<PaymentCenter key={property.id} propertyId={property.id} api={api} post={post}/>}

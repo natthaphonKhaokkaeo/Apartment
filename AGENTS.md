@@ -50,3 +50,13 @@
   billing interval end, actual water/electric meter boundary readings, prorated
   rent, property lock and no overlapping ISSUED lease intervals. Arbitrary
   manual partial periods, MOVE_OUT and meter replacement are not implemented.
+
+- P1-03c: any meter swap needs owner authorization, property→room lock,
+  immutable event with old closing/new opening values and serial continuity.
+  Insert the opening reading on replacement day; ordinary reading monotonicity
+  applies only within physical meter segments. Billing sums swaps in
+  (periodStart,periodEnd] and snapshots replacement IDs; never rewrite past bills.
+  MOVE_OUT partial is an exact final slice inside a canonical period, no future
+  handover, no overlapping ISSUED intervals. Closing the lease separately needs
+  every final invoice settled and physical handover; never auto-refund deposits.
+  EvidenceRef is not verified file evidence. See docs/P1_METER_REPLACEMENT_MOVE_OUT.md.

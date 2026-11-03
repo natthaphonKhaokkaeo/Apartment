@@ -198,3 +198,12 @@ Read docs/P1_PROPERTY_RATE_HISTORY.md.
 - [x] Public HTTPS/readyz 200, unauthenticated room price GET and MOVE_IN preview POST 401; LINE outbound disabled, backup timer active.
 - [x] 70 unit tests and full PostgreSQL/HTTP/payment/finance/LINE/S3/cleanup regression passed. P1-03 remains partial.
 - [ ] P1-03c partial MOVE_OUT, meter replacement continuity, deposit policies and legal/security acceptance pending.
+
+## P1-03c Meter changes and final move-out billing (DEV)
+- [x] Immutable meter swap history + serial chain/closing-opening values/actor/evidence reference (migration 0014).
+- [x] Owner-only transaction, automatic new-meter opening reading, per-device monotonic reading guard.
+- [x] Multi-device usage correctly aggregated in invoice-line snapshot, with replacement IDs; old invoice/ledger preserved.
+- [x] Guarded MOVE_OUT partial rent+utility invoice, overlap protection, unpaid last invoice blocks lease closure; explicit paid close changes room disposition.
+- [x] Owner UI meter swap/history and final partial invoice option; pure TDD and PostgreSQL HTTP integration tests.
+- [ ] Physical evidence verification, tenant notice, deposit handling, Production security/legal acceptance and external provider gates.
+See docs/P1_METER_REPLACEMENT_MOVE_OUT.md.

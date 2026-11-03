@@ -1,13 +1,14 @@
-import {and,eq} from "drizzle-orm";
+import {and,eq,gt,lte,asc} from "drizzle-orm";
 import {parseDay,periodsForMonth,rollingPeriods,effectiveRate,rentForPeriod,readingToMilli,utilitySatang} from "@apartment/domain";
 import {db} from "../db/client.js";
-import {leases,meterReadings,properties,rooms} from "../db/schema.js";
+import {leases,meterReadings,meterReplacements,properties,rooms} from "../db/schema.js";
 import {AppError} from "../security.js";
-import {effectiveMasterRate} from "./property-rates.js";
+import {bangkokToday,effectiveMasterRate} from "./property-rates.js";
 import {effectiveRoomRate} from "./room-rates.js";
+import {sumReplacedMeterUsage} from "./meter-replacement.js";
 
 type QueryDB = Pick<typeof db, "select">;
-export type BillInput = {roomId:string; start:string; endExclusive:string;partialMode?:"MOVE_IN"};
+export type BillInput = {roomId:string; start:string; endExclusive:string;partialMode?:"MOVE_IN"|"MOVE_OUT"};
 export function validBillingPeriod(property:typeof properties.$inferSelect, start:string,endExclusive:string):boolean {
  const startDate = parseDay(start),endDate = parseDay(endExclusive);
  if(startDate >= endDate) return false;
@@ -43,6 +44,34 @@ export function validMoveInPartialPeriod(
   return !!candidate&&candidate.endExclusive===endExclusive;
  }catch{return false;}
 }
+/** Final bill must cover exactly the occupied part of one canonical cycle
+ * and may be issued only on/after the physical handover date.
+ * It does not end the lease or write off unpaid amounts.
+ */
+export function validMoveOutPartialPeriod(
+ property:Pick<typeof properties.$inferSelect,"cadence"|"rollingAnchor">,
+ leaseStart:string,start:string,endExclusive:string,now=new Date()
+):boolean{
+ try{
+  const from=parseDay(start),to=parseDay(endExclusive);
+  if(!(from<to)||start<leaseStart||endExclusive>bangkokToday(now))return false;
+  let period:{start:string;endExclusive:string}|undefined;
+  if(property.cadence==="EVERY_15_DAYS"){
+   if(!property.rollingAnchor||start<property.rollingAnchor)return false;
+   const anchor=+parseDay(property.rollingAnchor);
+   const offset=Math.floor((+from-anchor)/86400_000/15);
+   period={
+    start:new Date(anchor+offset*15*86400_000).toISOString().slice(0,10),
+    endExclusive:new Date(anchor+(offset+1)*15*86400_000).toISOString().slice(0,10)
+   };
+  }else{
+   period=periodsForMonth(from.getUTCFullYear(),from.getUTCMonth()+1,
+    property.cadence).find(p=>p.start<=start&&start<p.endExclusive);
+  }
+  return !!period&&endExclusive<period.endExclusive&&
+   (start===period.start||start===leaseStart);
+ }catch{return false;}
+}
 export async function prepareInvoice(data:BillInput, property:typeof properties.$inferSelect, client:QueryDB=db) {
  if(data.partialMode===undefined&&!validBillingPeriod(property,data.start,data.endExclusive))
   throw new AppError(422,"INVALID_BILLING_PERIOD");
@@ -55,6 +84,9 @@ export async function prepareInvoice(data:BillInput, property:typeof properties.
  if(data.partialMode==="MOVE_IN"&&!validMoveInPartialPeriod(
   property,lease.startDate,data.start,data.endExclusive))
   throw new AppError(422,"INVALID_MOVE_IN_PARTIAL_PERIOD");
+ if(data.partialMode==="MOVE_OUT"&&!validMoveOutPartialPeriod(
+  property,lease.startDate,data.start,data.endExclusive))
+  throw new AppError(422,"INVALID_MOVE_OUT_PARTIAL_PERIOD");
  // The rate effective at the billing period START owns this whole interval.
  // A mid-period scheduled revision is rejected until P1-03 supports prorating.
  const master=await effectiveMasterRate(property,data.start,data.endExclusive,client);
@@ -72,13 +104,31 @@ export async function prepareInvoice(data:BillInput, property:typeof properties.
    const prev=readings.find(r=>r.readAt===data.start),next=readings.find(r=>r.readAt===data.endExclusive);
    if(!prev || !next) throw new AppError(422,"METER_BOUNDARY_READING_REQUIRED");
    const startMilli=readingToMilli(prev.value),endMilli=readingToMilli(next.value);
-   const amountSatang=utilitySatang(startMilli,endMilli,rate);
-   meterLines.push({type:kind,description:kind==="WATER"?"ค่าน้ำ":"ค่าไฟ",unitsMilli:endMilli-startMilli,tariffSatang:rate,amountSatang,
+   const swaps=await client.select().from(meterReplacements).where(and(
+    eq(meterReplacements.roomId,room.id),
+    eq(meterReplacements.organizationId,property.organizationId),
+    eq(meterReplacements.propertyId,property.id),
+    eq(meterReplacements.kind,kind),
+    gt(meterReplacements.replacedAt,data.start),
+    lte(meterReplacements.replacedAt,data.endExclusive)
+   )).orderBy(asc(meterReplacements.replacedAt));
+   const consumedMilli=sumReplacedMeterUsage(startMilli,endMilli,swaps.map(s=>({
+    replacedAt:s.replacedAt,oldClosingMilli:readingToMilli(s.oldClosingValue),
+    newOpeningMilli:readingToMilli(s.newOpeningValue)
+   })));
+   const amountSatang=utilitySatang(0,consumedMilli,rate);
+   meterLines.push({type:kind,description:kind==="WATER"?"ค่าน้ำ":"ค่าไฟ",unitsMilli:consumedMilli,tariffSatang:rate,amountSatang,
      snapshot:{start:prev.value,end:next.value,rateSatang:rate,
       masterRateVersionId:master.id,masterEffectiveFrom:master.effectiveFrom,
       roomRateVersionId:roomVersion.id,roomRateEffectiveFrom:roomVersion.effectiveFrom,
       rateSource:(kind==="WATER"?roomVersion.waterOverrideSatang:roomVersion.electricOverrideSatang)===null?"MASTER":"OVERRIDE",
-      startReadingId:prev.id,endReadingId:next.id}});
+      startReadingId:prev.id,endReadingId:next.id,
+      meterReplacementIds:swaps.map(s=>s.id),
+      meterSegments:swaps.map(s=>({
+       replacementId:s.id,replacedAt:s.replacedAt,
+       oldSerial:s.oldSerial,newSerial:s.newSerial,
+       oldClosingValue:s.oldClosingValue,newOpeningValue:s.newOpeningValue
+      }))}});
  }
  const rentSatang=rentForPeriod(rateRent,data.start,data.endExclusive);
  const lines=[{type:"RENT",description:"ค่าเช่าห้อง",unitsMilli:null,tariffSatang:null,amountSatang:rentSatang,

@@ -110,3 +110,12 @@ Billing now offers a guarded MOVE_IN partial invoice, calculated from actual
 lease.startDate to the canonical period end and from boundary meter readings.
 Overlapping invoices are blocked. Meter replacement and MOVE_OUT partial bills
 are not yet supported. See docs/P1_PARTIAL_BILLING_AND_ROOM_RATES.md.
+
+## P1-03c Meter swaps and final partial move-out (DEV)
+Owner Meter UI records append-only physical replacement events with old/new serial,
+closing/opening readings, evidence reference and audit. Billing combines physical
+meter segments without double charging and retains event IDs in immutable invoices.
+The MOVE_OUT partial billing option prorates final rent to the actual handover day
+and requires end-boundary readings. The separate OWNER lease close still requires
+all invoices settled and confirmed handover. No deposit refund or certified
+meter-evidence upload is automated. See docs/P1_METER_REPLACEMENT_MOVE_OUT.md.

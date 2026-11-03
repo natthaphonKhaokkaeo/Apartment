@@ -142,6 +142,29 @@ export const meterReadings = pgTable("meter_readings", {
   createdBy: uuid("created_by").notNull().references(() => users.id),
   createdAt: timestamp("created_at", {withTimezone:true}).notNull().defaultNow()
 }, t => [uniqueIndex("uq_meter_room_day").on(t.roomId,t.kind,t.readAt)]);
+/** Immutable physical meter changes, including evidence of the handover.
+ * The synthetic reading on replacedAt belongs to the NEW meter.
+ */
+export const meterReplacements=pgTable("meter_replacements",{
+ id:uuid("id").primaryKey().defaultRandom(),
+ organizationId:uuid("organization_id").notNull().references(()=>organizations.id),
+ propertyId:uuid("property_id").notNull().references(()=>properties.id),
+ roomId:uuid("room_id").notNull().references(()=>rooms.id),
+ kind:meterKind("kind").notNull(),
+ replacedAt:date("replaced_at").notNull(),
+ oldSerial:varchar("old_serial",{length:100}).notNull(),
+ newSerial:varchar("new_serial",{length:100}).notNull(),
+ oldClosingValue:numeric("old_closing_value",{precision:14,scale:3}).notNull(),
+ newOpeningValue:numeric("new_opening_value",{precision:14,scale:3}).notNull(),
+ evidenceRef:varchar("evidence_ref",{length:512}).notNull(),
+ reason:varchar("reason",{length:500}).notNull(),
+ createdBy:uuid("created_by").notNull().references(()=>users.id),
+ createdAt:timestamp("created_at",{withTimezone:true}).notNull().defaultNow()
+},t=>[
+ uniqueIndex("uq_meter_swap_room_kind_day").on(t.roomId,t.kind,t.replacedAt),
+ index("idx_meter_swap_period").on(t.organizationId,t.propertyId,t.roomId,t.kind,t.replacedAt)
+]);
+
 export type InvoiceDocumentSnapshot={
  schemaVersion:1;
  issuerName:string;

@@ -208,3 +208,13 @@ Domain checkpoint: https://apartme.makemarket.space now works (HTTPS trusted; we
 - Verified root-only PostgreSQL backup before migration; apartment-postgres-backup.timer active, next 2026-11-04 03:30 Asia/Bangkok.
 - 70 Unit Tests (11 domain + 59 API) and full PostgreSQL/payment/finance/LINE/S3/cleanup smoke, TypeScript, frontend build, Compose validation passed.
 - NEXT: P1-03c meter-replacement serial/closing/opening readings and mid-cycle MOVE_OUT safe billing; P1-04 staff authorization after. DO NOT mark P1/P1-03 complete or enable live provider.
+
+## P1-03c meter replacement and final MOVE_OUT (DEV)
+- apps/api/src/services/meter-replacement.ts, routes/meter-replacement.ts; migration 0014_shiny_baron_zemo.sql and new meter_replacements table.
+- Meter replacement is OWNER-only: append serials, readings, evidenceRef, reason, audit; new meter opening reading inserted same day. Historical invoice, ledger and old readings are not rewritten. No verified physical photo upload yet: evidenceRef is operator-supplied only.
+- services/billing.ts resolves meter replacements inside (start,end], sums segment usage with 0-reset handling, immutable snapshot IDs/values. Normal read monotonicity is now per meter segment.
+- MOVE_OUT partial bill mode only from canonical period boundary or original leaseStart to the actual past/today handover boundary inside that period. No overlapping issued invoices, previous rate/reading/legal guards still apply.
+- Owner moveOutLease remains a separate explicit step requiring fully paid last invoice, no pending finance/payments and physical handover. No automatic deposit refund/credit.
+- Owner Meter UI has swap form and on-demand history. Billing UI exposes MOVE_OUT partial. See docs/P1_METER_REPLACEMENT_MOVE_OUT.md.
+- Test: meter-replacement.test.ts, billing-partial.test.ts and extended smoke-http.ts with swapped water meter, final invoice/approved payment/lease close.
+- Open: evidence validation, deposit settlement, offsite backup, P1-04 staff invitations and P1-05 load/security verification.

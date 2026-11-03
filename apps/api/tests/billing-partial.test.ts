@@ -19,3 +19,20 @@ describe("P1-03b partial move-in invoice boundaries",()=>{
   expect(validMoveInPartialPeriod(monthly,"2026-11-10","2026-11-10","2026-11-25")).toBe(false);
  });
 });
+
+import {validMoveOutPartialPeriod} from "../src/services/billing.js";
+describe("P1-03c guarded partial move-out",()=>{
+ const monthly={cadence:"MONTHLY" as const,rollingAnchor:null};
+ const semi={cadence:"SEMI_MONTHLY" as const,rollingAnchor:null};
+ const now=new Date("2026-11-03T09:00:00Z");
+ it("allows final actual occupancy up to observed handover day",()=>{
+  expect(validMoveOutPartialPeriod(monthly,"2026-10-01","2026-11-01","2026-11-03",now)).toBe(true);
+  expect(validMoveOutPartialPeriod(monthly,"2026-11-01","2026-11-01","2026-11-03",now)).toBe(true);
+  expect(validMoveOutPartialPeriod(semi,"2026-11-01","2026-11-01","2026-11-03",now)).toBe(true);
+ });
+ it("never allows imaginary, duplicate or future final billing intervals",()=>{
+  expect(validMoveOutPartialPeriod(monthly,"2026-11-01","2026-11-02","2026-11-03",now)).toBe(false);
+  expect(validMoveOutPartialPeriod(monthly,"2026-11-01","2026-11-01","2026-12-01",now)).toBe(false);
+  expect(validMoveOutPartialPeriod(monthly,"2026-11-01","2026-11-01","2026-11-05",now)).toBe(false);
+ });
+});
