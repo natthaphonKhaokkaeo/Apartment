@@ -1,0 +1,20 @@
+name: apartment-dev
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: apartment
+      POSTGRES_USER: apartment
+      POSTGRES_PASSWORD: ${APARTMENT_DB_PASSWORD:?set_in_root_env}
+    ports:
+      - "127.0.0.1:55432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U apartment -d apartment"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+    volumes:
+      - apartment_pg_data:/var/lib/postgresql/data
+volumes:
+  apartment_pg_data:

@@ -1,0 +1,15 @@
+{
+  "name": "apartment-platform",
+  "private": true,
+  "packageManager": "pnpm@12.16.1",
+  "type": "module",
+  "scripts": {
+    "dev:api": "corepack pnpm --filter @apartment/api dev",
+    "dev:web": "corepack pnpm --filter @apartment/web dev",
+    "test": "corepack pnpm --filter @apartment/domain test && corepack pnpm --filter @apartment/api test",
+    "typecheck": "corepack pnpm -r typecheck",
+    "db:generate": "corepack pnpm --filter @apartment/api db:generate",
+    "db:migrate": "corepack pnpm --filter @apartment/api db:migrate"
+  },
+  "engines": {"node": ">=22"}
+}
