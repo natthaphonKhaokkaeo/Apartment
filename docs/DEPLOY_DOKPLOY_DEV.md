@@ -49,3 +49,9 @@ Dokploy API docs: https://docs.dokploy.com/docs/api/compose — create/update/de
 - Existing apartment-dev-postgres-1 remains Healthy. Temporary standalone apartment-web-dev stack was stopped with Compose down (NO -v) after managed health was proven.
 - Private local access: ssh -L 18089:127.0.0.1:18089 root@YOUR_VPS_HOST, then browse http://127.0.0.1:18089.
 - Real LINE Login/Liff still blocked by real configuration; no publicly exposed site or production deployment.
+
+## P4 rollout / WEB_ORIGIN blocker (2026-11-03)
+- P4 Webhook/Outbox source code was pushed to GitHub in commit 3fd4fb6, **but the running Dokploy containers have not been redeployed to include it**. Check: POST /v1/line/oa/webhook returns 404 (old image); once P4 API is deployed with no LINE secret it should return 503.
+- Dokploy-managed web is currently loopback 127.0.0.1:18089, while the running API container still has WEB_ORIGIN=http://127.0.0.1:18088 and rejects browser POST from 18089 with 403. The private file /etc/dokploy/runtime-env/apartment-api.env **has been updated** to 18089, but this will only take effect on the next authenticated Dokploy redeploy.
+- Until re-deployment, if a strictly local browser preview is needed, SSH forwarding may map LOCAL 18088 to VPS 18089: ssh -L 18088:127.0.0.1:18089 root@YOUR_VPS_HOST, then browse http://127.0.0.1:18088. This matches the currently running API origin but is not a public deployment.
+- In authenticated Dokploy Dashboard open Apartment / dev / Apartment DEV and select Redeploy for branch main. Recheck managed API+Web Healthy, /readyz=200, unauthorized /v1/organizations=401, P4 webhook without configured secret=503, and POST Origin http://127.0.0.1:18089 no longer fails UNTRUSTED_ORIGIN. Do not open public domain before keys and security acceptance.

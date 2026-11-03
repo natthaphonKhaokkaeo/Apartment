@@ -99,3 +99,7 @@ NEXT: P4-01 LINE OA durable outbox and webhook contract, or Dokploy registration
 - [x] Loopback 127.0.0.1:18089 web/readyz HTTP 200, unauthenticated API HTTP 401
 - [x] Old temporary 18088 Compose stopped without volumes; separate DEV PostgreSQL remains Healthy
 - [ ] Running managed image must be redeployed to include P4 code once commit is pushed.
+
+### Managed DEV P4 rollout still pending
+- [x] Commit 3fd4fb6 pushed with signed webhook/outbox + PostgreSQL smoke; no real LINE key
+- [ ] Runtime update via Dokploy: tool blocked compose.redeploy response. Managed containers still pre-P4: webhook 404. Runtime WEB_ORIGIN old 18088 rejects POST from 18089 with 403; private file updated, redeploy required.
