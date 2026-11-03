@@ -149,9 +149,47 @@ export async function runLineOutboxBatch(options:{
     if(now.getTime()-item.createdAt.getTime()>23*3600000){code="RETRY_KEY_WINDOW_EXPIRED";}
     else{
      try{
-      outcome=await sender({to:item.recipientLineUserId,text:item.messageText,
-       retryKey:item.retryKey,createdAt:item.createdAt});
-      code=outcome.httpStatus?"HTTP_"+outcome.httpStatus:"NETWORK_FAILURE";
+      // A LINE push cannot be recalled once it has reached the provider.
+      // Block any NEW dispatch from starting after consent revocation commits:
+      // hold lease -> OA -> consent share locks for the bounded provider call.
+      // Revoke takes the lease and consent row FOR UPDATE in the same order.
+      // A revoke requested during an already-started provider call waits for it;
+      // this does NOT promise to cancel a message already in flight.
+      const guarded=await db.transaction(async tx=>{
+       const [liveLease]=await tx.select({id:leases.id}).from(leases).where(and(
+        eq(leases.id,item.leaseId),eq(leases.organizationId,item.organizationId),
+        eq(leases.status,"ACTIVE"),
+        eq(leases.tenantLineSubject,item.recipientLineUserId)
+       )).for("share").limit(1);
+       if(!liveLease)return null;
+       const [liveOa]=await tx.select({id:lineOaBindings.id}).from(lineOaBindings)
+        .where(and(eq(lineOaBindings.id,item.bindingId),
+         eq(lineOaBindings.organizationId,item.organizationId),
+         eq(lineOaBindings.enabled,true),
+         ...(!config.LINE_OA_BOT_USER_ID?[]:[
+          eq(lineOaBindings.botUserId,config.LINE_OA_BOT_USER_ID)
+         ])))
+        .for("share").limit(1);
+       if(!liveOa)return null;
+       const [liveConsent]=await tx.select({id:lineNotificationConsents.id})
+        .from(lineNotificationConsents).where(and(
+         eq(lineNotificationConsents.id,item.consentId),
+         eq(lineNotificationConsents.bindingId,item.bindingId),
+         eq(lineNotificationConsents.organizationId,item.organizationId),
+         eq(lineNotificationConsents.leaseId,item.leaseId),
+         eq(lineNotificationConsents.recipientLineUserId,item.recipientLineUserId),
+         isNull(lineNotificationConsents.revokedAt)
+        )).for("share").limit(1);
+       if(!liveConsent)return null;
+       return sender({to:item.recipientLineUserId,text:item.messageText,
+        retryKey:item.retryKey,createdAt:item.createdAt});
+      });
+      if(guarded){
+       outcome=guarded;
+       code=outcome.httpStatus?"HTTP_"+outcome.httpStatus:"NETWORK_FAILURE";
+      }else{
+       code="CONSENT_OR_SCOPE_REVOKED";
+      }
      }catch{outcome={status:"RETRY",httpStatus:0,requestId:null};code="NETWORK_FAILURE";}
     }
    }

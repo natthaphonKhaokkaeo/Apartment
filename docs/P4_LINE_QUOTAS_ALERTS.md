@@ -50,3 +50,7 @@ DEV Compose retains LINE_WORKER_MODE=observe, LINE_WORKER_APPROVED=false and LIN
 
 ## DEV deployment proof
 Commit 826550c implements quota/fairness/incident code; 9295d2e pins observer DEV quota environment. Both are pushed to main. Existing Dokploy Apartment DEV API/Web/Observer were rebuilt and updated with no impact to other services. All are Healthy, PostgreSQL still Healthy (25 tables), HTTPS site and readiness 200 with TLS verification success, Admin incident endpoint denies unauthenticated with 401. Observer heartbeat fresh, aggregate incident check runs, dispatched=0 and LINE outbound disabled. This is NOT real LINE provider delivery acceptance or external operator paging.
+
+## P4-03e privacy/safety follow-up
+- Reservation history is now eligible for MANUAL org-scoped bounded cleanup when older than 30 days. The CLI defaults to DRY_RUN and requires an explicit confirm flag for apply. No Outbox, Consent, Alert or Audit deletion. See docs/P4_LINE_RETENTION.md.
+- LIVE LINE send now holds short-lived lease/OA/consent PostgreSQL FOR SHARE locks across the bounded provider request; matching tenant revoke locks conflict so it cannot commit during an already-in-flight call. A sent message cannot be recalled, and provider uncertainty after a 7s timeout remains a production acceptance gate.

@@ -147,3 +147,10 @@ See docs/P4_LINE_QUOTAS_ALERTS.md.
 - [x] HTTPS / and /readyz 200 with valid TLS; unauthenticated Admin Incident API 401.
 - [x] Independent observer heartbeat updated, output dispatched=0; observe mode, no live worker, quota config perorg5/global20.
 - [ ] Real LINE provider acceptance, end-user LIFF login, operator external paging and secure cert persistence still pending.
+
+## P4-03e safety / Data protection
+- [x] LIVE worker double-check with FOR SHARE locks on active lease, enabled OA, active consent during provider request; tenant revoke takes conflicting write locks in same lease->consent order.
+- [x] Real HTTP/PostgreSQL race smoke: revoke waits for mock provider call; new enqueue after revoke fails, no extra sends; old in-flight delivery cannot be recalled.
+- [x] 30-day min org-scoped manual reservation cleanup, default dry-run, bounded delete and PostgreSQL scope tests. Not scheduled.
+- [x] Existing Apartment PostgreSQL Docker volume persistent; automated daily backup at 03:30 Asia/Bangkok using systemd, 14d local retention. pg_dump+sha256 and isolated actual restore 25 tables passed, service start successful.
+- [ ] OFFSITE encrypted backups/alerts, real LINE sandbox live acceptance, external alert paging and production in-flight uncertainty review.

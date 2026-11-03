@@ -1,0 +1,11 @@
+[Unit]
+Description=Daily Apartment PostgreSQL backup at 03:30 Asia/Bangkok
+
+[Timer]
+OnCalendar=*-*-* 03:30:00 Asia/Bangkok
+Persistent=true
+RandomizedDelaySec=0
+Unit=apartment-postgres-backup.service
+
+[Install]
+WantedBy=timers.target

@@ -13,9 +13,9 @@
 
 ## Current checkpoint (live)
 
-- **Current phase:** P4-03d PostgreSQL global/per-org quota reservations, least-used-org queue fairness and durable internal incident alerts implemented in DEV. Continuous worker remains observe-only, no LINE sending, real provider and live operator paging acceptance pending.
-- **Immediate task:** P4-05 LINE Login/LIFF + Messaging Sandbox E2E when real keys arrive. Without keys, P4-03e in-flight consent revocation/uncertain delivery safety, alert escalation integration and quota retention cleanup (test-first). Never enable real outbound without provider/consent approval.
-- **Last verified:** P4-03d 61 unit tests (11 domain + 50 API), full API/payment/finance/S3/cleanup/LINE-consent regression, real PostgreSQL concurrent quota and incident HTTP smoke, TypeScript+React build and Compose checks PASS. Git feature 826550c + explicit DEV quota 9295d2e pushed, deployed on Dokploy. Public HTTPS/readyz 200 trusted TLS, operator alert auth 401; observer/API/Web and PostgreSQL Healthy, mode observe, outbound disabled, dispatched=0.
+- **Current phase:** P4-03e DEV safety: serialized consent/revoke with bounded provider-call lease/OA/consent locks, and org-scoped manual 30-day reservation retention completed; PostgreSQL daily Backup and isolated Restore test verified. Real LINE delivery, external alert paging and offsite backup remain pending.
+- **Immediate task:** P4-05 real LINE Login/LIFF and Messaging Sandbox E2E when credentials arrive. Independently, configure encrypted offsite PostgreSQL backup and external alert paging when provider/credentials are approved. Never enable real LINE sends before sandbox/privacy/signoff.
+- **Last verified:** 63 unit tests (11 domain + 52 API), PostgreSQL HTTP consent race, 30-day org-scoped reservation retention, full smoke regression, TypeScript/Vite; daily PostgreSQL systemd Backup 03:30 Asia/Bangkok active, two backups verified with SHA-256, full isolated PostgreSQL 16 restore successful (25 tables). Pending final full regression and Dokploy DEV deployment verification.
 
 - **Deployment:** Apartment DEV is publicly accessible at https://apartme.makemarket.space through Dokploy Traefik -> Nginx (DEV, not Production). DNS matches VPS; HTTP 301 HTTPS; HTTPS 200 with trusted certificate; API /readyz 200, unauthorized 401, valid HTTPS Origin POST 200, unsigned LINE webhook 503. Runtime WEB_ORIGIN and secure cookies configured. Separate PostgreSQL and other services unchanged. Traefik ACME storage is read-only, so automatic certificate persistence/renewal still requires maintenance.
 - **Git:** Preserve user files, check `git status --short` before edits; commit with evidence; no push or production deploy without explicit instruction. Last completed commit: see `git log -1 --oneline`.
@@ -111,7 +111,10 @@
     - [x] P4-03d.1 Durable per-org/global rolling 60-second attempt reservations with cross-worker PostgreSQL advisory transaction lock, bounded ENV quotas and least-used-org selection
     - [x] P4-03d.2 Durable internal incident episodes (Dead-letter unreviewed / expired Sending / queue backlog), duplicate-suppression, auto-resolution, admin acknowledgment and masked UI
     - [x] P4-03d.3 Pure TDD fairness/threshold tests + real PostgreSQL concurrent mock-sender quota and admin incident lifecycle HTTP smoke
-    - [ ] P4-03d.4 Real provider quota calibration, multi-channel fairness, external incident paging, retention cleanup, safe in-flight consent revoke and production live sender acceptance
+    - [ ] P4-03d.4 Real provider quota calibration, multi-channel fairness, external incident paging, production live sender acceptance
+    - [x] P4-03e.1 Consent revoke/dispatch race serialization with consistent lease/OA/consent lock order, real mock HTTP concurrency proof; messages already in flight are NOT recallable
+    - [x] P4-03e.2 Per-org 30-day min reservation retention, manual dry-run by default and bounded confirmed cleanup with PostgreSQL integration test
+    - [ ] P4-03e.3 Alert delivery/retention legal policy, real LINE provider quota, live in-flight uncertainty testing and offsite backup
 - [ ] P4-04 Tenant consent and notification event producers (PARTIAL — real provider and future workflows pending)
   - [x] P4-04a Tenant-specific opt-in/revoke endpoints and React UI with explicit purpose acknowledgment, active verified LINE lease scope, audit, idempotent actions, no-store, revoke pending/retry/SENDING jobs
   - [x] P4-04b Invoice-issued Outbox event created atomically with invoice transaction only on active lease + enabled OA + unrevoked exact recipient consent; generic Thai template and eventKey prevent duplicates

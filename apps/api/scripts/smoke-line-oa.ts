@@ -8,6 +8,7 @@ import {users,sessions,organizations,properties,rooms,leases,invoiceLines,
  memberships,financeAdjustmentRequests,auditLogs} from "../src/db/schema.js";
 import {enqueueLineNotification,runLineOutboxBatch} from "../src/services/line-outbox.js";
 import {reconcileLineOpsAlerts} from "../src/services/line-alerts.js";
+import {cleanupLineReservations} from "../src/services/line-retention.js";
 import {newSessionToken,tokenHash} from "../src/security.js";
 const tag=randomUUID().slice(0,8),base="http://127.0.0.1:8088";
 const bot="U8e742f61d673b39c7fff3cecb7536ef0";
@@ -209,6 +210,62 @@ try{
  const reservations=await db.select().from(lineDispatchReservations)
   .where(eq(lineDispatchReservations.organizationId,o.id));
  assert.ok(reservations.length>=4);
+ // Retention cleanup must be dry-run by default, limited and strictly org-scoped.
+ const retentionNow=new Date();
+ await db.update(lineDispatchReservations).set({
+  reservedAt:new Date(retentionNow.getTime()-31*86400_000)
+ }).where(eq(lineDispatchReservations.id,reservations[0].id));
+ const dry=await cleanupLineReservations({organizationId:o.id,now:retentionNow});
+ assert.equal(dry.mode,"DRY_RUN");assert.equal(dry.eligible,1);assert.equal(dry.deleted,0);
+ const foreign=await cleanupLineReservations({
+  organizationId:randomUUID(),now:retentionNow,apply:true
+ });
+ assert.equal(foreign.deleted,0);
+ const applied=await cleanupLineReservations({
+  organizationId:o.id,now:retentionNow,apply:true,limit:1
+ });
+ assert.equal(applied.deleted,1);
+ const still=await db.select().from(lineDispatchReservations)
+  .where(eq(lineDispatchReservations.organizationId,o.id));
+ assert.equal(still.length,reservations.length-1);
+ assert.equal(still.some(v=>v.id===reservations[0].id),false);
+ console.log("PASS LINE retention: scoped DRY_RUN default, >=30d cutoff, one bounded deletion, newer quota untouched");
+ // Consent revocation and a live sender must serialize around the same lease
+ // row. A revoke requested while the provider call is already in flight is
+ // not complete until the bounded call returns, and it forbids new pushes.
+ await enqueueLineNotification({...baseNotification,eventKey:"consent-race:"+tag});
+ let allowSend!:()=>void,signalStarted!:()=>void;
+ const sendStarted=new Promise<void>(resolve=>{signalStarted=resolve;});
+ const sendReleased=new Promise<void>(resolve=>{allowSend=resolve;});
+ let raceSends=0;
+ const racingDispatch=runLineOutboxBatch({
+  mode:"live",limit:1,now:new Date(mockedNow.getTime()+130000),
+  quota:{globalPerMinute:8,perOrgPerMinute:8},
+  send:async()=>{
+   raceSends++;signalStarted();await sendReleased;
+   return {status:"ACCEPTED" as const,httpStatus:200,requestId:"mock-race"};
+  }
+ });
+ await sendStarted;
+ let revokeFinished=false;
+ const revoking=ops("/v1/tenant/leases/"+l.id+"/notification-consent",
+  userToken,"PUT",{enabled:false}).then(response=>{
+   revokeFinished=true;return response;
+  });
+ await new Promise(resolve=>setTimeout(resolve,120));
+ assert.equal(revokeFinished,false,
+  "tenant revocation must not commit while a provider call is in flight");
+ allowSend();
+ const [raceResult,revokeResult]=await Promise.all([racingDispatch,revoking]);
+ assert.equal(raceResult.attempted,1);
+ assert.equal(revokeResult.status,200,JSON.stringify(revokeResult.body));
+ assert.equal(revokeResult.body.enabled,false);
+ assert.equal(raceSends,1);
+ await assert.rejects(()=>enqueueLineNotification({
+  ...baseNotification,eventKey:"after-revocation:"+tag
+ }),{code:"LINE_NOTIFICATION_CONSENT_REQUIRED"});
+ console.log("PASS LINE revoke race: lease lock prevents revoke commit during in-flight mock push; post-revocation enqueue forbidden");
+
  console.log("PASS LINE fair quota: parallel global DB reservation, strict per-org max, future window reset and accepted mock only");
 
  console.log("PASS LINE OA HTTP: admin-only scoped safe counters, durable deduped incident open/ack/resolve, masked dead-letter review/audit, no resend");

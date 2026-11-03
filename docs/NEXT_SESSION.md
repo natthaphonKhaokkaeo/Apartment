@@ -156,3 +156,10 @@ Domain checkpoint: https://apartme.makemarket.space now works (HTTPS trusted; we
 - Public https://apartme.makemarket.space/ and /readyz 200, TLS verify 0; unauthenticated /v1/admin/line-operations/alerts 401.
 - API, Web, Observer, old Postgres all Healthy; observer heartbeat age 18s, LINE_WORKER_MODE observe, LINE_WORKER_APPROVED false, LINE_OUTBOUND_MODE disabled, quota env perorg=5/global=20, dispatched=0.
 - Incidents are INTERNAL database + admin UI only; no paging/no real LINE messages, and external LINE Provider quota is still unverified. Keep P4-05 Sandbox and provider acceptance gate pending.
+
+## P4-03e consent race + reservation retention / PostgreSQL backup (2026-11-03)
+- apps/api/src/services/line-outbox.ts: LIVE path revalidates active lease -> enabled OA -> active matching consent using FOR SHARE locks while the bounded provider call executes; tenant revoke uses lease/consent FOR UPDATE. A revoked consent stops future new dispatches. Existing in-flight calls cannot be recalled, and a revoke in progress may wait for the provider request (up to 7s in real LINE HTTP). Never claim absolute delivery cancel.
+- apps/api/src/services/line-retention.ts and scripts/cleanup-line-reservations.ts: org-scoped 30-day reservation retention; dry-run default, confirmed apply max 100 rows per CLI invocation. Manual only; no automatic cleanup timer. Real PostgreSQL smoke verifies organization scope and bounded deletion.
+- infra/backup-apartment-postgres.sh, infra/systemd/apartment-postgres-backup.{service,timer}, docs/POSTGRES_BACKUP_RESTORE.md. Enabled real VPS systemd timer daily 03:30 Asia/Bangkok. Source Docker volume unchanged. Verified live pg_dump custom format, SHA-256 and full restore to temporary postgres:16 container with --network none (25 public tables), not production DB.
+- Physical data is still on the SAME VPS. Offsite encrypted copy, backup success notification and independent restore test are not configured. Do not claim disaster recovery readiness.
+- Read docs/P4_LINE_RETENTION.md and docs/POSTGRES_BACKUP_RESTORE.md.

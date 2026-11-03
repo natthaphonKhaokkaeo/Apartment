@@ -86,3 +86,9 @@ The Dokploy Compose service line-observer continuously monitors aggregate queue 
 
 ## P4-03d safe LINE quotas and internal incidents
 The observe-only Dokploy worker now tracks durable internal incidents; admin dashboard shows per-org quota window usage and alerts. A future live dispatcher uses PostgreSQL-serialized global/per-org attempt quotas and least-used-org fairness, verified with mock sender. There are NO real LINE sends or external incident notifications. See docs/P4_LINE_QUOTAS_ALERTS.md.
+
+## PostgreSQL backup (Apartment DEV)
+The PostgreSQL data is in a persistent Docker named volume and is also now backed up daily at 03:30 Asia/Bangkok via apartment-postgres-backup.timer. Root-only local backups are retained 14 days and verified by SHA-256; a real isolated temporary PostgreSQL restore was tested. **No offsite copy yet**, so complete offsite replication before Production. Runbook: docs/POSTGRES_BACKUP_RESTORE.md.
+
+## P4-03e LINE safety
+LINE worker now serializes new LIVE send starts with tenant consent revocation using DB row locks. Existing in-flight messages are not recallable. Per-organization reservation retention cleanup is manual and DRY_RUN by default with >=30 day cutoff. Actual LINE outbound remains disabled in DEV. See docs/P4_LINE_RETENTION.md.

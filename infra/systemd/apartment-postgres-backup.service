@@ -1,0 +1,18 @@
+[Unit]
+Description=Apartment DEV PostgreSQL isolated logical backup
+Documentation=file:/root/Projects/Apartment/docs/POSTGRES_BACKUP_RESTORE.md
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+WorkingDirectory=/root/Projects/Apartment
+ExecStart=/root/Projects/Apartment/infra/backup-apartment-postgres.sh backup
+TimeoutStartSec=10min
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7
+UMask=0077
+NoNewPrivileges=true
