@@ -8,6 +8,15 @@ export const roomStatus = pgEnum("room_status", ["AVAILABLE","OCCUPIED","MAINTEN
 export const meterKind = pgEnum("meter_kind", ["WATER","ELECTRIC"]);
 export const invoiceStatus = pgEnum("invoice_status", ["ISSUED","VOID"]);
 export const accountStatus = pgEnum("account_status", ["ACTIVE","DISABLED"]);
+export const maintenanceTicketStatus = pgEnum("maintenance_ticket_status", [
+ "OPEN","ACKNOWLEDGED","IN_PROGRESS","RESOLVED","CLOSED","CANCELLED"
+]);
+export const maintenanceTicketCategory = pgEnum("maintenance_ticket_category", [
+ "PLUMBING","ELECTRICAL","APPLIANCE","STRUCTURE","CLEANING","OTHER"
+]);
+export const maintenanceTicketPriority = pgEnum("maintenance_ticket_priority", [
+ "LOW","NORMAL","HIGH","URGENT"
+]);
 
 export const users = pgTable("users", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -448,6 +457,31 @@ export const lineOpsAlerts=pgTable("line_ops_alerts",{
 },t=>[
  uniqueIndex("uq_line_ops_open_incident").on(t.organizationId,t.kind).where(isNull(t.resolvedAt)),
  index("idx_line_ops_alert_org").on(t.organizationId,t.openedAt)
+]);
+
+/** Repair requests contain tenant-submitted descriptions; never expose them to STAFF. */
+export const maintenanceTickets=pgTable("maintenance_tickets",{
+ id:uuid("id").primaryKey().defaultRandom(),
+ organizationId:uuid("organization_id").notNull().references(()=>organizations.id),
+ propertyId:uuid("property_id").notNull().references(()=>properties.id),
+ roomId:uuid("room_id").references(()=>rooms.id),
+ leaseId:uuid("lease_id").references(()=>leases.id),
+ reportedByUserId:uuid("reported_by_user_id").notNull().references(()=>users.id),
+ reporterType:varchar("reporter_type",{length:12}).notNull(),
+ title:varchar("title",{length:160}).notNull(),
+ description:text("description").notNull(),
+ category:maintenanceTicketCategory("category").notNull(),
+ priority:maintenanceTicketPriority("priority").notNull().default("NORMAL"),
+ status:maintenanceTicketStatus("status").notNull().default("OPEN"),
+ dueAt:timestamp("due_at",{withTimezone:true}),
+ resolvedAt:timestamp("resolved_at",{withTimezone:true}),
+ closedAt:timestamp("closed_at",{withTimezone:true}),
+ createdAt:timestamp("created_at",{withTimezone:true}).notNull().defaultNow(),
+ updatedAt:timestamp("updated_at",{withTimezone:true}).notNull().defaultNow()
+},t=>[
+ index("idx_maintenance_property_status").on(t.organizationId,t.propertyId,t.status,t.createdAt),
+ index("idx_maintenance_reporter").on(t.reportedByUserId,t.createdAt),
+ index("idx_maintenance_due").on(t.dueAt,t.status)
 ]);
 
 export const auditLogs = pgTable("audit_logs", {

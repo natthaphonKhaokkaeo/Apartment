@@ -1,7 +1,7 @@
 import React,{useEffect,useState,useCallback} from "react";
 import {createRoot} from "react-dom/client";
 import liff from "@line/liff";
-import {Building2,LayoutDashboard,DoorOpen,ReceiptText,Gauge,Settings,ShieldCheck,LogOut,Plus,ChevronDown,CheckCircle2,AlertTriangle,Wallet,Users,Menu} from "lucide-react";
+import {Building2,LayoutDashboard,DoorOpen,ReceiptText,Gauge,Settings,ShieldCheck,LogOut,Plus,ChevronDown,CheckCircle2,AlertTriangle,Wallet,Users,Menu,Wrench} from "lucide-react";
 import {OwnerInvitations} from "./components/OwnerInvitations.js";
 import {TenantPortal} from "./components/TenantPortal.js";
 import {LineOperationsAdmin} from "./components/LineOperationsAdmin.js";
@@ -10,6 +10,7 @@ import {RoomRateHistory} from "./components/RoomRateHistory.js";
 import {MeterReplacementHistory} from "./components/MeterReplacementHistory.js";
 import {PaymentCenter} from "./components/PaymentCenter.js";
 import {StaffManagement,StaffInviteClaim,StaffMeterReadings} from "./components/StaffManagement.js";
+import {MaintenanceCenter} from "./components/MaintenanceCenter.js";
 import "./styles.css";
 type Organization={id:string;name:string;status:string};
 type Property={id:string;name:string;organizationId:string;address:string;rentSatang:number;waterSatangPerUnit:number;electricSatangPerUnit:number;cadence:string;rollingAnchor:string|null;complianceReviewedAt:string|null};
@@ -19,11 +20,12 @@ type Room={id:string;number:string;floor:number;status:string;rentOverrideSatang
 type Invoice={id:string;roomId:string;amountSatang:number;periodStart:string;periodEnd:string;dueDate:string;status:string;createdAt:string};
 type Me={id:string;name:string;role:string;memberships?:{organizationId:string;role:"OWNER"|"MANAGER"|"STAFF"}[];
  propertyGrants?:{propertyId:string;level:"VIEWER"|"METER_READER"}[]};
-type Section="overview"|"rooms"|"meter"|"billing"|"payments"|"invites"|"staff"|"tenant"|"settings"|"admin";
+type Section="overview"|"rooms"|"meter"|"billing"|"payments"|"maintenance"|"invites"|"staff"|"tenant"|"settings"|"admin";
 const sections:[Section,string,React.ReactNode][]=[
  ["overview","ภาพรวม",<LayoutDashboard size={19}/>],["rooms","ห้องพัก",<DoorOpen size={19}/>],
  ["meter","จดมิเตอร์",<Gauge size={19}/>],["billing","ออกบิล",<ReceiptText size={19}/>],
- ["payments","รับชำระเงิน",<Wallet size={19}/>],["invites","เชิญผู้เช่า",<Users size={19}/>],
+ ["payments","รับชำระเงิน",<Wallet size={19}/>],["maintenance","ซ่อมบำรุง",<Wrench size={19}/>],
+ ["invites","เชิญผู้เช่า",<Users size={19}/>],
  ["staff","จัดการพนักงาน",<Users size={19}/>],["tenant","สำหรับผู้เช่า",<DoorOpen size={19}/>],
  ["settings","ตั้งค่า",<Settings size={19}/>],["admin","Super Admin",<ShieldCheck size={19}/>]];
 const money=(n:number|undefined|null)=>"฿"+((n??0)/100).toLocaleString("th-TH",{minimumFractionDigits:2,maximumFractionDigits:2});
@@ -71,6 +73,12 @@ const labels:Record<string,string>={
  MOVE_OUT_PENDING_FINANCE:"ยังมีคำขอปรับปรุงยอดเงินที่รอตรวจสอบ",
  MOVE_OUT_FUTURE_INVOICE_EXISTS:"มีใบแจ้งหนี้ที่ออกเกินวันสิ้นสุดที่เลือก",
  MOVE_OUT_BOUNDARY_OUT_OF_RANGE:"วันสิ้นสุดต้องอยู่หลังวันเริ่มสัญญาและไม่เกินวันนี้",
+ MAINTENANCE_TRANSITION_INVALID:"เปลี่ยนสถานะงานซ่อมข้ามขั้นตอนที่อนุญาตไม่ได้",
+ TENANT_LEASE_NOT_FOUND:"แจ้งซ่อมได้เฉพาะสัญญาที่เชื่อมกับบัญชีนี้และยังใช้งานอยู่",
+ ROOM_NOT_AVAILABLE_FOR_MAINTENANCE:"เริ่มซ่อมได้เฉพาะห้องว่าง",
+ ROOM_NOT_IN_MAINTENANCE:"ห้องนี้ไม่ได้อยู่ในสถานะซ่อมบำรุง",
+ ROOM_HAS_ACTIVE_LEASE:"ห้องยังมีสัญญาเช่าที่ใช้งานอยู่",
+ ROOM_MAINTENANCE_TICKETS_OPEN:"ต้องปิดงานซ่อมของห้องทั้งหมดก่อนคืนห้อง",
  ROOM_NOT_OCCUPIED:"สถานะห้องไม่สอดคล้องกับสัญญาที่ใช้งาน",
  UNAUTHENTICATED:"กรุณาเข้าสู่ระบบ",COMPLIANCE_REVIEW_REQUIRED:"ต้องให้ Super Admin ตรวจอัตราน้ำไฟก่อนออกบิล",
  TARIFF_ABOVE_REVIEWED_LIMIT:"อัตราค่าน้ำหรือค่าไฟเกินวงเงินที่ตรวจสอบแล้ว",
@@ -333,8 +341,9 @@ function App(){
       </Field><p className="hint">บิลย้ายเข้ากลางรอบต้องมีเลขมิเตอร์น้ำและไฟ ณ วันเริ่มสัญญาและวันสิ้นรอบบิล
        ระบบจะคิดค่าเช่าตามจำนวนวันที่พักจริง รวมหน่วยมิเตอร์ก่อนและหลังการเปลี่ยนมิเตอร์ และไม่อนุญาตให้ออกบิลซ้อนช่วงที่เรียกเก็บแล้ว</p>
       <div className="actions"><button className="btn outline" disabled={busy} type="submit">คำนวณยอดก่อนออกบิล</button><button className="btn primary" disabled={busy} type="button" onClick={e=>{const f=e.currentTarget.closest("form");if(f&&window.confirm("ยืนยันออกบิลจริงสำหรับห้องและรอบวันที่เลือก?"))void preview(new FormData(f),true);}}>ยืนยันออกบิล</button></div></form></Panel>
-      <Panel title="ใบแจ้งหนี้ที่ออกแล้ว" subtitle="จำนวนเงินเป็นยอดตั้งหนี้ — ระบบบันทึกรับชำระยังอยู่ในแผนพัฒนา"><div className="table-scroll"><table><thead><tr><th>หมายเลขห้อง</th><th>รอบบิล</th><th>ครบกำหนด</th><th>ยอดเงิน</th><th>สถานะ</th><th>PDF</th></tr></thead><tbody>{invoices.map(i=><tr key={i.id}><td><b>{rooms.find(r=>r.id===i.roomId)?.number??"-"}</b></td><td>{i.periodStart} → {i.periodEnd}</td><td>{i.dueDate}</td><td>{money(i.amountSatang)}</td><td><span className="pill occupied">{i.status}</span></td><td><a className="btn outline" href={"/v1/properties/"+property.id+"/invoices/"+i.id+"/billing-notice.pdf"} target="_blank" rel="noopener noreferrer">ดาวน์โหลด PDF</a></td></tr>)}</tbody></table>{invoices.length===0&&<p className="empty">ยังไม่มีบิล</p>}</div></Panel></>}
+      <Panel title="ใบแจ้งหนี้ที่ออกแล้ว" subtitle="ยอดเป็นหนี้ตั้งต้น; การรับชำระตรวจโดยเจ้าของจากหลักฐาน และยังไม่เชื่อม Bank API"><div className="table-scroll"><table><thead><tr><th>หมายเลขห้อง</th><th>รอบบิล</th><th>ครบกำหนด</th><th>ยอดเงิน</th><th>สถานะ</th><th>PDF</th></tr></thead><tbody>{invoices.map(i=><tr key={i.id}><td><b>{rooms.find(r=>r.id===i.roomId)?.number??"-"}</b></td><td>{i.periodStart} → {i.periodEnd}</td><td>{i.dueDate}</td><td>{money(i.amountSatang)}</td><td><span className="pill occupied">{i.status}</span></td><td><a className="btn outline" href={"/v1/properties/"+property.id+"/invoices/"+i.id+"/billing-notice.pdf"} target="_blank" rel="noopener noreferrer">ดาวน์โหลด PDF</a></td></tr>)}</tbody></table>{invoices.length===0&&<p className="empty">ยังไม่มีบิล</p>}</div></Panel></>}
     {property&&section==="payments"&&<PaymentCenter key={property.id} propertyId={property.id} api={api} post={post}/>}
+    {property&&section==="maintenance"&&!isStaff&&<MaintenanceCenter key={property.id} propertyId={property.id} rooms={rooms} api={api} post={post} onRoomChanged={()=>loadProperty(property.id,isStaff)}/>}
     {property&&section==="invites"&&<OwnerInvitations key={property.id} propertyId={property.id} api={api} post={post}/>}
     {section==="staff"&&orgRole==="OWNER"&&<StaffManagement key={orgId} orgId={orgId} properties={props} api={api} post={post}/>}
     {section==="tenant"&&<><StaffInviteClaim post={post}/><TenantPortal api={api} post={post}/></>}

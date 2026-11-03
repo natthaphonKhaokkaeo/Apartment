@@ -122,3 +122,7 @@ The MOVE_OUT partial billing option prorates final rent to the actual handover d
 and requires end-boundary readings. The separate OWNER lease close still requires
 all invoices settled and confirmed handover. No deposit refund or certified
 meter-evidence upload is automated. See docs/P1_METER_REPLACEMENT_MOVE_OUT.md.
+
+## P5-02 Maintenance tickets (DEV partial)
+
+Tenant repair requests are tied to the tenant's approved active lease; owners/managers can manage property tickets and room maintenance status. Return from MAINTENANCE requires no active lease and every room-linked ticket closed or cancelled. Migration 0016 is generated but has not been applied or verified against the DEV PostgreSQL runtime. Attachments, configurable SLA policy and LINE maintenance notifications remain pending. See docs/P5_MAINTENANCE_TICKETS.md.

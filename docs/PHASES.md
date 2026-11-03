@@ -14,8 +14,8 @@
 ## Current checkpoint (live)
 
 - **Current phase:** P1-05 verification gates (IN PROGRESS). P1-04 DEV property-scoped staff authorization, 24h token invite/claim/OWNER approval/revoke, dedicated OWNER staff UI and STAFF room/meter UI are implemented and verified in code + real PostgreSQL/HTTP. P1-03c meter continuity and MOVE_OUT partial remain DEV complete; legal evidence/deposit acceptance OPEN.
-- **Immediate task:** finish P1-05 with PostgreSQL HTTP/concurrency verification; its implementation is committed and pushed as `c0dedbc` but not deployed. Then P1-01b/P5 maintenance and deposit workflows. LINE Login/LIFF sandbox and live messaging remain blocked on real provider/legal acceptance. Keep LINE outbound disabled.
-- **Last verified:** source commit `c0dedbc` is pushed to `origin/main`; deployed baseline remains P1-04 commit `d259c94`. Domain tests 11/11, API tests 70/70 excluding the loopback-dependent malware scanner suite, monorepo typecheck, and Web production build pass here. Full unit run has 2 malware scanner integration failures because the sandbox denies loopback binds (`EPERM`). P1-05 HTTP smoke fails its API readiness check in this sandbox; Docker socket access is denied, so no PostgreSQL HTTP or load result is claimed. Deployment was not triggered. SHA-256 verified PostgreSQL backup then migration 0015 applied on the VPS; API/Web/LINE Observer were previously healthy internally at 127.0.0.1:18089. Public HTTPS unavailable after VPS reboot (shared Traefik exited 255).
+- **Immediate task:** finish P1-05 with PostgreSQL HTTP/concurrency verification; its implementation is committed and pushed as c0dedbc but not deployed. P1-01b/P5-02 maintenance ticket and room-state code is now in progress with generated migration 0016; it also needs backup, DB/HTTP and browser verification before rollout. Deposit workflows and LINE Login/LIFF remain gated on policy/provider acceptance. Keep LINE outbound disabled.
+- **Last verified:** source commit `c0dedbc` is pushed to `origin/main`; deployed baseline remains P1-04 commit `d259c94`. Domain tests 11/11, API tests 73/73 excluding the loopback-dependent malware scanner suite, monorepo typecheck, and Web production build pass here. Full unit run has 2 malware scanner integration failures because the sandbox denies loopback binds (`EPERM`). P1-05 HTTP smoke fails its API readiness check in this sandbox; P5 maintenance HTTP smoke was not run because the same private runtime is unavailable; Docker socket access is denied, so no PostgreSQL HTTP or load result is claimed. P5 maintenance API/UI and migration 0016 remain uncommitted and unapplied. Deployment was not triggered. SHA-256 verified PostgreSQL backup then migration 0015 applied on the VPS; API/Web/LINE Observer were previously healthy internally at 127.0.0.1:18089. Public HTTPS unavailable after VPS reboot (shared Traefik exited 255).
 
 - **Deployment:** Apartment DEV containers are healthy **internally** (Dokploy Compose, 127.0.0.1:18089, not Production). Public https://apartme.makemarket.space is **DOWN after 2026-11-03 reboot**: `dokploy-traefik` Exited (255), no host 80/443 listeners. ACME storage inside shared Traefik remains mounted read-only and logs certificate persistence errors. Do not restart shared Traefik from Apartment maintenance; coordinate separate safe infra recovery of ACME storage/certificates and other domains before public verification. Separate PostgreSQL and other service containers were not changed.
 - **Git:** Preserve user files, check `git status --short` before edits; commit with evidence; push/deploy only when explicitly authorized. `c0dedbc` is pushed; it is not deployed. A `.serena/` user directory remains untracked and untouched. Last completed commit: see `git log -1 --oneline`.
@@ -43,7 +43,10 @@
 - [x] Responsive owner/dashboard, room, meter, billing UI
 - [ ] P1-01 Room move-out, maintenance and lease lifecycle transitions (PARTIAL)
   - [x] P1-01a Strict owner-only move-out with final meter/invoice settlement guards, no pending claims/finance, room released AVAILABLE or MAINTENANCE, revoked invitations/consents/outbox, audited lease ENDED, real DB/HTTP security tests, Owner UI
-  - [ ] P1-01b Repair/maintenance ticket workflow and room return-from-maintenance, deposit settlement, former-tenant records access and mid-cycle lease transitions (P1-03 / P5)
+  - [ ] P1-01b Repair/maintenance ticket workflow and room return-from-maintenance, deposit settlement, former-tenant records access and mid-cycle lease transitions (PARTIAL DEV; P1-03 / P5)
+    - [x] Tenant/owner maintenance ticket API and UI, ordered status/audit rules, due-time tracking, maintenance-room return gate; migration 0016 generated and pure workflow tests pass. Details in docs/P5_MAINTENANCE_TICKETS.md.
+    - [ ] Apply migration only after checksum-verified backup; PostgreSQL tenant/owner/outsider and room-return HTTP smoke; browser acceptance
+    - [ ] Deposit/refund policy and workflow, former-tenant invoice/record access policy, mid-cycle lease transition rules
 - [x] P1-02 Property Master effective-dated rate history, owner authorization, audit and immutable invoice rate snapshots (DEV)
   - [x] Migration 0012 backfills historical master baseline and seeds new properties
   - [x] OWNER-only future full-period rates, legal tariff ceiling and already-issued invoice guards
@@ -139,10 +142,14 @@
 - [ ] P4-05 LIFF callback/login/logout/tenant invitation with actual LINE sandbox E2E
 - **Gate:** no outbound notification without legitimate recipient/consent; retries never double-send from application logic.
 
-- P4-01/02/03 DEV code and tests: see \`docs/P4_LINE_OA_WEBHOOK_OUTBOX.md\`. LIVE sender and consent/notification UX remain blocked.\n\n## Phase P5 — Full property operations (NOT STARTED)
+- P4-01/02/03 DEV code and tests: see \`docs/P4_LINE_OA_WEBHOOK_OUTBOX.md\`. LIVE sender and consent/notification UX remain blocked.
+
+## Phase P5 — Full property operations (PARTIAL — DEV)
 
 - [ ] P5-01 Monthly and 15-day scheduled bulk invoices (preview → approval → batch process)
-- [ ] P5-02 Maintenance tickets and room status workflow; files, notifications, SLA
+- [ ] P5-02 Maintenance tickets and room status workflow; files, notifications, SLA (IN PROGRESS — partial DEV)
+  - [x] Tenant/owner tickets, workflow states, audit, due-time/overdue display, room MAINTENANCE entry and guarded return; migration 0016 and service tests. See docs/P5_MAINTENANCE_TICKETS.md.
+  - [ ] PostgreSQL authorization/lifecycle smoke, migration rollout, browser QA, private files, SLA policy/reports, consent-bound notifications and independent review
 - [ ] P5-03 Utility meter photo proof; reading anomalies / reset / replacement
 - [ ] P5-04 Security deposits, move-out settlement, rent/utility disputes, void/credit notes
 - [ ] P5-05 Occupancy and revenue dashboard; exports/reporting with access control
