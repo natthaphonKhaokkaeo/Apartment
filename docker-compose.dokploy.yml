@@ -1,13 +1,13 @@
 # Dokploy Compose DEV. Run only after a valid Dokploy API key/account is available.
 # Uses existing apartment-dev PostgreSQL via its Docker bridge; does not create/alter DB.
-name: apartment-web-dev
+name: apartment-dokploy-dev
 services:
   api:
     build:
       context: .
       dockerfile: infra/Dockerfile
       target: api
-    image: apartment-api:dev
+    image: apartment-api:dokploy-dev
     restart: unless-stopped
     init: true
     env_file:
@@ -36,13 +36,13 @@ services:
       target: web
       args:
         VITE_LIFF_ID: ${VITE_LIFF_ID:-}
-    image: apartment-web:dev
+    image: apartment-web:dokploy-dev
     restart: unless-stopped
     depends_on:
       api:
         condition: service_healthy
     ports:
-      - "127.0.0.1:18088:80"
+      - "127.0.0.1:18089:80"
     networks:
       - default
 networks:
