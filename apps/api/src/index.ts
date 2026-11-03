@@ -10,6 +10,7 @@ import {db,sqlClient} from "./db/client.js";
 import {users,sessions,organizations,memberships,properties,rooms,leases,meterReadings,invoices,invoiceLines,auditLogs} from "./db/schema.js";
 import {AppError,newSessionToken,tokenHash,requireActor,requireOrg,requireProperty,requireAdmin} from "./security.js";
 import {prepareInvoice} from "./services/billing.js";
+import {registerTenantRoutes} from "./routes/tenant.js";
 import {readingToMilli,parseDay} from "@apartment/domain";
 
 const app=Fastify({logger:{redact:["req.headers.cookie","req.headers.authorization","res.headers.set-cookie"]},bodyLimit:1048576});
@@ -224,4 +225,5 @@ app.get("/v1/admin/overview",async req=>{
  const [o,p,r,i]=await Promise.all([db.select().from(organizations),db.select().from(properties),db.select().from(rooms),db.select().from(invoices)]);
  return {organizationCount:o.length,propertyCount:p.length,roomCount:r.length,invoiceCount:i.length};
 });
+await registerTenantRoutes(app);
 await app.listen({host:config.HOST,port:config.PORT});

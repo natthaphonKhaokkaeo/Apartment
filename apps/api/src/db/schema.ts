@@ -78,6 +78,22 @@ export const leases = pgTable("leases", {
   status: varchar("status", {length:16}).notNull().default("ACTIVE"),
   createdAt: timestamp("created_at", {withTimezone:true}).notNull().defaultNow()
 }, t => [index("idx_leases_room").on(t.roomId)]);
+export const leaseInvitations = pgTable("lease_invitations", {
+ id: uuid("id").primaryKey().defaultRandom(),
+ organizationId: uuid("organization_id").notNull().references(() => organizations.id),
+ propertyId: uuid("property_id").notNull().references(() => properties.id),
+ leaseId: uuid("lease_id").notNull().references(() => leases.id),
+ tokenHash: text("token_hash").unique().notNull(),
+ expiresAt: timestamp("expires_at", {withTimezone:true}).notNull(),
+ revokedAt: timestamp("revoked_at", {withTimezone:true}),
+ claimedAt: timestamp("claimed_at", {withTimezone:true}),
+ claimedBy: uuid("claimed_by").references(() => users.id),
+ approvedAt: timestamp("approved_at", {withTimezone:true}),
+ approvedBy: uuid("approved_by").references(() => users.id),
+ createdBy: uuid("created_by").notNull().references(() => users.id),
+ createdAt: timestamp("created_at", {withTimezone:true}).notNull().defaultNow()
+}, t=>[index("idx_lease_invite_lease").on(t.leaseId),index("idx_lease_invite_expiry").on(t.expiresAt)]);
+
 export const meterReadings = pgTable("meter_readings", {
   id: uuid("id").primaryKey().defaultRandom(),
   organizationId: uuid("organization_id").notNull().references(() => organizations.id),

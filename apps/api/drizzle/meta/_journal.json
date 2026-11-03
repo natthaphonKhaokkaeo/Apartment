@@ -8,6 +8,20 @@
       "when": 1793680093276,
       "tag": "0000_sudden_surge",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1793681233624,
+      "tag": "0001_sleepy_christian_walker",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1793681282908,
+      "tag": "0002_last_blonde_phantom",
+      "breakpoints": true
     }
   ]
 }

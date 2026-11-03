@@ -2,16 +2,19 @@ import React,{useEffect,useState,useCallback} from "react";
 import {createRoot} from "react-dom/client";
 import liff from "@line/liff";
 import {Building2,LayoutDashboard,DoorOpen,ReceiptText,Gauge,Settings,ShieldCheck,LogOut,Plus,ChevronDown,CheckCircle2,AlertTriangle,Wallet,Users,Menu} from "lucide-react";
+import {OwnerInvitations} from "./components/OwnerInvitations.js";
+import {TenantPortal} from "./components/TenantPortal.js";
 import "./styles.css";
 type Organization={id:string;name:string;status:string};
 type Property={id:string;name:string;organizationId:string;address:string;rentSatang:number;waterSatangPerUnit:number;electricSatangPerUnit:number;cadence:string;rollingAnchor:string|null;complianceReviewedAt:string|null};
 type Room={id:string;number:string;floor:number;status:string;rentOverrideSatang:number|null;waterOverrideSatang:number|null;electricOverrideSatang:number|null};
 type Invoice={id:string;roomId:string;amountSatang:number;periodStart:string;periodEnd:string;dueDate:string;status:string;createdAt:string};
 type Me={id:string;name:string;role:string};
-type Section="overview"|"rooms"|"meter"|"billing"|"settings"|"admin";
+type Section="overview"|"rooms"|"meter"|"billing"|"invites"|"tenant"|"settings"|"admin";
 const sections:[Section,string,React.ReactNode][]=[
  ["overview","ภาพรวม",<LayoutDashboard size={19}/>],["rooms","ห้องพัก",<DoorOpen size={19}/>],
  ["meter","จดมิเตอร์",<Gauge size={19}/>],["billing","ออกบิล",<ReceiptText size={19}/>],
+ ["invites","เชิญผู้เช่า",<Users size={19}/>],["tenant","สำหรับผู้เช่า",<DoorOpen size={19}/>],
  ["settings","ตั้งค่า",<Settings size={19}/>],["admin","Super Admin",<ShieldCheck size={19}/>]];
 const money=(n:number|undefined|null)=>"฿"+((n??0)/100).toLocaleString("th-TH",{minimumFractionDigits:2,maximumFractionDigits:2});
 const satang=(s:string)=>Math.round(Number(s)*100);
@@ -23,7 +26,8 @@ const labels:Record<string,string>={
  FULL_PERIOD_ACTIVE_LEASE_REQUIRED:"ต้องมีสัญญาเช่าที่มีผลตลอดรอบบิล",
  INVALID_BILLING_PERIOD:"ช่วงวันที่ไม่ตรงกับรอบบิลของหอพัก",PERIOD_ALREADY_BILLED:"ออกบิลสำหรับรอบนี้แล้ว",
  ROOM_NOT_AVAILABLE:"ห้องนี้ไม่ว่าง",IDEMPOTENCY_KEY_REUSED:"รหัสคำขอถูกใช้กับบิลอื่นแล้ว",
- ORG_ACCESS_DENIED:"ไม่มีสิทธิ์เข้าถึงหอพักนี้"};
+ ORG_ACCESS_DENIED:"ไม่มีสิทธิ์เข้าถึงหอพักนี้", INVITATION_NOT_FOUND:"รหัสเชิญไม่ถูกต้อง หมดอายุ หรือถูกใช้แล้ว",
+ INVITATION_NOT_APPROVABLE:"คำขอเชิญนี้ยังไม่พร้อมอนุมัติ", LEASE_ALREADY_LINKED:"สัญญานี้ผูกบัญชีแล้ว", LEASE_NOT_INVITABLE:"สัญญานี้ยังเชิญผู้เช่าไม่ได้"};
 async function api<T>(path:string, options:RequestInit={}):Promise<T>{
  const response=await fetch("/v1"+path,{...options,credentials:"include",headers:{"content-type":"application/json",...options.headers}});
  let data:unknown;try{data=await response.json();}catch{data={error:"NETWORK_ERROR"};}
@@ -47,7 +51,7 @@ function App(){
  const loadMe=useCallback(async()=>{
   try{const result=await api<Me>("/me");setMe(result);return result;}catch{return null;}
  },[]);
- const loadOrgs=useCallback(async()=>{const items=await api<Organization[]>("/organizations");setOrgs(items);setOrgId(v=>items.some(o=>o.id===v)?v:(items[0]?.id||""));},[]);
+ const loadOrgs=useCallback(async()=>{const items=await api<Organization[]>("/organizations");setOrgs(items);setOrgId(v=>items.some(o=>o.id===v)?v:(items[0]?.id||""));if(items.length===0)setSection("tenant");},[]);
  const loadProps=useCallback(async(org:string)=>{const data=await api<Property[]>("/organizations/"+org+"/properties");
   setProps(data);setPropertyId(prev=>data.some(p=>p.id===prev)?prev:(data[0]?.id||""));},[]);
  const loadProperty=useCallback(async(p:string)=>{
@@ -135,8 +139,8 @@ function App(){
     {success&&<div className="notice success" role="status"><CheckCircle2 size={18}/>{success}</div>}
     {!me?<div className="welcome"><div className="welcome-art"><Building2 size={48}/></div><h2>หอพักของคุณ จัดการง่ายในที่เดียว</h2><p>ดูห้องพัก จดน้ำไฟ ออกบิลใน LINE OA อย่างเป็นระบบและปลอดภัย</p><button className="btn primary large" disabled={lineBusy} onClick={()=>void login()}>{lineBusy?"กำลังเชื่อมต่อ...":"เข้าสู่ระบบด้วย LINE"}</button><small>ระบบจะตรวจสอบ LINE ID Token จากฝั่งเซิร์ฟเวอร์ก่อนเข้าสู่ระบบ</small></div>:
     <>
-    {orgs.length===0&&<Panel title="สร้างบัญชีเจ้าของหอพัก" subtitle="ผู้ใช้หนึ่งคนสามารถมีหลายบัญชีและหลายหอพักได้">{form(createOrg,<Field label="ชื่อบัญชีเจ้าของ"><input name="name" required minLength={2} placeholder="เช่น บริษัท บ้านรุ่งเรือง"/></Field>)}</Panel>}
-    {orgId&&props.length===0&&<Panel title="เพิ่มหอพักแห่งแรก" subtitle="ตั้งราคา Master ที่ทุกห้องจะได้รับโดยอัตโนมัติ">{form(createProperty,<><Field label="ชื่อหอพัก"><input name="name" required placeholder="บ้านสุขใจ"/></Field><Field label="ที่อยู่"><input name="address" placeholder="ที่อยู่หอพัก"/></Field>
+    {orgs.length===0&&section==="overview"&&<Panel title="สร้างบัญชีเจ้าของหอพัก" subtitle="ผู้ใช้หนึ่งคนสามารถมีหลายบัญชีและหลายหอพักได้">{form(createOrg,<Field label="ชื่อบัญชีเจ้าของ"><input name="name" required minLength={2} placeholder="เช่น บริษัท บ้านรุ่งเรือง"/></Field>)}</Panel>}
+    {orgId&&props.length===0&&section!=="tenant"&&<Panel title="เพิ่มหอพักแห่งแรก" subtitle="ตั้งราคา Master ที่ทุกห้องจะได้รับโดยอัตโนมัติ">{form(createProperty,<><Field label="ชื่อหอพัก"><input name="name" required placeholder="บ้านสุขใจ"/></Field><Field label="ที่อยู่"><input name="address" placeholder="ที่อยู่หอพัก"/></Field>
       <div className="cols3"><Field label="ค่าเช่า / เดือน (บาท)"><input name="rent" type="number" step=".01" min="0" required defaultValue="4000"/></Field><Field label="ค่าน้ำ / หน่วย (บาท)"><input name="water" type="number" step=".01" min="0" required defaultValue="18"/></Field><Field label="ค่าไฟ / หน่วย (บาท)"><input name="electric" type="number" step=".01" min="0" required defaultValue="4"/></Field></div>
       <Field label="รอบบิล"><select name="cadence" defaultValue="MONTHLY"><option value="MONTHLY">รายเดือน</option><option value="SEMI_MONTHLY">เดือนละ 2 รอบ</option><option value="EVERY_15_DAYS">ทุก 15 วัน (ต้องระบุ Anchor)</option></select></Field><Field label="วันที่ Anchor (เมื่อใช้ทุก 15 วัน)"><input name="anchor" type="date"/></Field></>)}</Panel>}
     {property&&section==="overview"&&<>
@@ -157,6 +161,8 @@ function App(){
     {property&&section==="meter"&&<><Panel title="จดเลขมิเตอร์" subtitle="กรอกเลขมิเตอร์น้ำและไฟ พร้อมวันที่อ่านจริง เลขต้องไม่ลดลง">{form(reading,<div className="cols2"><Field label="ห้องพัก"><select name="roomId">{rooms.map(r=><option key={r.id} value={r.id}>{r.number}</option>)}</select></Field><Field label="ประเภท"><select name="kind"><option value="WATER">ค่าน้ำ</option><option value="ELECTRIC">ค่าไฟ</option></select></Field><Field label="วันที่อ่าน"><input type="date" name="day" required defaultValue={dateNow()}/></Field><Field label="เลขมิเตอร์"><input name="value" required inputMode="decimal" placeholder="1234.000"/></Field></div>)}</Panel><div className="hint"><Gauge size={19}/> จำเป็นต้องมีค่ามิเตอร์ที่วันเริ่มและวันสิ้นสุดของรอบบิลก่อนออกบิล</div></>}
     {property&&section==="billing"&&<><Panel title="ออกใบแจ้งหนี้รายห้อง" subtitle="ทดลองคำนวณก่อน แล้วจึงกดออกบิลจริงภายหลังตรวจความถูกต้อง"><form className="form" onSubmit={e=>{e.preventDefault();void preview(new FormData(e.currentTarget),false);}}><div className="cols3"><Field label="ห้องพัก"><select name="roomId">{rooms.filter(r=>r.status==="OCCUPIED").map(r=><option key={r.id} value={r.id}>{r.number}</option>)}</select></Field><Field label="วันเริ่มรอบ"><input name="start" required type="date"/></Field><Field label="วันสิ้นสุด (ไม่รวมวันนี้)"><input name="end" required type="date"/></Field></div><div className="actions"><button className="btn outline" disabled={busy} type="submit">คำนวณยอดก่อนออกบิล</button><button className="btn primary" disabled={busy} type="button" onClick={e=>{const f=e.currentTarget.closest("form");if(f&&window.confirm("ยืนยันออกบิลจริงสำหรับห้องและรอบวันที่เลือก?"))void preview(new FormData(f),true);}}>ยืนยันออกบิล</button></div></form></Panel>
       <Panel title="ใบแจ้งหนี้ที่ออกแล้ว" subtitle="จำนวนเงินเป็นยอดตั้งหนี้ — ระบบบันทึกรับชำระยังอยู่ในแผนพัฒนา"><div className="table-scroll"><table><thead><tr><th>หมายเลขห้อง</th><th>รอบบิล</th><th>ครบกำหนด</th><th>ยอดเงิน</th><th>สถานะ</th></tr></thead><tbody>{invoices.map(i=><tr key={i.id}><td><b>{rooms.find(r=>r.id===i.roomId)?.number??"-"}</b></td><td>{i.periodStart} → {i.periodEnd}</td><td>{i.dueDate}</td><td>{money(i.amountSatang)}</td><td><span className="pill occupied">{i.status}</span></td></tr>)}</tbody></table>{invoices.length===0&&<p className="empty">ยังไม่มีบิล</p>}</div></Panel></>}
+    {property&&section==="invites"&&<OwnerInvitations key={property.id} propertyId={property.id} api={api} post={post}/>}
+    {section==="tenant"&&<TenantPortal api={api} post={post}/>}
     {property&&section==="settings"&&<Panel title="ข้อมูล Master ของหอพัก" subtitle="สำหรับการตั้งค่าที่มีผลต่อการสร้างบิลใหม่เท่านั้น"><div className="rate-row"><span>ชื่อหอพัก</span><b>{property.name}</b></div><div className="rate-row"><span>ที่อยู่</span><b>{property.address||"—"}</b></div><div className="rate-row"><span>รอบออกบิล</span><b>{property.cadence}</b></div><div className="rate-row"><span>ค่าเช่า Master</span><b>{money(property.rentSatang)}</b></div><div className="rate-row"><span>ค่าน้ำ Master</span><b>{money(property.waterSatangPerUnit)}/หน่วย</b></div><div className="rate-row"><span>ค่าไฟ Master</span><b>{money(property.electricSatangPerUnit)}/หน่วย</b></div><div className="hint">การแก้ไข Master หลังสร้างเริ่มต้น จะเปิดใช้งานเมื่อเพิ่ม Pricing History แบบมีวันมีผล เพื่อป้องกันบิลย้อนหลังเปลี่ยนแปลง</div></Panel>}
     {section==="admin"&&me.role==="SUPER_ADMIN"&&<><div className="stats"><div className="stat"><span>เจ้าของทั้งหมด</span><strong>{admin?.organizationCount??"—"}</strong></div><div className="stat"><span>หอพักทั้งหมด</span><strong>{admin?.propertyCount??"—"}</strong></div><div className="stat"><span>ห้องทั้งหมด</span><strong>{admin?.roomCount??"—"}</strong></div><div className="stat"><span>ใบแจ้งหนี้</span><strong>{admin?.invoiceCount??"—"}</strong></div></div>
       {property&&<Panel title="ตรวจสอบข้อกำหนดค่าน้ำและค่าไฟ" subtitle="Super Admin เท่านั้น — ระบุหลักฐานอัตราที่กฎหมายและผู้ให้บริการอนุญาตก่อนเปิดออกบิล">{form(compliance,<><Field label="อ้างอิงหลักฐาน/เอกสารการตรวจสอบ"><input name="evidence" required minLength={8} placeholder="เอกสาร/URL/เลขอ้างอิง"/></Field><div className="cols2"><Field label="เพดานค่าน้ำ / หน่วย (บาท)"><input name="waterMax" required type="number" step=".01" min="0"/></Field><Field label="เพดานค่าไฟ / หน่วย (บาท)"><input name="electricMax" required type="number" step=".01" min="0"/></Field></div></>)}</Panel>}</>}

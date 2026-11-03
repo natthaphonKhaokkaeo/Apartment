@@ -24,3 +24,14 @@ Testing: corepack pnpm test; corepack pnpm typecheck; corepack pnpm --filter @ap
 
 ## Runtime verification
 Run corepack pnpm --filter @apartment/api smoke and corepack pnpm --filter @apartment/api smoke:http with the private development DB running. HTTP smoke creates temporary isolated owners/properties, tests 403/201/200 replay/409 and cleans its fixtures.
+
+## Canonical phase plan / new session handoff
+See [docs/PHASES.md](docs/PHASES.md) for all checkboxes, validation gates, and exact next-task instructions.
+
+## P2 Tenant Portal (local implementation)
+- Owner: "/v1/properties/:propertyId/leases/:leaseId/invitations" (POST/GET), owner approve or revoke specific claimed invitation.
+- Tenant (authenticated via LINE-backed session): POST "/v1/tenant/invitations/claim" creates **pending owner approval**; tenant GET "/v1/tenant/leases", "/v1/tenant/invoices", and "/v1/tenant/invoices/:invoiceId" only after approval.
+- Tokens: random 256-bit 24h expiry, hash at rest, only one claim; owner review before account activation, rate-limited claim route. Do not share tokens in URLs, logs or analytics.
+- React menu: "เชิญผู้เช่า" for owner; "สำหรับผู้เช่า" for read-only tenant. LINE LIFF E2E requires actual LINE Developers credentials and HTTPS.
+
+New agent? Read [docs/NEXT_SESSION.md](docs/NEXT_SESSION.md) first, then the canonical [docs/PHASES.md](docs/PHASES.md).

@@ -1,5 +1,5 @@
 # Agent development instructions
-- Read README.md and docs/implementation-status.md; preserve user work and uncommitted files.
+- Read README.md and **docs/PHASES.md** (canonical handoff) and docs/implementation-status.md; preserve user work and uncommitted files.
 - Scope every DB operation through authenticated organization membership. SUPER_ADMIN only via trusted LINE bootstrap config.
 - Money integer satang, readings milli-units, calendar intervals [start,end).
 - Invoice issue transaction + immutable snapshot + idempotency and audit; guard unverified tariffs.

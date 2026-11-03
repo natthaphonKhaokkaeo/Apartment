@@ -9,11 +9,11 @@
 - [x] Billing period invariants, preview, and transactional single-room invoice issue with immutable lines
 - [x] Compliance review required before invoice issue, Super Admin-only endpoint
 - [x] Responsive owner/admin UI, overview, rooms, metering and billing
-- [x] Domain and API tests (19 tests), real PostgreSQL smoke, authenticated HTTP issuance replay smoke, TypeScript checks, Vite build
+- [x] Domain and API tests (22 tests), real PostgreSQL smoke, authenticated HTTP issuance and tenant invitation/approval/read-only invoice smoke, TypeScript checks, Vite build
 
 ## Not yet completed
 - [ ] LINE sandbox channel E2E (needs real LINE_CHANNEL_ID + LIFF ID)
-- [ ] Tenant portal and tenant account linking/invitations
+- [x] Tenant account invitation/owner approval + read-only tenant invoice portal (code and Postgres/HTTP smoke; LINE sandbox E2E still pending)
 - [ ] Effective-dated historical pricing + move-in/out edge cases
 - [ ] Payment reconciliation / deposit / receipts / tax invoices / PDFs
 - [ ] LINE OA messaging, raw-body signature checked webhook, asynchronous notification outbox
@@ -30,3 +30,6 @@ A user may create their own organization and properties, but cannot access other
 2. Rent paid in advance or after use; billing due-day rules.
 3. Which entity issues receipts and potential tax invoices.
 4. Compliance reviewer evidence and tariff calculation basis.
+
+## Current handoff
+Canonical phases: `docs/PHASES.md`. P2 local code complete; P2 LINE sandbox E2E blocked by actual LINE credentials. Continue P3-01 display-only payment instructions; never mark paid without reconciliation.
