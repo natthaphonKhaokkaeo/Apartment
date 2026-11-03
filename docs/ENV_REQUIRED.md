@@ -78,3 +78,7 @@ No real-bank API, payment provider, tax receipt API, refunds or e-tax integratio
 - Owner payment account/PromptPay, refunds vs held credit for overpayments
 - Rent in advance vs after period and tenant/owner legal identity
 - Figma team: personal vs SKY ICT
+
+
+## H. P3-05b informational PDF (implemented)
+No additional environment variables or credentials are required. The API depends on the npm package @expo-google-fonts/noto-sans-thai and pdfkit at runtime, and embeds the Thai font in the PDF. Official receipts/tax documents still require policy and legally verified issuer/tax identity before implementation.

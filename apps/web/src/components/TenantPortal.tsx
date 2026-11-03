@@ -59,6 +59,7 @@ export function TenantPortal({api,post}:Api){
    <button className="btn outline" onClick={()=>setDetail(null)}>ปิด</button></div>
    {detail.lines.map((l,i)=><div key={i} className="rate-row"><span>{l.description}</span><b>{baht(l.amountSatang)}</b></div>)}
    <div className="rate-row"><strong>ยอดรวม</strong><strong>{baht(detail.amountSatang)}</strong></div>
+   <div className="actions" style={{marginTop:15,marginBottom:20}}><a className="btn primary" href={"/v1/tenant/invoices/"+detail.id+"/billing-notice.pdf"} target="_blank" rel="noopener noreferrer">ดาวน์โหลดใบแจ้งหนี้ PDF</a></div>
    <TenantPayments invoiceId={detail.id} api={api}/>
   </section>}
  </div>;

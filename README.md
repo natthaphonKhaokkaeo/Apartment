@@ -53,3 +53,9 @@ Additional concurrency test: `corepack pnpm --filter @apartment/api smoke:paymen
 - `corepack pnpm --filter @apartment/api smoke:s3` runs HTTP S3 mock and actual PostgreSQL workflow without remote keys.
 - **Do not confuse S3 mock tests with real S3/provider E2E.** Production remains disabled while malware scan / lifecycle / real provider IAM-CORS tests are outstanding.
 - Receipt/tax PDF requirements (not yet implemented): `docs/P3_PDF_RECEIPT_SPEC.md`.
+
+
+## P3-05b Thai Billing Notice (not receipt / not tax invoice)
+Authorized PDF download: GET /v1/properties/:propertyId/invoices/:invoiceId/billing-notice.pdf or GET /v1/tenant/invoices/:invoiceId/billing-notice.pdf.
+The React owner and tenant screens expose download links. New bills snapshot issuer/property/address/room/tenant data at issue time; old bills disclose current-record fallback. All currency totals are taken from existing immutable invoice_lines, never recalculated from current Master pricing.
+PDFKit embeds Noto Sans Thai from @expo-google-fonts/noto-sans-thai; no additional ENV, API key, or font file to supply. Visual QA: corepack pnpm --filter @apartment/api exec tsx scripts/preview-billing-pdf.ts (add --long for 7-page test). See docs/P3_PDF_RECEIPT_SPEC.md.

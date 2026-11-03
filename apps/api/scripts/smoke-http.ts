@@ -1,6 +1,7 @@
 import {spawn} from "node:child_process";
 import {randomUUID} from "node:crypto";
 import sharp from "sharp";
+import {getDocument} from "pdfjs-dist/legacy/build/pdf.mjs";
 import {strict as assert} from "node:assert";
 import {eq} from "drizzle-orm";
 import {db,sqlClient} from "../src/db/client.js";
@@ -222,6 +223,60 @@ async function main(){
  const savedInvoice=await request("/v1/properties/"+pa.id+"/invoices/"+issue.body.invoice.id,token);
  assert.equal(savedInvoice.body.status,"ISSUED");
  console.log("PASS P3 HTTP: bank version CAS, tenant IDOR 404, manager cannot edit/approve, image sanitized, approval/rejection/partial/full, no overpay/replay");
+ // P3-05b: owner and linked tenant can download the same informational PDF;
+ // an unrelated tenant and unauthenticated visitor cannot.
+ const pdfPath="/v1/properties/"+pa.id+"/invoices/"+issue.body.invoice.id+"/billing-notice.pdf";
+ const tenantPdfPath="/v1/tenant/invoices/"+issue.body.invoice.id+"/billing-notice.pdf";
+ const raw=async(path:string,session:string)=>{
+  return fetch(base+path,{headers:{cookie:"apartment_session="+session}});
+ };
+ const ownerPdf=await raw(pdfPath,token);
+ assert.equal(ownerPdf.status,200,await ownerPdf.clone().text());
+ assert.match(ownerPdf.headers.get("content-type")||"",/application\/pdf/);
+ assert.match(ownerPdf.headers.get("cache-control")||"",/no-store/);
+ assert.match(ownerPdf.headers.get("content-disposition")||"",/attachment/);
+ const ownerBytes=Buffer.from(await ownerPdf.arrayBuffer());
+ assert.equal(ownerBytes.subarray(0,5).toString(),"%PDF-");
+ const pdfDoc=await getDocument({data:new Uint8Array(ownerBytes),useSystemFonts:false}).promise;
+ assert.ok(pdfDoc.numPages>=1);
+ const page=await pdfDoc.getPage(1);
+ const content=await page.getTextContent();
+ const docText=content.items.map(i=>"str" in i?i.str:"").join(" ");
+ assert.ok(docText.includes("ใบแจ้งหนี้"),docText);
+ assert.ok(docText.includes("API Property A"),docText);
+ assert.ok(docText.includes("S101"),docText);
+ assert.ok(docText.includes("Sample Only"),docText);
+ assert.ok(docText.includes("4,130.00"),docText);
+ assert.ok(docText.includes("ไม่ใช่ใบเสร็จรับเงิน"),docText);
+ const tenantPdf=await raw(tenantPdfPath,tenantTokenA);
+ assert.equal(tenantPdf.status,200);
+ assert.equal((await raw(tenantPdfPath,tenantTokenB)).status,404);
+ assert.equal((await raw(tenantPdfPath,"not-a-valid-session")).status,401);
+ assert.equal((await raw("/v1/properties/"+pb.id+"/invoices/"+issue.body.invoice.id+"/billing-notice.pdf",token)).status,403);
+ // Mutate current labels after issuance: the immutable snapshot must NOT change.
+ const originalSnapshot=(await db.select().from(invoices).where(eq(invoices.id,issue.body.invoice.id)))[0].documentSnapshot;
+ assert.ok(originalSnapshot,"new invoices must capture document snapshot on issuance");
+ await db.update(properties).set({name:"Changed Property Name"}).where(eq(properties.id,pa.id));
+ await db.update(rooms).set({number:"CHANGED-ROOM"}).where(eq(rooms.id,room.id));
+ await db.update(leases).set({tenantName:"Changed Tenant"}).where(eq(leases.id,lease.id));
+ const changedPdf=await raw(pdfPath,token);assert.equal(changedPdf.status,200);
+ const changedDoc=await getDocument({data:new Uint8Array(await changedPdf.arrayBuffer()),useSystemFonts:false}).promise;
+ const changedText=(await (await changedDoc.getPage(1)).getTextContent()).items.map(i=>"str"in i?i.str:"").join(" ");
+ assert.ok(changedText.includes("API Property A"));
+ assert.ok(changedText.includes("S101"));
+ assert.ok(changedText.includes("Sample Only"));
+ assert.ok(!changedText.includes("Changed Property Name"));
+ assert.ok(!changedText.includes("CHANGED-ROOM"));
+ // Legacy invoices issued before P3-05b still download but show explicit current-record disclaimer.
+ await db.update(invoices).set({documentSnapshot:null}).where(eq(invoices.id,issue.body.invoice.id));
+ const legacyPdf=await raw(pdfPath,token);assert.equal(legacyPdf.status,200);
+ const legacyDoc=await getDocument({data:new Uint8Array(await legacyPdf.arrayBuffer()),useSystemFonts:false}).promise;
+ const legacyText=(await (await legacyDoc.getPage(1)).getTextContent()).items.map(i=>"str"in i?i.str:"").join(" ");
+ assert.ok(legacyText.includes("ข้อมูลปัจจุบัน"),legacyText);
+ assert.ok(legacyText.includes("Changed Property Name"));
+ await db.update(invoices).set({documentSnapshot:originalSnapshot}).where(eq(invoices.id,issue.body.invoice.id));
+ console.log("PASS PDF HTTP: scoped owner/tenant 200, outsider 404, unauthenticated 401, cross-org 403; immutable issued labels and explicit legacy warning");
+
 
 
 

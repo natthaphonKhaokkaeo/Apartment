@@ -105,6 +105,14 @@ export const meterReadings = pgTable("meter_readings", {
   createdBy: uuid("created_by").notNull().references(() => users.id),
   createdAt: timestamp("created_at", {withTimezone:true}).notNull().defaultNow()
 }, t => [uniqueIndex("uq_meter_room_day").on(t.roomId,t.kind,t.readAt)]);
+export type InvoiceDocumentSnapshot={
+ schemaVersion:1;
+ issuerName:string;
+ propertyName:string;
+ propertyAddress:string;
+ roomNumber:string;
+ tenantName:string;
+};
 export const invoices = pgTable("invoices", {
   id: uuid("id").primaryKey().defaultRandom(),
   organizationId: uuid("organization_id").notNull().references(() => organizations.id),
@@ -115,6 +123,7 @@ export const invoices = pgTable("invoices", {
   periodEnd: date("period_end").notNull(),
   dueDate: date("due_date").notNull(),
   amountSatang: integer("amount_satang").notNull(),
+  documentSnapshot: jsonb("document_snapshot").$type<InvoiceDocumentSnapshot|null>(),
   status: invoiceStatus("status").notNull().default("ISSUED"),
   idempotencyKey: varchar("idempotency_key", {length:128}).notNull(),
   issuedBy: uuid("issued_by").notNull().references(() => users.id),
@@ -127,6 +136,7 @@ export const invoices = pgTable("invoices", {
 export const invoiceLines = pgTable("invoice_lines", {
   id: uuid("id").primaryKey().defaultRandom(),
   invoiceId: uuid("invoice_id").notNull().references(() => invoices.id),
+  ordinal: integer("ordinal").notNull().default(0),
   type: varchar("type", {length:16}).notNull(),
   description: text("description").notNull(),
   unitsMilli: integer("units_milli"),

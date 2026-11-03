@@ -13,6 +13,7 @@ import {prepareInvoice} from "./services/billing.js";
 import {registerTenantRoutes} from "./routes/tenant.js";
 import {registerPaymentRoutes} from "./routes/payments.js";
 import {registerEvidenceUploadRoutes} from "./routes/evidence-uploads.js";
+import {registerBillingDocumentRoutes} from "./routes/billing-documents.js";
 import {readingToMilli,parseDay} from "@apartment/domain";
 
 const app=Fastify({logger:{redact:["req.headers.cookie","req.headers.authorization","res.headers.set-cookie"]},bodyLimit:1048576});
@@ -213,10 +214,16 @@ app.post("/v1/properties/:propertyId/bills/issue",async(req,reply)=>{
   const [duplicate]=await tx.select().from(invoices).where(and(eq(invoices.leaseId,preview.lease.id),
     eq(invoices.periodStart,b.start),eq(invoices.periodEnd,b.endExclusive)));
   if(duplicate)throw new AppError(409,"PERIOD_ALREADY_BILLED");
+  const [org]=await tx.select({name:organizations.name,status:organizations.status})
+    .from(organizations).where(eq(organizations.id,locked.organizationId)).limit(1);
+  if(!org||org.status!=="ACTIVE")throw new AppError(409,"ORGANIZATION_NOT_ACTIVE");
   const [i]=await tx.insert(invoices).values({organizationId:p.organizationId,propertyId:p.id,
     roomId:preview.room.id,leaseId:preview.lease.id,periodStart:b.start,periodEnd:b.endExclusive,
-    dueDate:due(b.endExclusive,p.dueDays),amountSatang:preview.totalSatang,idempotencyKey:key,issuedBy:a.id}).returning();
-  await tx.insert(invoiceLines).values(preview.lines.map(l=>({invoiceId:i.id,...l})));
+    dueDate:due(b.endExclusive,locked.dueDays),amountSatang:preview.totalSatang,idempotencyKey:key,issuedBy:a.id,
+    documentSnapshot:{schemaVersion:1,issuerName:org.name,propertyName:locked.name,
+      propertyAddress:locked.address,roomNumber:preview.room.number,tenantName:preview.lease.tenantName}
+  }).returning();
+  await tx.insert(invoiceLines).values(preview.lines.map((l,ordinal)=>({invoiceId:i.id,ordinal,...l})));
   await tx.insert(auditLogs).values({actorId:a.id,organizationId:p.organizationId,action:"INVOICE_ISSUED",targetId:i.id,metadata:{amountSatang:i.amountSatang}});
   return {invoice:i,replayed:false};
  });
@@ -249,4 +256,5 @@ app.get("/v1/admin/overview",async req=>{
 await registerTenantRoutes(app);
 await registerPaymentRoutes(app);
 await registerEvidenceUploadRoutes(app);
+await registerBillingDocumentRoutes(app);
 await app.listen({host:config.HOST,port:config.PORT});

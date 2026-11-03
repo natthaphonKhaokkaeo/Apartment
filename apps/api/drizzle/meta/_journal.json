@@ -43,6 +43,13 @@
       "when": 1793683426620,
       "tag": "0005_uneven_hammerhead",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1793685176158,
+      "tag": "0006_mushy_magdalene",
+      "breakpoints": true
     }
   ]
 }

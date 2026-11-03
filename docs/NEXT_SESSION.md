@@ -6,7 +6,9 @@
 
 Continue the Apartment LINE-first multi-tenant SaaS in `/root/Projects/Apartment`.
 
-**Start with P3-05b**: implement **non-tax / non-receipt Billing Notice PDF** with immutable invoice snapshots, authenticated owner/tenant access, Thai font embedding and render verification. `docs/P3_PDF_RECEIPT_SPEC.md` has exact acceptance criteria. When complete, tackle P3-01b PromptPay QR; preserve production fail-closed stance.
+**Start with P3-01b:** implement **display-only Thai PromptPay QR** after validating the official format and CRC. Use property payment settings scoped to authenticated tenant's invoice; it must never auto-approve or post to Ledger. Unit test invalid identifiers, payload encoding, amount optional/fixed policy and tenant IDOR.
+
+**P3-05b is implemented in DEV:** scoped owner and linked tenant can download an A4 Thai Billing Notice PDF with immutable invoice-line amounts and an issuance-time snapshot of issuer/property/address/room/tenant. Historical invoices without snapshots display a clear current-record metadata warning. This document is **NOT** a payment receipt or tax invoice. See docs/P3_PDF_RECEIPT_SPEC.md.
 
 P3-02b Signed S3 upload code is implemented for DEV and passes `smoke:s3` using a local HTTP mock with actual PostgreSQL. It is **NOT yet verified against a real cloud/S3-compatible provider**, so P3-02b remains unchecked. When the user configures storage ENV, validate provider IAM + SigV4 signature verification, CORS, browser LIFF flow, lifecycle, malware scan, restore and security review. See `docs/P3_S3_STORAGE_RUNBOOK.md` and `docs/ENV_REQUIRED.md`.
 
@@ -30,6 +32,8 @@ corepack pnpm --filter @apartment/api smoke
 corepack pnpm --filter @apartment/api smoke:http
 corepack pnpm --filter @apartment/api smoke:payments
 corepack pnpm --filter @apartment/api smoke:s3
+corepack pnpm --filter @apartment/api exec tsx scripts/preview-billing-pdf.ts
+corepack pnpm --filter @apartment/api exec tsx scripts/preview-billing-pdf.ts --long
 ```
 
 Do **not** execute `db:migrate` blindly on any shared or production DB; this is a dedicated local DEV database. New migrations must be reviewed first.
@@ -67,3 +71,11 @@ Do **not** execute `db:migrate` blindly on any shared or production DB; this is 
 ## End-of-session policy
 
 Before declaring phase work complete, run tests/typecheck/build/database smoke, document verified evidence and any blocked work. Update both `docs/PHASES.md` (canonical) and `docs/implementation-status.md` (summary). Commit only your finished code with no secrets, no remote push/deploy without authorization. Never use bypass flags or rewrite someone else's changes.
+
+
+## P3-05b implemented files
+- apps/api/src/services/billing-notice-pdf.ts — dynamic PDFKit A4 renderer with embedded Noto Sans Thai from npm, guarded totals, multiple pages, and clear non-receipt/non-tax notice
+- apps/api/src/routes/billing-documents.ts — private no-store owner/tenant downloads with property/invoice scope
+- apps/api/tests/billing-notice.test.ts — PDFJS Thai text, total invariants, legacy warning and long-row pagination tests
+- apps/api/scripts/preview-billing-pdf.ts — reproducible PDF+PNG visual review, optional --long
+- apps/api/drizzle/0006_mushy_magdalene.sql — invoice document_snapshot and invoice line ordinal

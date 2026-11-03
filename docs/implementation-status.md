@@ -56,3 +56,13 @@ Canonical phases: `docs/PHASES.md`. P2 local code complete; LINE sandbox E2E blo
 - [ ] Non-tax Billing Notice PDF, official receipt/tax legal signoff and real LINE Sandbox
 - [ ] Any production enablement; fail-closed guard remains active
 Canonical handoff remains `docs/PHASES.md`; full key list `docs/ENV_REQUIRED.md`; S3 instructions `docs/P3_S3_STORAGE_RUNBOOK.md`.
+
+
+## P3-05b Billing Notice PDF (DEV verified; 2026-11-03)
+- [x] A4 Thai PDFKit renderer, embedded Noto Sans Thai, pages/footers, explicit non-receipt/non-tax warning
+- [x] Immutable saved line totals + new invoice document_snapshot, migration 0006 and invoice line ordinal
+- [x] Old invoices use current metadata only with explicit legacy warning
+- [x] Authenticated owner and tenant PDF downloads: no-store, IDOR/unauthenticated test gates
+- [x] PDFJS Thai/money extraction, visual raster inspected single-page and 7-page document
+- [ ] Official receipts/tax PDFs, legal issuer/VAT, document numbering, signed storage/retention, real LINE browser UAT
+Next: P3-01b PromptPay display-only QR. Canonical plan: docs/PHASES.md.

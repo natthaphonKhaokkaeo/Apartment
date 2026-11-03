@@ -1,6 +1,12 @@
-# P3-05 Document and Receipt Contract — Specification (Not Implemented)
+# P3-05 Billing Notice (Implemented in DEV) / Official Receipt Contract (Pending)
 
-State: **Requirements/spec prepared; PDF renderer, receipt issuance, tax invoice legality and E2E remain pending.** No official receipt is generated or authorized by the current code.
+State (2026-11-03): **Informational Billing Notice PDF and scoped downloads are implemented and tested in DEV.** Official payment receipts, tax invoices, legally verified issuer/tax data, bank settlement confirmation and Production release are **not implemented**.
+
+Available routes:
+- GET /v1/properties/:propertyId/invoices/:invoiceId/billing-notice.pdf — authorized property owner/staff
+- GET /v1/tenant/invoices/:invoiceId/billing-notice.pdf — linked active tenant with an issued invoice
+Both return authenticated, private no-store PDF attachments; no public URL. New invoices capture issuer/property/address/room/tenant names into document_snapshot at issue time. Old invoices display an explicit current-record metadata warning. Financial amounts always come from immutable invoice_lines. Fonts are Noto Sans Thai from an npm dependency, embedded at runtime, without extra ENV.
+PDFJS text extraction and raster review passed for one-page and seven-page DEV samples.
 
 ## A. Document distinction
 
@@ -29,7 +35,7 @@ State: **Requirements/spec prepared; PDF renderer, receipt issuance, tax invoice
 - Golden-file tests for rent, water/electric, override, discount, multiple pages, empty fields, Thai glyph coverage, total invariants and IDOR.
 - Render PDFs to images and inspect for clipping, tofu/missing Thai glyphs and overlap before release.
 - Clearly distinguish financial source status: manual owner approval vs verified bank settlement.
-- Keep P3-05 unchecked until legal issuer details, PDF implementation, E2E and compliance signoff are complete.
+- Keep P3-05 **overall unchecked** until official receipt/tax identity, numbering, financial validation and legal signoff pass. P3-05b informational PDF is checked in PHASES.md.
 
 ## D. Product decisions still required
 
