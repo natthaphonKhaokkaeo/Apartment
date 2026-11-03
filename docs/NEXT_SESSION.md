@@ -120,3 +120,10 @@ Domain checkpoint: https://apartme.makemarket.space now works (HTTPS trusted; we
 - Test: apps/api/tests/line-notifications.test.ts and apps/api/scripts/smoke-line-consent.ts; run corepack pnpm --filter @apartment/api smoke:consent.
 - No DB migration necessary; reuses LINE schema from 0009. Real OA/LIFF credentials missing; LINE_OUTBOUND_MODE=disabled, no automated or real sending.
 - Handoff spec: docs/P4_TENANT_CONSENT_NOTIFICATIONS.md.
+
+## P4-04 managed DEV deployment verification — 2026-11-03
+- P4-04 code commit d01e1c2 is pushed to GitHub main and Docker API/Web images were rebuilt and recreated in existing Dokploy Compose project apartment-dokploy-dev-ajcnbm (NO other projects touched).
+- Public https://apartme.makemarket.space/ and /readyz return 200 with trusted TLS; GET /v1/tenant/notification-consents and unauthenticated PUT both return 401; unsigned /v1/line/oa/webhook returns 503 because real LINE secret remains unconfigured.
+- API route source is present in managed container; LINE_OUTBOUND_MODE defaults to disabled and NO messages were sent.
+- CLI safe dry-run tested; trying --apply without --confirm-queue-only fails. PostgreSQL remains Healthy with 22 tables (no migration needed).
+- Keep P4-04 marked PARTIAL for invitation/repair templates and real LINE provider/consent acceptance. Traefik ACME storage durability issue remains as documented.

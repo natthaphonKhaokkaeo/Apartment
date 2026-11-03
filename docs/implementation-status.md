@@ -112,3 +112,8 @@ NEXT: P4-01 LINE OA durable outbox and webhook contract, or Dokploy registration
 - [x] PostgreSQL HTTP smoke and unit tests (cross-user, missing OA, explicit acknowledgement, invoice replay, consent revoke, due idempotency)
 - [ ] Real LINE Login/LIFF/Messaging Sandbox, receiver/consent legal review, invitation/repair workflows and continuously monitored sender
 Next: P4-05 real LINE sandbox if credentials configured; otherwise P4-03c operational worker and P4-04d owner-facing notification settings. See docs/P4_TENANT_CONSENT_NOTIFICATIONS.md.
+
+### P4-04 deployed DEV verification
+- [x] GitHub commit d01e1c2 pushed and Apartment-only Docker Compose rebuilt/recreated under Dokploy, public HTTPS 200 + /readyz 200, auth 401, unconfigured LINE webhook 503, outbound disabled.
+- [x] Due CLI dry-run no write; --apply without confirmation rejected.
+- [ ] Live LINE Login/LIFF/Outbound Sandbox still untested; do not enable real sends until credentials and policy approved.

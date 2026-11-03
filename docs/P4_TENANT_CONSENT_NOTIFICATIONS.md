@@ -65,3 +65,6 @@ The isolated DEV PostgreSQL/HTTP consent smoke verifies: missing OA (409), expli
 - [ ] Production security/legal and automated deployment verification
 
 No new API key is needed to build this phase. Existing LINE credentials from docs/ENV_REQUIRED.md remain required for LIVE messaging. Do not set LINE_OUTBOUND_MODE=live until the above gates are met.
+
+## Deployment proof
+DEV commit d01e1c2 was pushed and deployed to the existing Dokploy-managed Apartment DEV project at https://apartme.makemarket.space. Website and readiness 200 with valid TLS, tenant consent read/write without login 401, and LINE webhook without credentials 503. API/Web/Postgres healthy; Outbound mode disabled. No LINE provider message has been sent and P4-04 remains PARTIAL for real external acceptance and invitation/repair workflows.
