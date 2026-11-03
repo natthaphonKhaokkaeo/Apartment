@@ -43,6 +43,23 @@ services:
         condition: service_healthy
     ports:
       - "127.0.0.1:18089:80"
+    # Public HTTPS is routed ONLY by the existing Dokploy Traefik service.
+    # Keep web access via the private loopback port for DEV diagnostics.
+    labels:
+      traefik.enable: "true"
+      traefik.docker.network: dokploy-network
+      traefik.http.routers.apartme-http.rule: "Host(`apartme.makemarket.space`)"
+      traefik.http.routers.apartme-http.entrypoints: web
+      traefik.http.routers.apartme-http.middlewares: apartme-https-only
+      traefik.http.routers.apartme-http.service: apartme-web
+      traefik.http.middlewares.apartme-https-only.redirectscheme.scheme: https
+      traefik.http.middlewares.apartme-https-only.redirectscheme.permanent: "true"
+      traefik.http.routers.apartme-secure.rule: "Host(`apartme.makemarket.space`)"
+      traefik.http.routers.apartme-secure.entrypoints: websecure
+      traefik.http.routers.apartme-secure.tls: "true"
+      traefik.http.routers.apartme-secure.tls.certresolver: letsencrypt
+      traefik.http.routers.apartme-secure.service: apartme-web
+      traefik.http.services.apartme-web.loadbalancer.server.port: "80"
     networks:
       - default
       - dokploy-network
