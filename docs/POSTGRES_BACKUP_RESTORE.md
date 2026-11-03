@@ -43,3 +43,9 @@ The restore-test creates an ephemeral PostgreSQL container with no network, host
 **Remaining gap:** Backups currently share the same VPS/disk. If the VPS, Docker volume and local backup folder are lost together, there is no recoverable copy yet. Offsite replication/alerts and periodic restore drills are required before Production.
 
 Safety: do not store database passwords in this runbook or Git. PostgreSQL persists through reboot via restart=unless-stopped. This procedure only targets Apartment DEV, not other containers.
+
+## Observed DEV verification
+- Two backup executions completed successfully with custom pg_dump archives and matching SHA-256 files.
+- ./infra/backup-apartment-postgres.sh restore-test restored 25 public tables to an ephemeral postgres:16-alpine instance (network none, no host ports or persistent storage). Source database unchanged.
+- systemctl start apartment-postgres-backup.service completed with Result=success and Exit Status=0; apartment-postgres-backup.timer remains active, next run 2026-11-04 03:30 Asia/Bangkok.
+- The running Apartment DEV API/Web/Observer and PostgreSQL are healthy after deployment. This verifies local recovery only; offsite disaster recovery still unverified.

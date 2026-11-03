@@ -163,3 +163,10 @@ Domain checkpoint: https://apartme.makemarket.space now works (HTTPS trusted; we
 - infra/backup-apartment-postgres.sh, infra/systemd/apartment-postgres-backup.{service,timer}, docs/POSTGRES_BACKUP_RESTORE.md. Enabled real VPS systemd timer daily 03:30 Asia/Bangkok. Source Docker volume unchanged. Verified live pg_dump custom format, SHA-256 and full restore to temporary postgres:16 container with --network none (25 public tables), not production DB.
 - Physical data is still on the SAME VPS. Offsite encrypted copy, backup success notification and independent restore test are not configured. Do not claim disaster recovery readiness.
 - Read docs/P4_LINE_RETENTION.md and docs/POSTGRES_BACKUP_RESTORE.md.
+
+## Final P4-03e + database backup DEV validation (2026-11-03)
+- Feature commit b0d55eb pushed to main; existing Apartment Dokploy project rebuilt and updated API/Web/line-observer only. All three containers and PostgreSQL Healthy.
+- Public HTTPS/readyz 200 with valid TLS (verify 0); unauthenticated alerts API returns 401. Observer heartbeat fresh (8s), LIVE worker OFF: observe/approval false/outbound disabled.
+- systemd apartment-postgres-backup.timer ACTIVE with next 2026-11-04 03:30:00 Asia/Bangkok; backup service manual execution SUCCESS. Root-only /root/backups/apartment-postgres backup files have SHA-256, backup script verify PASS, restore to independent ephemeral PostgreSQL 16 network-none container PASS (25 public tables); no DB downtime. Need OFFSITE backup before Production.
+- 63 unit tests + API/finance/payment/S3/cleanup/LINE suites/typecheck/web build PASS; P4-03e live consent race and reservation retention smoke PASS.
+- P4-05 LINE provider Sandbox/login/LIFF E2E awaits actual credentials; no real sending. Shared Traefik ACME read-only bind still needs risk-controlled maintenance. See docs/POSTGRES_BACKUP_RESTORE.md and docs/P4_LINE_RETENTION.md.

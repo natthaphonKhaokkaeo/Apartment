@@ -154,3 +154,10 @@ See docs/P4_LINE_QUOTAS_ALERTS.md.
 - [x] 30-day min org-scoped manual reservation cleanup, default dry-run, bounded delete and PostgreSQL scope tests. Not scheduled.
 - [x] Existing Apartment PostgreSQL Docker volume persistent; automated daily backup at 03:30 Asia/Bangkok using systemd, 14d local retention. pg_dump+sha256 and isolated actual restore 25 tables passed, service start successful.
 - [ ] OFFSITE encrypted backups/alerts, real LINE sandbox live acceptance, external alert paging and production in-flight uncertainty review.
+
+### Verified P4-03e DEV deployment and backup runtime
+- [x] Git b0d55eb pushed and DEV Compose API/Web/Observer rebuilt/deployed, all Healthy, separate PostgreSQL Healthy.
+- [x] HTTPS/readyz 200 trusted TLS, unauthenticated Admin Alerts 401, LINE observer heartbeat fresh/outbound disabled.
+- [x] PostgreSQL root-only local backup timer active daily 03:30 Bangkok; service execution 0/success, SHA256 verified, isolated PostgreSQL 16 restore test passed with 25 public tables.
+- [x] 63 unit tests and full regression green, real PostgreSQL consent race and retention tests green.
+- [ ] Encrypted offsite backup + external alerting, live LINE Sandbox/auth/LIFF, provider acceptance, ACME persistence and Production security gate.

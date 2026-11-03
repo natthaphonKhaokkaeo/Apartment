@@ -22,3 +22,6 @@ Rules:
 Verification: unit tests check retention cutoff/validation; real PostgreSQL LINE smoke inserts an old reserved-at fixture and checks DRY_RUN, no cross-organization deletion, one bounded apply and preservation of newer rows.
 
 Remaining P4-03e: provider uncertainty handling, in-flight consent revocation guarantees, external incident escalation, and privacy/retention sign-off. Keep LINE_WORKER_MODE=observe, LINE_WORKER_APPROVED=false and LINE_OUTBOUND_MODE=disabled on DEV.
+
+## DEV verification / rollout
+Commit b0d55eb deployed in the existing Apartment Dokploy project. Full unit/regression gates passed (63 tests); real PostgreSQL smoke confirms bounded retention and locked consent-revoke concurrency. Public HTTPS and readiness 200, incident auth guard 401; worker is still observe-only with outbound disabled. No real LINE network messages were transmitted.
