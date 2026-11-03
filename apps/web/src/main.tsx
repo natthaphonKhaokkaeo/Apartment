@@ -5,6 +5,7 @@ import {Building2,LayoutDashboard,DoorOpen,ReceiptText,Gauge,Settings,ShieldChec
 import {OwnerInvitations} from "./components/OwnerInvitations.js";
 import {TenantPortal} from "./components/TenantPortal.js";
 import {LineOperationsAdmin} from "./components/LineOperationsAdmin.js";
+import {PropertyRateSettings} from "./components/PropertyRateSettings.js";
 import {PaymentCenter} from "./components/PaymentCenter.js";
 import "./styles.css";
 type Organization={id:string;name:string;status:string};
@@ -24,6 +25,16 @@ const money=(n:number|undefined|null)=>"฿"+((n??0)/100).toLocaleString("th-TH"
 const satang=(s:string)=>Math.round(Number(s)*100);
 function dateNow(){return new Date(Date.now()+7*3600000).toISOString().slice(0,10);}
 const labels:Record<string,string>={
+ PROPERTY_RATE_OWNER_REQUIRED:"ปรับราคา Master ได้เฉพาะ OWNER ขององค์กร",
+ RATE_BACKDATE_FORBIDDEN:"ไม่สามารถนัดอัตราใหม่ย้อนหลังได้",
+ RATE_EFFECTIVE_DATE_NOT_PERIOD_START:"วันที่เริ่มใช้อัตราต้องตรงกับวันเริ่มรอบบิล",
+ RATE_COMPLIANCE_REVIEW_REQUIRED:"ต้องผ่านการตรวจอัตราค่าน้ำไฟโดย Super Admin ก่อน",
+ RATE_ABOVE_REVIEWED_LIMIT:"ค่าน้ำหรือค่าไฟสูงกว่าเพดานที่ผ่านการตรวจสอบ",
+ RATE_EFFECTIVE_DATE_ALREADY_SCHEDULED:"วันที่นี้มีอัตรานัดไว้แล้ว หรือมีอัตราในอนาคตที่ใหม่กว่า",
+ RATE_UNCHANGED:"อัตราที่กรอกเท่ากับอัตราก่อนหน้า",
+ RATE_ALREADY_ISSUED_FUTURE_BILLS:"มีใบแจ้งหนี้ในอนาคตที่ออกไปแล้ว ต้องตรวจสอบก่อนนัดอัตราใหม่",
+ RATE_HISTORY_MISSING:"ไม่พบประวัติอัตรา Master",
+ RATE_CHANGE_WITHIN_BILLING_PERIOD:"ไม่รองรับการเปลี่ยนราคากลางรอบบิล",
  LEASE_MOVE_OUT_OWNER_REQUIRED:"การปิดสัญญาต้องให้ Owner ขององค์กรดำเนินการ",
  LEASE_ALREADY_ENDED:"สัญญานี้ปิดแล้ว",
  MOVE_OUT_FINAL_METERS_REQUIRED:"ต้องจดมิเตอร์น้ำและไฟ ณ วันสิ้นสุดสัญญาก่อน",
@@ -220,6 +231,7 @@ function App(){
     {property&&section==="payments"&&<PaymentCenter key={property.id} propertyId={property.id} api={api} post={post}/>}
     {property&&section==="invites"&&<OwnerInvitations key={property.id} propertyId={property.id} api={api} post={post}/>}
     {section==="tenant"&&<TenantPortal api={api} post={post}/>}
+    {property&&section==="settings"&&<PropertyRateSettings key={property.id} propertyId={property.id} cadence={property.cadence} current={property} api={api} post={post} onSaved={()=>void loadProps(orgId)}/>}
     {property&&section==="settings"&&<Panel title="ข้อมูล Master ของหอพัก" subtitle="สำหรับการตั้งค่าที่มีผลต่อการสร้างบิลใหม่เท่านั้น"><div className="rate-row"><span>ชื่อหอพัก</span><b>{property.name}</b></div><div className="rate-row"><span>ที่อยู่</span><b>{property.address||"—"}</b></div><div className="rate-row"><span>รอบออกบิล</span><b>{property.cadence}</b></div><div className="rate-row"><span>ค่าเช่า Master</span><b>{money(property.rentSatang)}</b></div><div className="rate-row"><span>ค่าน้ำ Master</span><b>{money(property.waterSatangPerUnit)}/หน่วย</b></div><div className="rate-row"><span>ค่าไฟ Master</span><b>{money(property.electricSatangPerUnit)}/หน่วย</b></div><div className="hint">การแก้ไข Master หลังสร้างเริ่มต้น จะเปิดใช้งานเมื่อเพิ่ม Pricing History แบบมีวันมีผล เพื่อป้องกันบิลย้อนหลังเปลี่ยนแปลง</div></Panel>}
     {section==="admin"&&me.role==="SUPER_ADMIN"&&<><LineOperationsAdmin organizationId={orgId} api={api} post={post}/><div className="stats"><div className="stat"><span>เจ้าของทั้งหมด</span><strong>{admin?.organizationCount??"—"}</strong></div><div className="stat"><span>หอพักทั้งหมด</span><strong>{admin?.propertyCount??"—"}</strong></div><div className="stat"><span>ห้องทั้งหมด</span><strong>{admin?.roomCount??"—"}</strong></div><div className="stat"><span>ใบแจ้งหนี้</span><strong>{admin?.invoiceCount??"—"}</strong></div></div>
       {property&&<Panel title="ตรวจสอบข้อกำหนดค่าน้ำและค่าไฟ" subtitle="Super Admin เท่านั้น — ระบุหลักฐานอัตราที่กฎหมายและผู้ให้บริการอนุญาตก่อนเปิดออกบิล">{form(compliance,<><Field label="อ้างอิงหลักฐาน/เอกสารการตรวจสอบ"><input name="evidence" required minLength={8} placeholder="เอกสาร/URL/เลขอ้างอิง"/></Field><div className="cols2"><Field label="เพดานค่าน้ำ / หน่วย (บาท)"><input name="waterMax" required type="number" step=".01" min="0"/></Field><Field label="เพดานค่าไฟ / หน่วย (บาท)"><input name="electricMax" required type="number" step=".01" min="0"/></Field></div></>)}</Panel>}</>}

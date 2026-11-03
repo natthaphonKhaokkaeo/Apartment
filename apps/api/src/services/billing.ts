@@ -3,6 +3,7 @@ import {parseDay,periodsForMonth,rollingPeriods,effectiveRate,rentForPeriod,read
 import {db} from "../db/client.js";
 import {leases,meterReadings,properties,rooms} from "../db/schema.js";
 import {AppError} from "../security.js";
+import {effectiveMasterRate} from "./property-rates.js";
 
 type QueryDB = Pick<typeof db, "select">;
 export type BillInput = {roomId:string; start:string; endExclusive:string};
@@ -23,9 +24,12 @@ export async function prepareInvoice(data:BillInput, property:typeof properties.
  if(!room) throw new AppError(404,"ROOM_NOT_FOUND");
  const [lease] = await client.select().from(leases).where(and(eq(leases.roomId,room.id),eq(leases.propertyId,property.id),eq(leases.organizationId,property.organizationId),eq(leases.status,"ACTIVE"))).limit(1);
  if(!lease || lease.startDate > data.start || (lease.endDate && lease.endDate < data.endExclusive)) throw new AppError(422,"FULL_PERIOD_ACTIVE_LEASE_REQUIRED");
- const rateRent = effectiveRate(property.rentSatang,room.rentOverrideSatang);
- const rateWater = effectiveRate(property.waterSatangPerUnit,room.waterOverrideSatang);
- const rateElectric = effectiveRate(property.electricSatangPerUnit,room.electricOverrideSatang);
+ // The rate effective at the billing period START owns this whole interval.
+ // A mid-period scheduled revision is rejected until P1-03 supports prorating.
+ const master=await effectiveMasterRate(property,data.start,data.endExclusive,client);
+ const rateRent = effectiveRate(master.rentSatang,room.rentOverrideSatang);
+ const rateWater = effectiveRate(master.waterSatangPerUnit,room.waterOverrideSatang);
+ const rateElectric = effectiveRate(master.electricSatangPerUnit,room.electricOverrideSatang);
  if(!property.complianceReviewedAt || !property.complianceEvidenceRef ||
    property.waterAllowedMax === null || property.electricAllowedMax === null) throw new AppError(422,"COMPLIANCE_REVIEW_REQUIRED");
  if(rateWater>property.waterAllowedMax || rateElectric>property.electricAllowedMax) throw new AppError(422,"TARIFF_ABOVE_REVIEWED_LIMIT");
@@ -38,11 +42,16 @@ export async function prepareInvoice(data:BillInput, property:typeof properties.
    const startMilli=readingToMilli(prev.value),endMilli=readingToMilli(next.value);
    const amountSatang=utilitySatang(startMilli,endMilli,rate);
    meterLines.push({type:kind,description:kind==="WATER"?"ค่าน้ำ":"ค่าไฟ",unitsMilli:endMilli-startMilli,tariffSatang:rate,amountSatang,
-     snapshot:{start:prev.value,end:next.value,rateSatang:rate,startReadingId:prev.id,endReadingId:next.id}});
+     snapshot:{start:prev.value,end:next.value,rateSatang:rate,
+      masterRateVersionId:master.id,masterEffectiveFrom:master.effectiveFrom,
+      rateSource:(kind==="WATER"?room.waterOverrideSatang:room.electricOverrideSatang)===null?"MASTER":"OVERRIDE",
+      startReadingId:prev.id,endReadingId:next.id}});
  }
  const rentSatang=rentForPeriod(rateRent,data.start,data.endExclusive);
  const lines=[{type:"RENT",description:"ค่าเช่าห้อง",unitsMilli:null,tariffSatang:null,amountSatang:rentSatang,
-   snapshot:{monthlyRentSatang:rateRent,periodStart:data.start,periodEnd:data.endExclusive,rateSource:room.rentOverrideSatang===null?"MASTER":"OVERRIDE"}},...meterLines];
+   snapshot:{monthlyRentSatang:rateRent,periodStart:data.start,periodEnd:data.endExclusive,
+    masterRateVersionId:master.id,masterEffectiveFrom:master.effectiveFrom,
+    rateSource:room.rentOverrideSatang===null?"MASTER":"OVERRIDE"}},...meterLines];
  const total=lines.reduce((sum,l)=>sum+l.amountSatang,0);
  if(!Number.isSafeInteger(total) || total > 2147483647) throw new AppError(422,"AMOUNT_OUT_OF_RANGE");
  return {room,lease,property,periodStart:data.start,periodEnd:data.endExclusive,lines,totalSatang:total};

@@ -55,6 +55,25 @@ export const properties = pgTable("properties", {
   electricAllowedMax: integer("electric_allowed_max"),
   createdAt: timestamp("created_at", {withTimezone:true}).notNull().defaultNow()
 }, t=>[index("idx_properties_org").on(t.organizationId)]);
+/** Immutable property-master tariffs. 1900-01-01 marks the legacy baseline.
+ * Existing issued invoice lines remain frozen even when future rates change.
+ */
+export const propertyRateVersions=pgTable("property_rate_versions",{
+ id:uuid("id").primaryKey().defaultRandom(),
+ organizationId:uuid("organization_id").notNull().references(()=>organizations.id),
+ propertyId:uuid("property_id").notNull().references(()=>properties.id,{onDelete:"cascade"}),
+ effectiveFrom:date("effective_from").notNull(),
+ rentSatang:integer("rent_satang").notNull(),
+ waterSatangPerUnit:integer("water_satang_per_unit").notNull(),
+ electricSatangPerUnit:integer("electric_satang_per_unit").notNull(),
+ reason:varchar("reason",{length:500}).notNull(),
+ createdBy:uuid("created_by").references(()=>users.id),
+ createdAt:timestamp("created_at",{withTimezone:true}).notNull().defaultNow()
+},t=>[
+ uniqueIndex("uq_property_rate_effective_date").on(t.propertyId,t.effectiveFrom),
+ index("idx_property_rates_org").on(t.organizationId,t.propertyId,t.effectiveFrom)
+]);
+
 export const rooms = pgTable("rooms", {
   id: uuid("id").primaryKey().defaultRandom(),
   organizationId: uuid("organization_id").notNull().references(() => organizations.id),

@@ -7,6 +7,7 @@ import {eq} from "drizzle-orm";
 import {db,sqlClient} from "../src/db/client.js";
 import {users,sessions,organizations,memberships,properties,rooms,leases,meterReadings,invoices,invoiceLines,auditLogs,leaseInvitations,paymentClaims,paymentLedger,paymentInstructions} from "../src/db/schema.js";
 import {newSessionToken,tokenHash} from "../src/security.js";
+import {bangkokToday} from "../src/services/property-rates.js";
 import {deletePrivateEvidence} from "../src/services/evidence.js";
 
 const ids:{users:string[];sessions:string[];orgs:string[];props:string[];rooms:string[];leases:string[];readings:string[];invoices:string[];claims:string[]}={
@@ -57,6 +58,76 @@ async function main(){
  assert.equal(invoice.status,200);assert.equal(invoice.body.lines.length,3);
  assert.equal(invoice.body.lines.reduce((n:number,l:any)=>n+l.amountSatang,0),413000);
  console.log("PASS HTTP: owner scope (200/403), admin denial, bill preview, transactional issue (201), replay (200), duplicate (409), immutable 3 lines");
+ // P1-02: historical property master rates, future period-only schedule and snapshots.
+ const ratePath="/v1/properties/"+pa.id+"/rates";
+ const initial=await request(ratePath,token);
+ assert.equal(initial.status,200);
+ assert.equal(initial.body.length,1);
+ assert.equal(initial.body[0].effectiveFrom,"1900-01-01");
+ assert.equal(initial.body[0].rentSatang,400000);
+ assert.equal((await request("/v1/properties/"+pb.id+"/rates",token)).status,403);
+ const [rateManager]=await db.insert(users).values({
+  lineSubject:"http-manager-"+tag,displayName:"Manager"
+ }).returning();ids.users.push(rateManager.id);
+ await db.insert(memberships).values({
+  organizationId:oa.id,userId:rateManager.id,role:"MANAGER"
+ });
+ const rateManagerToken=newSessionToken();
+ const [rateManagerSession]=await db.insert(sessions).values({
+  userId:rateManager.id,tokenHash:tokenHash(rateManagerToken),
+  expiresAt:new Date(Date.now()+180000)
+ }).returning();ids.sessions.push(rateManagerSession.id);
+ const [yy,mm]=bangkokToday().split("-").map(Number);
+ const rateStart=new Date(Date.UTC(yy,mm,1)).toISOString().slice(0,10);
+ const rateEnd=new Date(Date.UTC(yy,mm+1,1)).toISOString().slice(0,10);
+ const newRate={
+  effectiveFrom:rateStart,rentSatang:450000,
+  waterSatangPerUnit:1850,electricSatangPerUnit:450,
+  reason:"Updated audited master rate for a future full billing period"
+ };
+ assert.equal((await request(ratePath,rateManagerToken,{method:"POST",
+  body:JSON.stringify(newRate)})).status,403);
+ assert.equal((await request("/v1/properties/"+pb.id+"/rates",token,{method:"POST",
+  body:JSON.stringify(newRate)})).status,403);
+ assert.equal((await request(ratePath,token,{method:"POST",
+  body:JSON.stringify({...newRate,effectiveFrom:"2020-01-01"})})).status,422);
+ const badMidcycle=rateStart.slice(0,8)+"15";
+ assert.equal((await request(ratePath,token,{method:"POST",
+  body:JSON.stringify({...newRate,effectiveFrom:badMidcycle})})).status,422);
+ assert.equal((await request(ratePath,token,{method:"POST",
+  body:JSON.stringify({...newRate,waterSatangPerUnit:2001})})).status,422);
+ const scheduled=await request(ratePath,token,{method:"POST",body:JSON.stringify(newRate)});
+ assert.equal(scheduled.status,201,JSON.stringify(scheduled.body));
+ assert.equal(scheduled.body.effectiveFrom,rateStart);
+ assert.equal((await request(ratePath,token,{method:"POST",
+  body:JSON.stringify(newRate)})).status,409);
+ const history=await request(ratePath,token);
+ assert.equal(history.status,200);assert.equal(history.body.length,2);
+ assert.equal(history.body[0].id,scheduled.body.id);
+ const oldStill=await request("/v1/properties/"+pa.id+"/invoices/"+issue.body.invoice.id,token);
+ assert.equal(oldStill.body.lines.reduce((sum:number,l:any)=>sum+l.amountSatang,0),413000);
+ assert.equal(oldStill.body.lines[0].snapshot.masterRateVersionId,initial.body[0].id);
+ const futureReadings=[];
+ for(const kind of ["WATER","ELECTRIC"] as const)
+  for(const [day,value] of [[rateStart,kind==="WATER"?"105.000":"210.000"],
+   [rateEnd,kind==="WATER"?"110.000":"220.000"]] as const)
+   futureReadings.push({organizationId:oa.id,propertyId:pa.id,roomId:room.id,
+    kind,readAt:day,value,createdBy:u.id});
+ const futureRows=await db.insert(meterReadings).values(futureReadings)
+  .onConflictDoNothing().returning({id:meterReadings.id});
+ ids.readings.push(...futureRows.map(row=>row.id));
+ const futurePreview=await request("/v1/properties/"+pa.id+"/bills/preview",token,{
+  method:"POST",body:JSON.stringify({roomId:room.id,
+   start:rateStart,endExclusive:rateEnd})
+ });
+ assert.equal(futurePreview.status,200,JSON.stringify(futurePreview.body));
+ assert.equal(futurePreview.body.totalSatang,463750);
+ assert.ok(futurePreview.body.lines.every((line:any)=>
+  line.snapshot.masterRateVersionId===scheduled.body.id));
+ assert.ok((await db.select().from(auditLogs).where(eq(auditLogs.actorId,u.id)))
+  .some(a=>a.action==="PROPERTY_RATE_SCHEDULED"&&a.targetId===scheduled.body.id));
+ console.log("PASS P1-02: baseline trigger, owner scope, future full-period version, upper legal cap, audit, old immutable bill and new tariff preview");
+
  // P2 — claimed invite must not grant invoice access until owner approval.
  const [tenantA,tenantB]=await db.insert(users).values([
   {lineSubject:"http-tenantA-"+tag,displayName:"Tenant A"},

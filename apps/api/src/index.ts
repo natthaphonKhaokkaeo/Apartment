@@ -3,7 +3,7 @@ import cookie from "@fastify/cookie";
 import cors from "@fastify/cors";
 import helmet from "@fastify/helmet";
 import rateLimit from "@fastify/rate-limit";
-import {and,eq,desc,gt,isNull} from "drizzle-orm";
+import {and,eq,desc,gt,isNull,lte,inArray} from "drizzle-orm";
 import {z,ZodError} from "zod";
 import {config} from "./config.js";
 import {db,sqlClient} from "./db/client.js";
@@ -20,6 +20,9 @@ import {registerLineOaRoutes} from "./routes/line-oa.js";
 import {registerLineConsentRoutes} from "./routes/line-consent.js";
 import {registerLineOperationsRoutes} from "./routes/line-operations.js";
 import {registerLeaseLifecycleRoutes} from "./routes/lease-lifecycle.js";
+import {registerPropertyRateRoutes} from "./routes/property-rates.js";
+import {bangkokToday} from "./services/property-rates.js";
+import {propertyRateVersions} from "./db/schema.js";
 import {queueInvoiceIssuedTx} from "./services/line-notifications.js";
 import {readingToMilli,parseDay} from "@apartment/domain";
 
@@ -104,7 +107,21 @@ app.post("/v1/organizations",async(req,reply)=>{
 app.get("/v1/organizations/:orgId/properties",async req=>{
  const {orgId}=take(z.object({orgId:uuid}),req.params),a=await requireActor(req);
  await requireOrg(a,orgId);
- return db.select().from(properties).where(eq(properties.organizationId,orgId)).orderBy(properties.name);
+ const all=await db.select().from(properties).where(eq(properties.organizationId,orgId)).orderBy(properties.name);
+ if(!all.length)return all;
+ const rateRows=await db.select().from(propertyRateVersions).where(and(
+  eq(propertyRateVersions.organizationId,orgId),
+  inArray(propertyRateVersions.propertyId,all.map(p=>p.id)),
+  lte(propertyRateVersions.effectiveFrom,bangkokToday())
+ )).orderBy(desc(propertyRateVersions.effectiveFrom));
+ // Master columns in properties retain legacy baseline. Project the active
+ // version onto the public read model without mutating historical records.
+ return all.map(p=>{
+  const active=rateRows.find(r=>r.propertyId===p.id);
+  return active?{...p,rentSatang:active.rentSatang,
+   waterSatangPerUnit:active.waterSatangPerUnit,
+   electricSatangPerUnit:active.electricSatangPerUnit}:p;
+ });
 });
 app.post("/v1/organizations/:orgId/properties",async(req,reply)=>{
  const {orgId}=take(z.object({orgId:uuid}),req.params),a=await requireActor(req);await requireOrg(a,orgId,true);
@@ -284,4 +301,5 @@ await registerLineOaRoutes(app);
 await registerLineConsentRoutes(app);
 await registerLineOperationsRoutes(app);
 await registerLeaseLifecycleRoutes(app);
+await registerPropertyRateRoutes(app);
 await app.listen({host:config.HOST,port:config.PORT});
