@@ -65,3 +65,6 @@ Dokploy API docs: https://docs.dokploy.com/docs/api/compose — create/update/de
 - Trusted current TLS certificate issuer is Let's Encrypt YR2, notAfter 2027-02-01 UTC. It works now but persistent renewal is unverified.
 - INFRA ISSUE: the shared dokploy-traefik container has its dynamic directory bind mounted READ ONLY; ACME acme.json on host is 0 bytes and Traefik logged an error opening it read-only. Certificate may only exist in memory and might be lost after Traefik restart. Do not restart or recreate shared Traefik without a planned maintenance action to make ACME storage persist securely and test renewal. Other services must not be interrupted by this Apartment task.
 - Local private diagnostics still available at 127.0.0.1:18089. Production readiness and real LINE Login remain blocked.
+
+## P4-03c DEV line-observer service
+Compose adds private line-observer based on the API image, private apartment-dev_default PostgreSQL bridge, 60-second aggregate counts and heartbeat. Environment forces observe mode, approval false, outbound disabled; no published port. This is NOT a live LINE sender. See docs/P4_LINE_OPERATIONS.md.

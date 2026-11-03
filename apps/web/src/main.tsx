@@ -4,6 +4,7 @@ import liff from "@line/liff";
 import {Building2,LayoutDashboard,DoorOpen,ReceiptText,Gauge,Settings,ShieldCheck,LogOut,Plus,ChevronDown,CheckCircle2,AlertTriangle,Wallet,Users,Menu} from "lucide-react";
 import {OwnerInvitations} from "./components/OwnerInvitations.js";
 import {TenantPortal} from "./components/TenantPortal.js";
+import {LineOperationsAdmin} from "./components/LineOperationsAdmin.js";
 import {PaymentCenter} from "./components/PaymentCenter.js";
 import "./styles.css";
 type Organization={id:string;name:string;status:string};
@@ -167,7 +168,7 @@ function App(){
     {property&&section==="invites"&&<OwnerInvitations key={property.id} propertyId={property.id} api={api} post={post}/>}
     {section==="tenant"&&<TenantPortal api={api} post={post}/>}
     {property&&section==="settings"&&<Panel title="ข้อมูล Master ของหอพัก" subtitle="สำหรับการตั้งค่าที่มีผลต่อการสร้างบิลใหม่เท่านั้น"><div className="rate-row"><span>ชื่อหอพัก</span><b>{property.name}</b></div><div className="rate-row"><span>ที่อยู่</span><b>{property.address||"—"}</b></div><div className="rate-row"><span>รอบออกบิล</span><b>{property.cadence}</b></div><div className="rate-row"><span>ค่าเช่า Master</span><b>{money(property.rentSatang)}</b></div><div className="rate-row"><span>ค่าน้ำ Master</span><b>{money(property.waterSatangPerUnit)}/หน่วย</b></div><div className="rate-row"><span>ค่าไฟ Master</span><b>{money(property.electricSatangPerUnit)}/หน่วย</b></div><div className="hint">การแก้ไข Master หลังสร้างเริ่มต้น จะเปิดใช้งานเมื่อเพิ่ม Pricing History แบบมีวันมีผล เพื่อป้องกันบิลย้อนหลังเปลี่ยนแปลง</div></Panel>}
-    {section==="admin"&&me.role==="SUPER_ADMIN"&&<><div className="stats"><div className="stat"><span>เจ้าของทั้งหมด</span><strong>{admin?.organizationCount??"—"}</strong></div><div className="stat"><span>หอพักทั้งหมด</span><strong>{admin?.propertyCount??"—"}</strong></div><div className="stat"><span>ห้องทั้งหมด</span><strong>{admin?.roomCount??"—"}</strong></div><div className="stat"><span>ใบแจ้งหนี้</span><strong>{admin?.invoiceCount??"—"}</strong></div></div>
+    {section==="admin"&&me.role==="SUPER_ADMIN"&&<><LineOperationsAdmin organizationId={orgId} api={api} post={post}/><div className="stats"><div className="stat"><span>เจ้าของทั้งหมด</span><strong>{admin?.organizationCount??"—"}</strong></div><div className="stat"><span>หอพักทั้งหมด</span><strong>{admin?.propertyCount??"—"}</strong></div><div className="stat"><span>ห้องทั้งหมด</span><strong>{admin?.roomCount??"—"}</strong></div><div className="stat"><span>ใบแจ้งหนี้</span><strong>{admin?.invoiceCount??"—"}</strong></div></div>
       {property&&<Panel title="ตรวจสอบข้อกำหนดค่าน้ำและค่าไฟ" subtitle="Super Admin เท่านั้น — ระบุหลักฐานอัตราที่กฎหมายและผู้ให้บริการอนุญาตก่อนเปิดออกบิล">{form(compliance,<><Field label="อ้างอิงหลักฐาน/เอกสารการตรวจสอบ"><input name="evidence" required minLength={8} placeholder="เอกสาร/URL/เลขอ้างอิง"/></Field><div className="cols2"><Field label="เพดานค่าน้ำ / หน่วย (บาท)"><input name="waterMax" required type="number" step=".01" min="0"/></Field><Field label="เพดานค่าไฟ / หน่วย (บาท)"><input name="electricMax" required type="number" step=".01" min="0"/></Field></div></>)}</Panel>}</>}
     </>}
    </main><footer className="footer">Apartment SaaS · Development Build · ข้อมูลทางการเงินต้องผ่านการตรวจสอบก่อนใช้งานจริง</footer>

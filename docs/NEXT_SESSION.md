@@ -127,3 +127,9 @@ Domain checkpoint: https://apartme.makemarket.space now works (HTTPS trusted; we
 - API route source is present in managed container; LINE_OUTBOUND_MODE defaults to disabled and NO messages were sent.
 - CLI safe dry-run tested; trying --apply without --confirm-queue-only fails. PostgreSQL remains Healthy with 22 tables (no migration needed).
 - Keep P4-04 marked PARTIAL for invitation/repair templates and real LINE provider/consent acceptance. Traefik ACME storage durability issue remains as documented.
+
+## P4-03c observer / Dead-letter operations
+- apps/api/src/services/line-operations.ts, routes/line-operations.ts and scripts/line-outbox-worker.ts; new migration 0010 dead-letter review records.
+- apps/web/src/components/LineOperationsAdmin.tsx shown to Platform Super Admin only; endpoints return no recipient or message contents.
+- Dokploy Compose adds line-observer with LINE_WORKER_MODE=observe, LINE_WORKER_APPROVED=false and LINE_OUTBOUND_MODE=disabled, heartbeat health, private DB network only.
+- Run smoke:line (admin status and Dead-letter review), line:worker --once and full regression. Live LINE provider still blocked. See docs/P4_LINE_OPERATIONS.md.

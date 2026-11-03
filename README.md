@@ -80,3 +80,6 @@ URL: https://apartme.makemarket.space (DEV only). Routes through Dokploy Traefik
 
 ## P4-04 LINE tenant consent and bill notifications (DEV)
 Authenticated tenants can explicitly opt into/revoke notification messages for each active linked lease. Invoice issuance queues a generic privacy-safe BILL_ISSUED Outbox event atomically only with consent; otherwise it issues normally without LINE. Manual, org-scoped due-date reminders queue through line:prepare-due with dry-run default and require --apply --confirm-queue-only for actual Outbox insertion (still **no message is sent**). Live LINE outbound remains disabled pending real credentials, LINE sandbox and privacy review. See docs/P4_TENANT_CONSENT_NOTIFICATIONS.md.
+
+## P4-03c LINE Outbox operations (DEV)
+The Dokploy Compose service line-observer continuously monitors aggregate queue health with heartbeat (no sending). Platform Super Admin can read scoped counts and masked Dead-letters and acknowledge once (no retry). LIVE LINE dispatch remains disabled. See docs/P4_LINE_OPERATIONS.md.

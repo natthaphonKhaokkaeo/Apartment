@@ -15,6 +15,7 @@
     "smoke:consent": "tsx scripts/smoke-line-consent.ts",
     "line:prepare-due": "tsx scripts/prepare-line-due-reminders.ts",
     "line:dispatch": "tsx scripts/dispatch-line-outbox.ts",
+    "line:worker": "tsx scripts/line-outbox-worker.ts",
     "smoke:s3": "tsx scripts/smoke-storage-s3.ts",
     "evidence:cleanup": "tsx scripts/cleanup-evidence.ts",
     "smoke:cleanup": "tsx scripts/smoke-evidence-cleanup.ts",

@@ -13,9 +13,9 @@
 
 ## Current checkpoint (live)
 
-- **Current phase:** P4-04 DEV tenant notification consent, transactional bill-issued Outbox and manual due-date reminder preparation completed. Real LINE Login/OA, scheduled sender, invitation/maintenance templates and privacy/security signoff remain PENDING.
-- **Immediate task:** P4-05 real LINE Login/LIFF and LINE OA Sandbox E2E once credentials arrive; otherwise continue P4-03c monitored outbox worker and owner consent/audit UI without enabling real sends. P4-04 invitation/repair notification producers depend on P5 workflow and explicit recipient consent. No Production.
-- **Last verified:** 56 tests (11 domain + 45 API), TypeScript + Vite, real PostgreSQL HTTP consent/issued-invoice/due-reminder IDOR and revocation tests, previous HTTP/payment/finance/S3/cleanup suites all PASS; commit d01e1c2 built and deployed as Dokploy-managed DEV. Public HTTPS/readyz 200, consent 401 unauthenticated, LINE webhook 503 with credentials absent; outbound disabled.
+- **Current phase:** P4-03c safe LINE monitoring, Super Admin Dead-letter review and separate continuous DEV observe-only worker implemented. Real LINE delivery and provider verification remain blocked; P4-04 tenant consent stays DEV-only.
+- **Immediate task:** P4-05 LINE Login/LIFF and Messaging Sandbox E2E when keys are available. Without keys, continue P4-03d quota/fairness and incident alerts or P4-04d operator consent/audit improvements. Do not activate real outbound.
+- **Last verified:** P4-03c 59 unit tests (11 domain + 48 API), Super Admin HTTP and PostgreSQL Dead-letter review smoke, observer one-shot, TS and Vite build; full regression and managed deployment to be verified before handoff.
 
 - **Deployment:** Apartment DEV is publicly accessible at https://apartme.makemarket.space through Dokploy Traefik -> Nginx (DEV, not Production). DNS matches VPS; HTTP 301 HTTPS; HTTPS 200 with trusted certificate; API /readyz 200, unauthorized 401, valid HTTPS Origin POST 200, unsigned LINE webhook 503. Runtime WEB_ORIGIN and secure cookies configured. Separate PostgreSQL and other services unchanged. Traefik ACME storage is read-only, so automatic certificate persistence/renewal still requires maintenance.
 - **Git:** Preserve user files, check `git status --short` before edits; commit with evidence; no push or production deploy without explicit instruction. Last completed commit: see `git log -1 --oneline`.
@@ -97,14 +97,18 @@
   - [ ] P3-06b Real bank reconciliation E2E, S3 signed-upload E2E, browser/LIFF and production performance/load gates
 - **Gate:** no implicit bank payment confirmation. Only recorded **manual owner-reviewed** approvals enter Ledger; immutable invoices remain ISSUED. Production launch needs bank verification policy, legal receipts, cloud evidence storage and security QA.
 
-## Phase P4 — LINE OA integration (NOT STARTED)
+## Phase P4 — LINE OA integration (IN PROGRESS — DEV)
 
 - [x] P4-01 Provisional one LINE OA per organization (multiple properties), unique org/destination binding, admin-only controlled registration, no secrets in DB
 - [x] P4-02 Signed raw-body webhook (HMAC-SHA256 constant-time), 256KiB limit, rate limit, 100-event bound, destination check, atomic event dedupe, no raw PII persistence
 - [ ] P4-03 Durable outbox, worker and LINE delivery (PARTIAL; live worker/scheduler pending)
   - [x] P4-03a Consent-bound transactional enqueue, stable idempotency/retry key, PostgreSQL SKIP LOCKED worker claim, exponential retry, DEAD/SIMULATED/ACCEPTED states, 23-hour retry-key safety guard
   - [x] P4-03b Real PostgreSQL mock HTTP/outbox tests: valid signature, duplicate delivery, consent revoked, simulated no-send, 429 retry, stable retry key, received status
-  - [ ] P4-03c Run worker continuously with monitored scheduler, real LINE API keys and consent/notification policy, quota & dead-letter operations
+  - [ ] P4-03c Monitoring/worker operations (PARTIAL — provider/live gate pending)
+    - [x] P4-03c.1 Scoped, sanitized Super Admin counters + Dead-letter list, one-time review and audit, migration 0010
+    - [x] P4-03c.2 Separate continuous observe-only DEV worker with heartbeat health, 60-second poll, no public port, fail-closed live gate
+    - [x] P4-03c.3 TDD unit and real PostgreSQL HTTP tests for role/scope/PII/duplicate review/immutable terminal status
+    - [ ] P4-03c.4 Real LINE provider quotas/fairness, live sender, incident paging and in-flight consent revocation security acceptance
 - [ ] P4-04 Tenant consent and notification event producers (PARTIAL — real provider and future workflows pending)
   - [x] P4-04a Tenant-specific opt-in/revoke endpoints and React UI with explicit purpose acknowledgment, active verified LINE lease scope, audit, idempotent actions, no-store, revoke pending/retry/SENDING jobs
   - [x] P4-04b Invoice-issued Outbox event created atomically with invoice transaction only on active lease + enabled OA + unrevoked exact recipient consent; generic Thai template and eventKey prevent duplicates

@@ -98,3 +98,6 @@ Configured WEB_ORIGIN=https://apartme.makemarket.space and COOKIE_SECURE=true in
 
 ## P4-04 tenant consent and invoice/due notifications
 No new required ENV or API key. Tenant opt-in requires a verified enabled OA binding (LINE_OA_BOT_USER_ID + LINE_MESSAGING_CHANNEL_SECRET configured and admin-bound) and authenticated LINE-linked active lease. The server default LINE_OUTBOUND_MODE=disabled continues to protect against sending messages. Real LINE Login/LIFF and OA credentials are required separately for real device tests. Due reminder CLI is manual / DRY_RUN by default; it neither calls LINE nor runs automatically.
+
+## P4-03c Safe LINE observer
+No new key required. Optional future worker controls: LINE_WORKER_MODE=observe, LINE_WORKER_APPROVED=false, LINE_WORKER_INTERVAL_MS=60000 (between 30000 and 300000). LIVE also needs LINE_OUTBOUND_MODE=live and verified Messaging API credentials. **DEV Compose overrides these controls to observe/false/disabled**, so no LINE messages can be sent by this observer. Never enable without real provider, consent, quota/fairness and incident acceptance.

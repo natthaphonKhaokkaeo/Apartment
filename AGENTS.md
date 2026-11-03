@@ -25,3 +25,5 @@
 - Public DEV domain apartme.makemarket.space routes through existing Traefik and Nginx. Do not restart shared Traefik in Apartment maintenance: its ACME storage is currently mounted read-only and renewal persistence must be fixed safely first.
 
 - P4-04 explicit LINE tenant notification consent is scoped to active verified lease + server session LINE subject. Never use user-provided recipient/org, never send if revoked, and do not auto-enable consent. Invoice BILL_ISSUED and due-date reminders are queued transactionally only after exact active consent; no live LINE sender/scheduler until real sandbox/security acceptance.
+
+- P4-03c DEV line-observer is ALWAYS observe-only in Compose (LINE_WORKER_MODE observe, approval false, outbound disabled). Never activate a live worker without sandbox, consent, quotas, monitoring and operational signoff. Admin operations cannot reveal LINE IDs, message bodies or retry keys, and terminal reviews must never resend.

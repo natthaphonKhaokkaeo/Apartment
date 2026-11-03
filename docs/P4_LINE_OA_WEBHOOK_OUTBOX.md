@@ -1,6 +1,6 @@
 # Phase P4 — LINE OA Binding, Signed Webhook & Durable Outbox
 
-Checkpoint 2026-11-03: **DEV implementation and tests completed**, but there are no real LINE OA secrets, no real messages delivered, no live webhook from LINE, no consent-capture screen, and no running outbound worker in Dokploy. Production remains intentionally disabled.
+Checkpoint 2026-11-03: **DEV implementation and tests completed**, but there are no real LINE OA secrets, no real messages delivered, no live webhook from LINE, no consent-capture screen, and no live outbound worker in Dokploy; a safe observe-only monitor runs. Production remains intentionally disabled.
 
 ## Inbound security
 
@@ -59,3 +59,6 @@ The live command exists but is **not to be scheduled or run without real tenant 
 - [ ] Authenticated tenant LIFF explicit opt-in/out UI, privacy notices, invitation/bill-due event producers, notification templates and owner settings (P4-04)
 - [ ] Persistent scheduler/process, monitoring and dead-letter review UI; provider quota checks and production signoff
 - [ ] Multi-channel secrets manager per organization. Current DEV server supports **one configured OA at a time**; schema supports multiple OA bindings, but do not enable multiple channels without proper per-channel secret resolution
+
+## P4-03c addendum
+An isolated Dokploy observer now reads aggregate statuses every minute and has a Docker heartbeat healthcheck, without sending real LINE messages. SUPER_ADMIN scoped API/UI supports masked Dead-letter inspection and one-time acknowledgment with audit (not retry). Live sender is still disabled. See docs/P4_LINE_OPERATIONS.md.

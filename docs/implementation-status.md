@@ -117,3 +117,11 @@ Next: P4-05 real LINE sandbox if credentials configured; otherwise P4-03c operat
 - [x] GitHub commit d01e1c2 pushed and Apartment-only Docker Compose rebuilt/recreated under Dokploy, public HTTPS 200 + /readyz 200, auth 401, unconfigured LINE webhook 503, outbound disabled.
 - [x] Due CLI dry-run no write; --apply without confirmation rejected.
 - [ ] Live LINE Login/LIFF/Outbound Sandbox still untested; do not enable real sends until credentials and policy approved.
+
+## P4-03c safe LINE Outbox Monitoring DEV
+- [x] Per-organization Super Admin counters and masked Dead-letter review, no sender/recipient data
+- [x] One-time terminal acknowledgment with audit, no retry/requeue
+- [x] Independent continuous Observe-only Docker process with heartbeat and no network port
+- [x] HTTP PostgreSQL admin security, organization scope, PII, duplicate and no-retry tests
+- [ ] Provider live quotas/fairness, operational paging, LINE sandbox and in-flight revocation acceptance
+See docs/P4_LINE_OPERATIONS.md.

@@ -18,6 +18,7 @@ import {registerPromptPayRoutes} from "./routes/promptpay.js";
 import {registerFinancialAdjustmentRoutes} from "./routes/financial-adjustments.js";
 import {registerLineOaRoutes} from "./routes/line-oa.js";
 import {registerLineConsentRoutes} from "./routes/line-consent.js";
+import {registerLineOperationsRoutes} from "./routes/line-operations.js";
 import {queueInvoiceIssuedTx} from "./services/line-notifications.js";
 import {readingToMilli,parseDay} from "@apartment/domain";
 
@@ -280,4 +281,5 @@ await registerPromptPayRoutes(app);
 await registerFinancialAdjustmentRoutes(app);
 await registerLineOaRoutes(app);
 await registerLineConsentRoutes(app);
+await registerLineOperationsRoutes(app);
 await app.listen({host:config.HOST,port:config.PORT});

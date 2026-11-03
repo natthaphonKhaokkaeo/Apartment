@@ -318,6 +318,17 @@ export const lineOutbox = pgTable("line_outbox",{
  index("idx_line_outbox_dispatch").on(t.status,t.nextAttemptAt)
 ]);
 
+export const lineOutboxDeadReviews=pgTable("line_outbox_dead_reviews",{
+ id:uuid("id").primaryKey().defaultRandom(),
+ outboxId:uuid("outbox_id").notNull().unique().references(()=>lineOutbox.id),
+ organizationId:uuid("organization_id").notNull().references(()=>organizations.id),
+ reviewedBy:uuid("reviewed_by").notNull().references(()=>users.id),
+ reviewReason:varchar("review_reason",{length:500}).notNull(),
+ reviewedAt:timestamp("reviewed_at",{withTimezone:true}).notNull().defaultNow()
+},t=>[
+ index("idx_line_dead_reviews_org").on(t.organizationId,t.reviewedAt)
+]);
+
 export const auditLogs = pgTable("audit_logs", {
   id: uuid("id").primaryKey().defaultRandom(),
   actorId: uuid("actor_id").notNull().references(() => users.id),
