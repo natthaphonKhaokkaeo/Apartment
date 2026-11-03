@@ -140,3 +140,10 @@ See docs/P4_LINE_OPERATIONS.md.
 - [x] Pure TDD fairness/threshold + concurrent PostgreSQL mock sender and HTTP incident lifecycle tests.
 - [ ] Real LINE quota verification, external paging, durable retention, multi-OA credential routing and live-send security acceptance.
 See docs/P4_LINE_QUOTAS_ALERTS.md.
+
+### P4-03d deployment verification (DEV)
+- [x] Git feature 826550c and explicit quota DEV Compose 9295d2e pushed; Docker API/Web rebuilt and only Apartment containers recreated.
+- [x] Three managed app containers + reused PostgreSQL Healthy, migration 0011 / 25 tables.
+- [x] HTTPS / and /readyz 200 with valid TLS; unauthenticated Admin Incident API 401.
+- [x] Independent observer heartbeat updated, output dispatched=0; observe mode, no live worker, quota config perorg5/global20.
+- [ ] Real LINE provider acceptance, end-user LIFF login, operator external paging and secure cert persistence still pending.

@@ -47,3 +47,6 @@ Platform Admin displays open alerts, acknowledgment state, and the organization'
 - HTTPS certificate durability: Traefik ACME storage read-only issue separately documented.
 
 DEV Compose retains LINE_WORKER_MODE=observe, LINE_WORKER_APPROVED=false and LINE_OUTBOUND_MODE=disabled. **No live sender is deployed or authorized.**
+
+## DEV deployment proof
+Commit 826550c implements quota/fairness/incident code; 9295d2e pins observer DEV quota environment. Both are pushed to main. Existing Dokploy Apartment DEV API/Web/Observer were rebuilt and updated with no impact to other services. All are Healthy, PostgreSQL still Healthy (25 tables), HTTPS site and readiness 200 with TLS verification success, Admin incident endpoint denies unauthenticated with 401. Observer heartbeat fresh, aggregate incident check runs, dispatched=0 and LINE outbound disabled. This is NOT real LINE provider delivery acceptance or external operator paging.

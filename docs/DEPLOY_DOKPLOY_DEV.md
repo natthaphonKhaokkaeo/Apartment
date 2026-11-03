@@ -74,3 +74,6 @@ After feature commit 983fd6b, apartment-dokploy-dev-ajcnbm-line-observer-1 is He
 
 ## P4-03d quota + incident DEV
 The DEV line-observer keeps LINE_WORKER_MODE=observe, LINE_WORKER_APPROVED=false, LINE_OUTBOUND_MODE=disabled and bounded internal attempt quota ENV. It now reconciles database-only internal incidents; no external notifications are sent. Source and security gates: docs/P4_LINE_QUOTAS_ALERTS.md.
+
+## P4-03d managed deployment (2026-11-03)
+Feature commit 826550c and quota configuration 9295d2e deployed in existing Apartment DEV Compose (API/Web/observe-only worker). Worker environment LINE_WORKER_MODE observe / LINE_WORKER_APPROVED false / LINE_OUTBOUND_MODE disabled / LINE_ORG_PER_MINUTE 5 / LINE_GLOBAL_PER_MINUTE 20. Heartbeat healthy, dispatched 0. Public HTTPS/readyz 200, Admin Alert API unauthorized 401. Provider sandbox and external paging NOT implemented. Do not restart shared Traefik because of documented read-only ACME persistence concern.

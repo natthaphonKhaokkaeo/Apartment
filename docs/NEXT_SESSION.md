@@ -149,3 +149,10 @@ Domain checkpoint: https://apartme.makemarket.space now works (HTTPS trusted; we
 - UI: apps/web/src/components/LineOperationsAdmin.tsx displays quota-window usage and active internal incidents; acknowledgment does not retry.
 - Tests: tests/line-fairness.test.ts + extended scripts/smoke-line-oa.ts for concurrent quota and durable alert lifecycle.
 - No external alerts, no real LINE deliveries, multi-channel fairness/retention/consent in-flight gates remain pending. See docs/P4_LINE_QUOTAS_ALERTS.md.
+
+## P4-03d verified managed deployment
+- Feature commit 826550c, Compose quota setting commit 9295d2e both pushed to GitHub main. Existing Apartment Dokploy project rebuilt/recreated the API/Web and Observer only.
+- PostgreSQL has 25 tables, migration 0011 applied. All 61 unit tests and full existing smoke suites passed.
+- Public https://apartme.makemarket.space/ and /readyz 200, TLS verify 0; unauthenticated /v1/admin/line-operations/alerts 401.
+- API, Web, Observer, old Postgres all Healthy; observer heartbeat age 18s, LINE_WORKER_MODE observe, LINE_WORKER_APPROVED false, LINE_OUTBOUND_MODE disabled, quota env perorg=5/global=20, dispatched=0.
+- Incidents are INTERNAL database + admin UI only; no paging/no real LINE messages, and external LINE Provider quota is still unverified. Keep P4-05 Sandbox and provider acceptance gate pending.
