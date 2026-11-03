@@ -6,6 +6,8 @@
 
 Continue the Apartment LINE-first multi-tenant SaaS in `/root/Projects/Apartment`.
 
+**P1-05 additional independent QA has been executed:** 16 duplicate meter writes one-winner, 48 concurrent mixed-scope reads, revoked access denied; see `docs/P1_P105_INDEPENDENT_QA.md` and repeat using `corepack pnpm --filter @apartment/api exec tsx scripts/smoke-independent-security.ts`. This work was done in the same worktree, preserving any concurrently uncommitted Bulk Billing changes. Longer soak and independent final acceptance remain open.
+
 **Current next phase: P1-05 security/edge/load gates after P1-04 staff access.** P1-04 adds OWNER-only manager/staff invitations, property grants, safe read/write scopes and owner/staff React UI (migration 0015, real PostgreSQL smoke). See `docs/P1_STAFF_ACCESS.md`. Then P1-01b/P5 maintenance/deposit workflows. P4-05 real LINE Login/LIFF and Messaging Sandbox E2E still require provider credentials and acceptance; never activate live messaging without real consent/privacy/provider verification.
 
 **P3-02b.6 DEV code completed:** manual dry-run-first cleanup with Legal Hold, EXPIRED retry state and no Payment Claim deletion; optional fail-closed ClamAV TCP INSTREAM adapter. Production gating, actual scanner, lifecycle, admin retention and scheduler are still NOT done. Read docs/P3_EVIDENCE_RETENTION_MALWARE.md.

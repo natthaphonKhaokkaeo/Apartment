@@ -65,7 +65,8 @@
   - [x] Isolated DEV HTTP smoke script covers negative/fractional/over-limit input, duplicate reading, cross-org access, 16-way same-key replay, 16-way distinct-key issue race, and a bounded 32-way bill-preview burst (76 total HTTP requests)
   - [x] Execute smoke against private PostgreSQL/HTTP runtime: negative/fraction/overflow, duplicate meter, cross-org denial, idempotent replay, unique-key conflict and bounded 32-way preview burst; p95 395/282/275 ms (76 requests total)
   - [x] Larger bounded 64-way preview burst against private DEV runtime: 64/64 returned 200 with stable totals; p95 608 ms (after rate-limit window separation)
-  - [ ] Independent security/load acceptance before closing P1-05.
+  - [x] Additional independent QA security/authorization smoke: 16 concurrent identical meter writes (1 success, 15 conflicts), 48-way mixed-property read burst, 5/5 writes denied after revoke, session/account invalidation; HTTP p95 381 ms for one isolated DEV run. Evidence in `docs/P1_P105_INDEPENDENT_QA.md`.
+  - [ ] Independent security/load **final acceptance** before closing P1-05: longer monitored soak, explicit SLOs/coverage/CI, threat-model review and realistic browser UAT.
 - **Gate:** owner cannot access another organization's property, lease, or invoice; previously issued bill never changes.
 
 ## Phase P2 — Tenant onboarding & read-only LIFF portal (IMPLEMENTED LOCALLY; LINE E2E BLOCKED)
