@@ -74,3 +74,6 @@ Finance workflow adds internal credits, append-only manual payment reversals, an
 \n## P4 LINE OA (DEV code, not live)\nSigned raw-body webhook: POST /v1/line/oa/webhook (requires LINE Messaging secret and enabled owner org binding). Deduped event storage, explicit consent-bound durable outbox with retry/dead state and one-shot worker script. Real messaging disabled by default; no automatic notifications or public webhook enabled. See docs/P4_LINE_OA_WEBHOOK_OUTBOX.md.\n
 ## Latest Dokploy DEV (confirmed running)
 Apartment DEV is now a Dokploy-managed Compose application: Project Apartment / environment dev / Compose Apartment DEV. The web is private on 127.0.0.1:18089; /readyz 200, unauthenticated API 401, API/Web Healthy. Old temporary loopback port 18088 stack was stopped. No public HTTPS or real LINE keys yet. See docs/DEPLOY_DOKPLOY_DEV.md.
+
+## Public Apartment DEV
+URL: https://apartme.makemarket.space (DEV only). Routes through Dokploy Traefik and Nginx with trusted current HTTPS certificate. API readiness and authorization tested. Real LINE Login remains unconfigured; Traefik ACME certificate persistence requires infrastructure repair before relying on automatic renewal. See docs/DEPLOY_DOKPLOY_DEV.md.

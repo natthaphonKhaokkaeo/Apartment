@@ -17,7 +17,7 @@
 - **Immediate task:** P4-04 explicit LIFF tenant notification consent capture/revoke and actual invoice/maintenance event producers; then P4-03 scheduled worker/monitoring after LINE keys, real provider and legal tests. Dokploy Apartment project/env/compose REGISTERED using existing scoped API key but compose.deploy API was blocked by tool safety checks; deployment remains pending. Avoid Production.
 - **Last verified:** 53 unit tests (11 domain + 42 API), migration 0009, real PostgreSQL webhook/outbox HTTP smoke, TypeScript + React build and existing finance/payment/S3/cleanup gates; no real LINE OA provider E2E.
 
-- **Deployment:** Dokploy-managed Apartment DEV is now RUNNING and Healthy (Project Apartment / dev / Compose Apartment DEV, Git main) at VPS loopback 127.0.0.1:18089; web 200, /readyz 200, unauthenticated 401. Old temporary 18088 Compose has been stopped; separate PostgreSQL DEV remains healthy at 127.0.0.1:55432. HTTPS/real LINE keys not configured.
+- **Deployment:** Apartment DEV is publicly accessible at https://apartme.makemarket.space through Dokploy Traefik -> Nginx (DEV, not Production). DNS matches VPS; HTTP 301 HTTPS; HTTPS 200 with trusted certificate; API /readyz 200, unauthorized 401, valid HTTPS Origin POST 200, unsigned LINE webhook 503. Runtime WEB_ORIGIN and secure cookies configured. Separate PostgreSQL and other services unchanged. Traefik ACME storage is read-only, so automatic certificate persistence/renewal still requires maintenance.
 - **Git:** Preserve user files, check `git status --short` before edits; commit with evidence; no push or production deploy without explicit instruction. Last completed commit: see `git log -1 --oneline`.
 
 ## Phase P0 — Foundation & database (DONE)
