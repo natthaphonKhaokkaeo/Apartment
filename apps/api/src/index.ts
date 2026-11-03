@@ -16,6 +16,7 @@ import {registerEvidenceUploadRoutes} from "./routes/evidence-uploads.js";
 import {registerBillingDocumentRoutes} from "./routes/billing-documents.js";
 import {registerPromptPayRoutes} from "./routes/promptpay.js";
 import {registerFinancialAdjustmentRoutes} from "./routes/financial-adjustments.js";
+import {registerLineOaRoutes} from "./routes/line-oa.js";
 import {readingToMilli,parseDay} from "@apartment/domain";
 
 const app=Fastify({logger:{redact:["req.headers.cookie","req.headers.authorization","res.headers.set-cookie"]},bodyLimit:1048576});
@@ -272,4 +273,5 @@ await registerEvidenceUploadRoutes(app);
 await registerBillingDocumentRoutes(app);
 await registerPromptPayRoutes(app);
 await registerFinancialAdjustmentRoutes(app);
+await registerLineOaRoutes(app);
 await app.listen({host:config.HOST,port:config.PORT});

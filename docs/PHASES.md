@@ -13,11 +13,11 @@
 
 ## Current checkpoint (live)
 
-- **Current phase:** P3 — internal dual-owner financial correction workflow P3-04b implemented in DEV with audit and immutable entries. Official refunds/tax credit notes and real bank checks still pending; overall P3 PARTIAL.
-- **Immediate task:** P4-01 design persistent LINE OA webhook/outbox contract and testable local worker without vendor keys; or complete real S3/ClamAV/LINE E2E after user sets ENV. P3-04b official refund/bank reconciliation/legal credit-note sign-off remain pending. Never auto-transfer money.
-- **Last verified:** 49 unit tests (11 domain + 38 API), TypeScript + React build, PostgreSQL migration 0008, API HTTP/finance dual-owner, payment, S3 and cleanup smoke tests passed. Container DEV health 200 / unauthorized 401. No real LINE/bank, S3/ClamAV or Dokploy API registration.
+- **Current phase:** P4 — single-OA-per-org binding, signed raw-body webhook/event dedupe and consent-bound persistent outbox worker code completed in DEV; real LINE credentials/sandbox, consent UX, notifications and scheduler still pending.
+- **Immediate task:** P4-04 explicit LIFF tenant notification consent capture/revoke and actual invoice/maintenance event producers; then P4-03 scheduled worker/monitoring after LINE keys, real provider and legal tests. Dokploy Apartment project/env/compose REGISTERED using existing scoped API key but compose.deploy API was blocked by tool safety checks; deployment remains pending. Avoid Production.
+- **Last verified:** 53 unit tests (11 domain + 42 API), migration 0009, real PostgreSQL webhook/outbox HTTP smoke, TypeScript + React build and existing finance/payment/S3/cleanup gates; no real LINE OA provider E2E.
 
-- **Deployment:** Postgres DEV on `127.0.0.1:55432`; API/web not deployed. Actual LINE credentials not configured.
+- **Deployment:** Dokploy-managed Apartment DEV is now RUNNING and Healthy (Project Apartment / dev / Compose Apartment DEV, Git main) at VPS loopback 127.0.0.1:18089; web 200, /readyz 200, unauthenticated 401. Old temporary 18088 Compose has been stopped; separate PostgreSQL DEV remains healthy at 127.0.0.1:55432. HTTPS/real LINE keys not configured.
 - **Git:** Preserve user files, check `git status --short` before edits; commit with evidence; no push or production deploy without explicit instruction. Last completed commit: see `git log -1 --oneline`.
 
 ## Phase P0 — Foundation & database (DONE)
@@ -99,14 +99,17 @@
 
 ## Phase P4 — LINE OA integration (NOT STARTED)
 
-- [ ] P4-01 Choose binding: provisional **one OA per owner org**, multi-property routing
-- [ ] P4-02 Webhook with raw-body signature verification; dedupe event IDs, strict request size / queue
-- [ ] P4-03 Transactional outbox + background worker, retry, DLQ, throttle and delivery status
+- [x] P4-01 Provisional one LINE OA per organization (multiple properties), unique org/destination binding, admin-only controlled registration, no secrets in DB
+- [x] P4-02 Signed raw-body webhook (HMAC-SHA256 constant-time), 256KiB limit, rate limit, 100-event bound, destination check, atomic event dedupe, no raw PII persistence
+- [ ] P4-03 Durable outbox, worker and LINE delivery (PARTIAL; live worker/scheduler pending)
+  - [x] P4-03a Consent-bound transactional enqueue, stable idempotency/retry key, PostgreSQL SKIP LOCKED worker claim, exponential retry, DEAD/SIMULATED/ACCEPTED states, 23-hour retry-key safety guard
+  - [x] P4-03b Real PostgreSQL mock HTTP/outbox tests: valid signature, duplicate delivery, consent revoked, simulated no-send, 429 retry, stable retry key, received status
+  - [ ] P4-03c Run worker continuously with monitored scheduler, real LINE API keys and consent/notification policy, quota & dead-letter operations
 - [ ] P4-04 Invite, bill-issued, payment-due and repair notifications with consent and templates
 - [ ] P4-05 LIFF callback/login/logout/tenant invitation with actual LINE sandbox E2E
 - **Gate:** no outbound notification without legitimate recipient/consent; retries never double-send from application logic.
 
-## Phase P5 — Full property operations (NOT STARTED)
+- P4-01/02/03 DEV code and tests: see \`docs/P4_LINE_OA_WEBHOOK_OUTBOX.md\`. LIVE sender and consent/notification UX remain blocked.\n\n## Phase P5 — Full property operations (NOT STARTED)
 
 - [ ] P5-01 Monthly and 15-day scheduled bulk invoices (preview → approval → batch process)
 - [ ] P5-02 Maintenance tickets and room status workflow; files, notifications, SLA

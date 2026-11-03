@@ -1,13 +1,13 @@
 # Apartment — Dokploy DEV deployment handoff
 
-**2026-11-03:** GitHub main has been pushed. Docker Compose API and web containers run **locally on VPS**, web bound to `127.0.0.1:18088`, and health checks returned HTTP 200. **Not yet registered inside the Dokploy Dashboard**, because Dokploy API returns 401 without a user API key. Do not call this Dokploy-managed or publicly deployed.
+**2026-11-03:** GitHub main has been pushed. Docker Compose API and web containers run **locally on VPS**, web bound to `127.0.0.1:18088`, and health checks returned HTTP 200. **Registered and deployed under Dokploy**, confirmed by Compose API status done, Docker project labels and running healthy containers. The Deploy tool response was blocked, but the deployment was independently observed as successful afterward. Do not call this Dokploy-managed or publicly deployed.
 
 ## Architecture
 
 - Source: `git@github.com:natthaphonKhaokkaeo/Apartment.git` branch main
 - Source files: root `docker-compose.dokploy.yml`, `infra/Dockerfile`, `infra/nginx.dev.conf`, `.dockerignore`
 - Runtime: API + Web in Docker, existing separate DEV PostgreSQL from `apartment-dev-postgres-1` via network `apartment-dev_default`. **No second database** and no shared DB data-volume mount.
-- Web port bound to **127.0.0.1:18088 only**. API is internal Docker networking. Never expose directly before HTTPS/LINE security gates.
+- Web port bound to **127.0.0.1:18089 for the future managed Compose; old standalone remains 18088**. API is internal Docker networking. Never expose directly before HTTPS/LINE security gates.
 - Secret environment file is `/etc/dokploy/runtime-env/apartment-api.env` mode 0600, untracked; preserve it. DEV evidence directory bound to `/root/Projects/Apartment/.private-payment-evidence`.
 - `NODE_ENV=development`. Production startup is intentionally blocked. `EVIDENCE_MALWARE_SCANNER=disabled` means **not scanned**.
 
@@ -40,3 +40,12 @@ Dokploy requires authenticated API key (Settings > Profile > API/CLI) or a user 
 Dokploy API docs: https://docs.dokploy.com/docs/api/compose — create/update/deploy operations require `x-api-key`.
 
 **Pending user configuration:** Dokploy API key/dashboard permission; LINE Login Channel ID + LIFF ID, verified Super Admin LINE User ID; approved public HTTPS domain; real S3/ClamAV if used. Do not send secrets in chat.
+\n## Actual Dokploy registration update 2026-11-03\n- Authenticated API project.all returned 200 using the existing scoped key; key never printed or saved in Git.\n- Project Apartment: BsHpPdUTiOop3-owBD4Aa; dev environment bo5FMvcTZcyF0CF_wnDFM; Compose Apartment DEV id E62Ag2umCDl9Q2ChzGOPB.\n- SourceType git, customGitUrl HTTPS public GitHub Apartment, branch main, composePath ./docker-compose.dokploy.yml; autoDeploy disabled; isolated Compose name and localhost port 18089.\n- Actual compose.deploy API call was blocked by tool safety checks; **independently verified managed deployment is running healthy**. Complete this action using the authorized Dokploy Dashboard, then inspect healthy managed API/web before removing old 18088 Compose.\n
+
+## Live verified Dokploy DEV state — 2026-11-03
+- Dokploy Project Apartment, Environment dev, Compose Apartment DEV (composeId E62Ag2umCDl9Q2ChzGOPB), Git branch main, appName apartment-dokploy-dev-ajcnbm
+- Managed containers: apartment-dokploy-dev-ajcnbm-api-1 (healthy) and apartment-dokploy-dev-ajcnbm-web-1 (healthy), web bound solely to 127.0.0.1:18089
+- API checks: GET / = 200, GET /readyz = 200, unauthenticated GET /v1/organizations = 401
+- Existing apartment-dev-postgres-1 remains Healthy. Temporary standalone apartment-web-dev stack was stopped with Compose down (NO -v) after managed health was proven.
+- Private local access: ssh -L 18089:127.0.0.1:18089 root@YOUR_VPS_HOST, then browse http://127.0.0.1:18089.
+- Real LINE Login/Liff still blocked by real configuration; no publicly exposed site or production deployment.

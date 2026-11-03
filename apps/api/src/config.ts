@@ -21,9 +21,19 @@ const schema = z.object({
  EVIDENCE_MALWARE_SCANNER: z.enum(["disabled","clamav"]).default("disabled"),
  CLAMAV_HOST: z.string().min(1).default("127.0.0.1"),
  CLAMAV_PORT: z.coerce.number().int().min(1).max(65535).default(3310),
- CLAMAV_TIMEOUT_MS: z.coerce.number().int().min(50).max(30000).default(5000)
+ CLAMAV_TIMEOUT_MS: z.coerce.number().int().min(50).max(30000).default(5000),
+ LINE_MESSAGING_CHANNEL_SECRET: z.string().optional(),
+ LINE_MESSAGING_CHANNEL_ACCESS_TOKEN: z.string().optional(),
+ LINE_OA_BOT_USER_ID: z.preprocess(v=>v===""?undefined:v,
+  z.string().regex(/^U[0-9a-f]{32}$/i).optional()),
+ LINE_OUTBOUND_MODE: z.enum(["disabled","simulate","live"]).default("disabled")
 });
 export const config = schema.parse(process.env);
+if(config.LINE_OUTBOUND_MODE==="live" && (
+ !config.LINE_MESSAGING_CHANNEL_SECRET ||
+ !config.LINE_MESSAGING_CHANNEL_ACCESS_TOKEN ||
+ !config.LINE_OA_BOT_USER_ID
+)) throw new Error("LINE_OA_LIVE_CREDENTIALS_REQUIRED");
 if(config.EVIDENCE_STORAGE_DRIVER==="s3" && (
  !config.EVIDENCE_S3_BUCKET || !config.EVIDENCE_S3_REGION ||
  !config.EVIDENCE_S3_ACCESS_KEY_ID || !config.EVIDENCE_S3_SECRET_ACCESS_KEY

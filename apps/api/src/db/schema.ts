@@ -261,6 +261,63 @@ export const financeAdjustmentEntries=pgTable("finance_adjustment_entries",{
  uniqueIndex("uq_finance_entries_reversal_once").on(t.originalLedgerId)
 ]);
 
+export const lineOutboxStatus = pgEnum("line_outbox_status",[
+ "QUEUED","SENDING","RETRY","ACCEPTED","SIMULATED","DEAD"
+]);
+export const lineOaBindings = pgTable("line_oa_bindings",{
+ id:uuid("id").primaryKey().defaultRandom(),
+ organizationId:uuid("organization_id").notNull().unique().references(()=>organizations.id),
+ botUserId:varchar("bot_user_id",{length:40}).notNull().unique(),
+ enabled:boolean("enabled").notNull().default(false),
+ createdAt:timestamp("created_at",{withTimezone:true}).notNull().defaultNow()
+});
+export const lineWebhookEvents = pgTable("line_webhook_events",{
+ id:uuid("id").primaryKey().defaultRandom(),
+ bindingId:uuid("binding_id").notNull().references(()=>lineOaBindings.id),
+ organizationId:uuid("organization_id").notNull().references(()=>organizations.id),
+ webhookEventId:varchar("webhook_event_id",{length:128}).notNull(),
+ eventType:varchar("event_type",{length:64}).notNull(),
+ redelivery:boolean("redelivery").notNull().default(false),
+ sourceUserHash:varchar("source_user_hash",{length:64}),
+ receivedAt:timestamp("received_at",{withTimezone:true}).notNull().defaultNow()
+},t=>[
+ uniqueIndex("uq_line_webhook_event").on(t.bindingId,t.webhookEventId),
+ index("idx_line_webhook_org").on(t.organizationId,t.receivedAt)
+]);
+export const lineNotificationConsents = pgTable("line_notification_consents",{
+ id:uuid("id").primaryKey().defaultRandom(),
+ bindingId:uuid("binding_id").notNull().references(()=>lineOaBindings.id),
+ organizationId:uuid("organization_id").notNull().references(()=>organizations.id),
+ leaseId:uuid("lease_id").notNull().references(()=>leases.id),
+ recipientLineUserId:varchar("recipient_line_user_id",{length:40}).notNull(),
+ evidenceRef:varchar("evidence_ref",{length:500}).notNull(),
+ grantedAt:timestamp("granted_at",{withTimezone:true}).notNull().defaultNow(),
+ revokedAt:timestamp("revoked_at",{withTimezone:true})
+},t=>[uniqueIndex("uq_line_consent_lease_binding").on(t.bindingId,t.leaseId)]);
+export const lineOutbox = pgTable("line_outbox",{
+ id:uuid("id").primaryKey().defaultRandom(),
+ bindingId:uuid("binding_id").notNull().references(()=>lineOaBindings.id),
+ organizationId:uuid("organization_id").notNull().references(()=>organizations.id),
+ consentId:uuid("consent_id").notNull().references(()=>lineNotificationConsents.id),
+ leaseId:uuid("lease_id").notNull().references(()=>leases.id),
+ recipientLineUserId:varchar("recipient_line_user_id",{length:40}).notNull(),
+ eventKey:varchar("event_key",{length:128}).notNull(),
+ templateKey:varchar("template_key",{length:64}).notNull(),
+ messageText:text("message_text").notNull(),
+ status:lineOutboxStatus("status").notNull().default("QUEUED"),
+ retryKey:uuid("retry_key").notNull().unique().defaultRandom(),
+ attempts:integer("attempts").notNull().default(0),
+ nextAttemptAt:timestamp("next_attempt_at",{withTimezone:true}).notNull().defaultNow(),
+ leaseUntil:timestamp("lease_until",{withTimezone:true}),
+ providerRequestId:varchar("provider_request_id",{length:128}),
+ lastErrorCode:varchar("last_error_code",{length:64}),
+ createdAt:timestamp("created_at",{withTimezone:true}).notNull().defaultNow(),
+ processedAt:timestamp("processed_at",{withTimezone:true})
+},t=>[
+ uniqueIndex("uq_line_outbox_idempotency").on(t.bindingId,t.eventKey),
+ index("idx_line_outbox_dispatch").on(t.status,t.nextAttemptAt)
+]);
+
 export const auditLogs = pgTable("audit_logs", {
   id: uuid("id").primaryKey().defaultRandom(),
   actorId: uuid("actor_id").notNull().references(() => users.id),

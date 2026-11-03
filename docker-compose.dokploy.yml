@@ -1,4 +1,4 @@
-# Dokploy Compose DEV. Run only after a valid Dokploy API key/account is available.
+# Dokploy-managed Compose DEV, registered in Apartment / dev. Not Production.
 # Uses existing apartment-dev PostgreSQL via its Docker bridge; does not create/alter DB.
 name: apartment-dokploy-dev
 services:
