@@ -34,7 +34,7 @@ See [docs/PHASES.md](docs/PHASES.md) for all checkboxes, validation gates, and e
 - Tokens: random 256-bit 24h expiry, hash at rest, only one claim; owner review before account activation, rate-limited claim route. Do not share tokens in URLs, logs or analytics.
 - React menu: "เชิญผู้เช่า" for owner; "สำหรับผู้เช่า" for read-only tenant. LINE LIFF E2E requires actual LINE Developers credentials and HTTPS.
 
-New agent? Read [docs/NEXT_SESSION.md](docs/NEXT_SESSION.md) first, then the canonical [docs/PHASES.md](docs/PHASES.md).
+For current status and the next task, read the canonical [docs/PHASES.md](docs/PHASES.md). `docs/NEXT_SESSION.md` is a historical implementation log; it may contain older checkpoints.
 
 ## P3 DEV payments
 
@@ -52,7 +52,7 @@ Additional concurrency test: `corepack pnpm --filter @apartment/api smoke:paymen
 - `EVIDENCE_STORAGE_DRIVER=s3`: client requests 5-min quarantine PUT URL, uploads with checksum and content length, backend verifies and decodes to private WebP, then links one-time ticket to payment claim. See `docs/P3_S3_STORAGE_RUNBOOK.md`.
 - `corepack pnpm --filter @apartment/api smoke:s3` runs HTTP S3 mock and actual PostgreSQL workflow without remote keys.
 - **Do not confuse S3 mock tests with real S3/provider E2E.** Production remains disabled while malware scan / lifecycle / real provider IAM-CORS tests are outstanding.
-- Receipt/tax PDF requirements (not yet implemented): `docs/P3_PDF_RECEIPT_SPEC.md`.
+- A non-tax Billing Notice PDF is implemented; official receipt/tax invoice requirements remain pending legal approval. See `docs/P3_PDF_RECEIPT_SPEC.md`.
 
 
 ## P3-05b Thai Billing Notice (not receipt / not tax invoice)
@@ -68,15 +68,18 @@ Owner/tenant invoice-scoped endpoints: `GET /v1/properties/:propertyId/invoices/
 See docs/P3_EVIDENCE_RETENTION_MALWARE.md. Manual CLI defaults to read-only: corepack pnpm --filter @apartment/api evidence:cleanup. Deletion requires --apply --confirm-orphans-only --organization-id=<UUID> and must not run against production until legal/storage acceptance. Real PostgreSQL smoke: corepack pnpm --filter @apartment/api smoke:cleanup. ClamAV is optional and disabled in DEV; disabling does NOT imply clean.
 
 ## DEV Docker deployment and P3-04b finance
-Source git@github.com:natthaphonKhaokkaeo/Apartment.git. Docker Compose from docker-compose.dokploy.yml builds DEV API/Web, binds web to VPS loopback 127.0.0.1:18088 and reuses PostgreSQL. **Not yet Dokploy-managed:** Dokploy API refused unauthenticated calls; see docs/DEPLOY_DOKPLOY_DEV.md.
+Source git@github.com:natthaphonKhaokkaeo/Apartment.git. The Dokploy-managed DEV Compose binds the Web container to VPS loopback `127.0.0.1:18089` and reuses the existing PostgreSQL service. Deployment and current availability are tracked in `docs/DEPLOY_DOKPLOY_DEV.md`.
 
 Finance workflow adds internal credits, append-only manual payment reversals, and review-only refund/dispute requests with dual OWNER approval and audit. No real transfers or statutory credit notes. Test: corepack pnpm --filter @apartment/api smoke:finance. Details: docs/P3_FINANCIAL_ADJUSTMENTS.md.
-\n## P4 LINE OA (DEV code, not live)\nSigned raw-body webhook: POST /v1/line/oa/webhook (requires LINE Messaging secret and enabled owner org binding). Deduped event storage, explicit consent-bound durable outbox with retry/dead state and one-shot worker script. Real messaging disabled by default; no automatic notifications or public webhook enabled. See docs/P4_LINE_OA_WEBHOOK_OUTBOX.md.\n
-## Latest Dokploy DEV (confirmed running)
-Apartment DEV is now a Dokploy-managed Compose application: Project Apartment / environment dev / Compose Apartment DEV. The web is private on 127.0.0.1:18089; /readyz 200, unauthenticated API 401, API/Web Healthy. Old temporary loopback port 18088 stack was stopped. No public HTTPS or real LINE keys yet. See docs/DEPLOY_DOKPLOY_DEV.md.
+## P4 LINE OA (DEV code, not live)
+
+Signed raw-body webhook: POST `/v1/line/oa/webhook` (requires LINE Messaging secret and enabled owner org binding). Deduped event storage, explicit consent-bound durable outbox with retry/dead state, and an observe-only worker are implemented. Real credentials are not configured and outbound sending remains disabled. See `docs/P4_LINE_OA_WEBHOOK_OUTBOX.md`.
+## Dokploy DEV
+
+Apartment DEV uses Dokploy Compose: Project Apartment / environment dev / Compose Apartment DEV. The Web port is bound to `127.0.0.1:18089`. The latest recorded internal checks were healthy; public HTTPS is currently unavailable after the shared Traefik service exited following a VPS reboot. See `docs/DEPLOY_DOKPLOY_DEV.md`.
 
 ## Public Apartment DEV
-URL: https://apartme.makemarket.space (DEV only). Routes through Dokploy Traefik and Nginx with trusted current HTTPS certificate. API readiness and authorization tested. Real LINE Login remains unconfigured; Traefik ACME certificate persistence requires infrastructure repair before relying on automatic renewal. See docs/DEPLOY_DOKPLOY_DEV.md.
+URL: https://apartme.makemarket.space (DEV only). Public access is currently down while shared Traefik/ACME storage recovery is pending. Real LINE Login remains unconfigured. See `docs/DEPLOY_DOKPLOY_DEV.md`.
 
 ## P4-04 LINE tenant consent and bill notifications (DEV)
 Authenticated tenants can explicitly opt into/revoke notification messages for each active linked lease. Invoice issuance queues a generic privacy-safe BILL_ISSUED Outbox event atomically only with consent; otherwise it issues normally without LINE. Manual, org-scoped due-date reminders queue through line:prepare-due with dry-run default and require --apply --confirm-queue-only for actual Outbox insertion (still **no message is sent**). Live LINE outbound remains disabled pending real credentials, LINE sandbox and privacy review. See docs/P4_TENANT_CONSENT_NOTIFICATIONS.md.
@@ -109,7 +112,7 @@ history and master/override snapshots are retained without repricing old bills.
 Billing now offers a guarded MOVE_IN partial invoice, calculated from actual
 lease.startDate to the canonical period end and from boundary meter readings.
 Overlapping invoices are blocked. Meter replacement and MOVE_OUT partial bills
-are not yet supported. See docs/P1_PARTIAL_BILLING_AND_ROOM_RATES.md.
+are implemented for guarded MOVE_IN and MOVE_OUT periods, with meter replacement history. Formal meter evidence, deposit settlement and legal acceptance remain open. See `docs/P1_METER_REPLACEMENT_MOVE_OUT.md`.
 
 ## P1-03c Meter swaps and final partial move-out (DEV)
 Owner Meter UI records append-only physical replacement events with old/new serial,

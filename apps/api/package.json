@@ -10,6 +10,7 @@
     "smoke": "tsx scripts/smoke.ts",
     "smoke:http": "tsx scripts/smoke-http.ts",
     "smoke:staff": "tsx scripts/smoke-staff.ts",
+    "smoke:load-gates": "tsx scripts/smoke-load-gates.ts",
     "smoke:payments": "tsx scripts/smoke-payment-concurrency.ts",
     "smoke:finance": "tsx scripts/smoke-financial-adjustments.ts",
     "smoke:line": "tsx scripts/smoke-line-oa.ts",

@@ -13,9 +13,9 @@
 
 ## Current checkpoint (live)
 
-- **Current phase:** P1-04 DEV property-scoped staff authorization, 24h token invite/claim/OWNER approval/revoke, dedicated OWNER staff UI and STAFF room/meter UI implemented and verified in code + real PostgreSQL/HTTP. P1-03c meter continuity and MOVE_OUT partial remain DEV complete; legal evidence/deposit acceptance OPEN.
-- **Immediate task:** P1-05 negative amount/overflow/duplicate/concurrency/load gates; then P1-01b/P5 maintenance and deposit workflows. LINE Login/LIFF sandbox and live messaging remain blocked on real provider/legal acceptance. Keep LINE outbound disabled.
-- **Last verified:** P1-04 commit `d259c94` pushed to GitHub main; unit 67/67, TypeScript, React production build, real PostgreSQL staff/permissions smoke and full smoke:http/payment/finance/S3/cleanup/LINE regression all PASS. SHA-256 verified PostgreSQL backup then migration 0015 applied; API/Web/LINE Observer recreated in Apartment-only managed DEV Compose, all Healthy; 127.0.0.1:18089 /readyz HTTP 200, STAFF unauth 401, unsigned LINE webhook 503; LINE observer dispatch 0 and outbound disabled. Public HTTPS unavailable after VPS reboot (shared Traefik exited 255).
+- **Current phase:** P1-05 verification gates (IN PROGRESS). P1-04 DEV property-scoped staff authorization, 24h token invite/claim/OWNER approval/revoke, dedicated OWNER staff UI and STAFF room/meter UI are implemented and verified in code + real PostgreSQL/HTTP. P1-03c meter continuity and MOVE_OUT partial remain DEV complete; legal evidence/deposit acceptance OPEN.
+- **Immediate task:** finish P1-05 with PostgreSQL HTTP/concurrency verification; the range guard, unit tests, and bounded concurrency smoke are in the worktree but not yet committed. Then P1-01b/P5 maintenance and deposit workflows. LINE Login/LIFF sandbox and live messaging remain blocked on real provider/legal acceptance. Keep LINE outbound disabled.
+- **Last verified:** deployed baseline is P1-04 commit `d259c94` (worktree has P1-05 changes). Domain tests 11/11, API tests 70/70 excluding the loopback-dependent malware scanner suite, monorepo typecheck, and Web production build pass here. Full unit run has 2 malware scanner integration failures because the sandbox denies loopback binds (`EPERM`). P1-05 HTTP smoke fails its API readiness check in this sandbox; Docker socket access is denied, so no PostgreSQL HTTP or load result is claimed. SHA-256 verified PostgreSQL backup then migration 0015 applied on the VPS; API/Web/LINE Observer were healthy internally at 127.0.0.1:18089. Public HTTPS unavailable after VPS reboot (shared Traefik exited 255).
 
 - **Deployment:** Apartment DEV containers are healthy **internally** (Dokploy Compose, 127.0.0.1:18089, not Production). Public https://apartme.makemarket.space is **DOWN after 2026-11-03 reboot**: `dokploy-traefik` Exited (255), no host 80/443 listeners. ACME storage inside shared Traefik remains mounted read-only and logs certificate persistence errors. Do not restart shared Traefik from Apartment maintenance; coordinate separate safe infra recovery of ACME storage/certificates and other domains before public verification. Separate PostgreSQL and other service containers were not changed.
 - **Git:** Preserve user files, check `git status --short` before edits; commit with evidence; no push or production deploy without explicit instruction. Last completed commit: see `git log -1 --oneline`.
@@ -57,7 +57,11 @@
   - [ ] P1-03c.3 Legal meter evidence verification, tenant notices, deposit/refund/credit settlement and Production financial-security acceptance
 - [x] P1-04 DEV property-level STAFF grants (VIEWER/METER_READER), OWNER-only invite/claim/approve/revoke, manager-denied member management, safe staff property/room listings, auth-scope + in-TX meter grant locks, auditable flows, owner/staff React screens, 0015 migration, real PostgreSQL/HTTP replay/race/IDOR tests
   - [ ] Real LINE Login/LIFF user acceptance, independent security/load QA and worker operational signoff (P2/P7; not Production-ready). See `docs/P1_STAFF_ACCESS.md`
-- [ ] P1-05 Negative-amount/overflow/duplicate/concurrency verification gates under load
+- [ ] P1-05 Negative-amount/overflow/duplicate/concurrency verification gates under load (**IN PROGRESS**)
+  - [x] Invoice line/total and `units_milli` PostgreSQL INTEGER bounds; utility arithmetic overflow returns 422; six focused unit cases pass
+  - [x] Isolated DEV HTTP smoke script covers negative/fractional/over-limit input, duplicate reading, cross-org access, 16-way same-key replay, 16-way distinct-key issue race, and a bounded 32-way bill-preview burst (76 total HTTP requests)
+  - [ ] Execute smoke against private PostgreSQL/HTTP runtime and record successful response set + latency; run a larger bounded load profile before acceptance
+  - **Current verification blocker:** this workspace's sandbox denies API loopback readiness and Docker socket access. Do not count a script that fails readiness as DEV evidence.
 - **Gate:** owner cannot access another organization's property, lease, or invoice; previously issued bill never changes.
 
 ## Phase P2 — Tenant onboarding & read-only LIFF portal (IMPLEMENTED LOCALLY; LINE E2E BLOCKED)
@@ -193,10 +197,10 @@
 
 You are continuing the Apartment SaaS project on **/root/Projects/Apartment** (DEV only). Before coding:
 1. Read `AGENTS.md`, `README.md`, and **`docs/PHASES.md`**, especially *Current checkpoint* and the first unchecked item in the active phase.
-2. Check `git status --short --branch` and `git log -1 --oneline`. Preserve uncommitted work; do NOT reset, stash, discard, push, deploy or send actual LINE notifications.
-3. Inspect targeted source files. Apply test-first behavior for the next unchecked item and reuse existing Fastify/Drizzle conventions. Default scope: **P4-01 durable LINE OA webhook/outbox without vendor keys**; keep P3-04b.4 and S3/ClamAV/LINE real provider acceptance pending; P3-02b live provider E2E requires user credentials and HTTPS endpoint. Review `docs/ENV_REQUIRED.md`. Do not mark any invoice PAID automatically. Independently run P2-06 only after real LINE sandbox configuration arrives.
-4. Run `corepack pnpm test`, `corepack pnpm typecheck`, `corepack pnpm --filter @apartment/web build`, `corepack pnpm --filter @apartment/api smoke`, and `corepack pnpm --filter @apartment/api smoke:http` when the private Postgres DEV container is up.
-5. Update this file with exact checkbox evidence, pending risks, next task and git commit. Do not claim real LINE or finance E2E without keys or evidence.
+2. Check `git status --short --branch` and `git log -1 --oneline`; preserve all user work. Current active item is **P1-05**, not P4-01. Its implementation and bounded smoke script may already be in progress; inspect before editing.
+3. Complete `apps/api` P1-05 with the real PostgreSQL HTTP/concurrency smoke and an appropriate load run. Do not mark it complete from unit tests alone. If the DEV database/runtime is unavailable, record the exact blocker and leave it pending.
+4. Run `corepack pnpm test`, `corepack pnpm typecheck`, `corepack pnpm --filter @apartment/web build`, and the API PostgreSQL smoke suites when their required local services are available. A restricted sandbox may reject loopback tests; distinguish that from product test failures.
+5. Update this file's current checkpoint and verification evidence. Continue with P1-01b/P5 work after P1-05. Keep real LINE, bank, S3 provider, legal, security, offsite backup, and Production acceptance gates pending until verified with the required external inputs. Never mark an invoice PAID automatically.
 6. If external secrets or a product decision are required, leave that specific checkbox blocked and continue other independent work.
 
 ## Decisions required (do not block local coding)

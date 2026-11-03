@@ -72,6 +72,32 @@ export function validMoveOutPartialPeriod(
    (start===period.start||start===leaseStart);
  }catch{return false;}
 }
+/** Database stores invoice amounts and units_milli as signed PostgreSQL INTEGER.
+ * Validate both the value and every line BEFORE the issuance transaction inserts.
+ * Zero-cost utilities can still overflow units_milli without affecting the total.
+ */
+export function assertInvoiceStorageBounds(
+ lines:ReadonlyArray<{amountSatang:number;unitsMilli:number|null}>,
+ totalSatang:number
+):void{
+ const int32=(n:number)=>Number.isSafeInteger(n)&&n>=0&&n<=2_147_483_647;
+ if(lines.some(l=>l.unitsMilli!==null&&!int32(l.unitsMilli)))
+  throw new AppError(422,"METER_USAGE_OUT_OF_RANGE");
+ if(!int32(totalSatang)||lines.some(l=>!int32(l.amountSatang))||
+    lines.reduce((sum,l)=>sum+BigInt(l.amountSatang),0n)!==BigInt(totalSatang))
+  throw new AppError(422,"AMOUNT_OUT_OF_RANGE");
+}
+export function invoiceUtilityAmount(consumedMilli:number,rateSatang:number):number{
+ try{return utilitySatang(0,consumedMilli,rateSatang);}
+ catch(error){
+  // utilitySatang rejects totals beyond JS safe integer before the
+  // PostgreSQL INTEGER storage guard can map them to a client error.
+  if(error instanceof Error&&error.message==="MONEY_OVERFLOW")
+   throw new AppError(422,"AMOUNT_OUT_OF_RANGE");
+  throw error;
+ }
+}
+
 export async function prepareInvoice(data:BillInput, property:typeof properties.$inferSelect, client:QueryDB=db) {
  if(data.partialMode===undefined&&!validBillingPeriod(property,data.start,data.endExclusive))
   throw new AppError(422,"INVALID_BILLING_PERIOD");
@@ -116,7 +142,7 @@ export async function prepareInvoice(data:BillInput, property:typeof properties.
     replacedAt:s.replacedAt,oldClosingMilli:readingToMilli(s.oldClosingValue),
     newOpeningMilli:readingToMilli(s.newOpeningValue)
    })));
-   const amountSatang=utilitySatang(0,consumedMilli,rate);
+   const amountSatang=invoiceUtilityAmount(consumedMilli,rate);
    meterLines.push({type:kind,description:kind==="WATER"?"ค่าน้ำ":"ค่าไฟ",unitsMilli:consumedMilli,tariffSatang:rate,amountSatang,
      snapshot:{start:prev.value,end:next.value,rateSatang:rate,
       masterRateVersionId:master.id,masterEffectiveFrom:master.effectiveFrom,
@@ -138,6 +164,6 @@ export async function prepareInvoice(data:BillInput, property:typeof properties.
     roomRateVersionId:roomVersion.id,roomRateEffectiveFrom:roomVersion.effectiveFrom,
     rateSource:roomVersion.rentOverrideSatang===null?"MASTER":"OVERRIDE"}},...meterLines];
  const total=lines.reduce((sum,l)=>sum+l.amountSatang,0);
- if(!Number.isSafeInteger(total) || total > 2147483647) throw new AppError(422,"AMOUNT_OUT_OF_RANGE");
+ assertInvoiceStorageBounds(lines,total);
  return {room,lease,property,periodStart:data.start,periodEnd:data.endExclusive,lines,totalSatang:total};
 }
