@@ -40,3 +40,6 @@ The one-shot command performs an observation and exits. A real live sender is ga
 - Dedicated observer one-shot, Docker heartbeat and full regression/typecheck/build checks are required before handoff.
 
 Open gates: external LINE/LIFF E2E, quota and notification fairness, delivery callbacks, dead-letter paging, retention, legal privacy approval and a true production live worker. Do not claim automatic real messaging or that a previously sent notification can be recalled.
+
+## Deployment validation
+Existing Apartment DEV Compose is running api, web and line-observer. All Healthy after deploying feature commit 983fd6b. LINE observer wrote fresh heartbeat and emitted redacted status summary with dispatched=0. Public HTTPS / and /readyz returned 200 with trusted TLS; unauthenticated operations endpoints returned 401. Existing PostgreSQL was preserved, and no other VPS app was touched. Operator scope/acknowledgment tested with real PostgreSQL HTTP fixtures. No real LINE messages sent.

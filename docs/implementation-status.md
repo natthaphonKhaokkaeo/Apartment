@@ -125,3 +125,9 @@ Next: P4-05 real LINE sandbox if credentials configured; otherwise P4-03c operat
 - [x] HTTP PostgreSQL admin security, organization scope, PII, duplicate and no-retry tests
 - [ ] Provider live quotas/fairness, operational paging, LINE sandbox and in-flight revocation acceptance
 See docs/P4_LINE_OPERATIONS.md.
+
+### P4-03c live DEV verification
+- [x] Commit 983fd6b pushed; Apartment-only managed Docker Compose build and up successful; 3 containers API/web/line-observer Healthy, PostgreSQL Healthy.
+- [x] Public HTTPS/readyz 200 trusted TLS; unauthenticated line operations API 401.
+- [x] Observer heartbeat updated, LINE_WORKER_MODE observe, LINE_WORKER_APPROVED false and LINE_OUTBOUND_MODE disabled, dispatched 0.
+- [ ] Actual LINE provider sandbox/live sender, paging/quotas and production acceptance pending.

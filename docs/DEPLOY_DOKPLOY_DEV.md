@@ -68,3 +68,6 @@ Dokploy API docs: https://docs.dokploy.com/docs/api/compose — create/update/de
 
 ## P4-03c DEV line-observer service
 Compose adds private line-observer based on the API image, private apartment-dev_default PostgreSQL bridge, 60-second aggregate counts and heartbeat. Environment forces observe mode, approval false, outbound disabled; no published port. This is NOT a live LINE sender. See docs/P4_LINE_OPERATIONS.md.
+
+## Managed LINE observer deployment verified
+After feature commit 983fd6b, apartment-dokploy-dev-ajcnbm-line-observer-1 is Healthy; API and Web remain Healthy and PostgreSQL remains unchanged. Observer logs count statuses and dispatched=0, heartbeat is fresh; LINE_WORKER_MODE observe, LINE_WORKER_APPROVED false, LINE_OUTBOUND_MODE disabled. Public HTTPS and readiness remain 200. No external LINE API messages are sent.

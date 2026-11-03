@@ -133,3 +133,11 @@ Domain checkpoint: https://apartme.makemarket.space now works (HTTPS trusted; we
 - apps/web/src/components/LineOperationsAdmin.tsx shown to Platform Super Admin only; endpoints return no recipient or message contents.
 - Dokploy Compose adds line-observer with LINE_WORKER_MODE=observe, LINE_WORKER_APPROVED=false and LINE_OUTBOUND_MODE=disabled, heartbeat health, private DB network only.
 - Run smoke:line (admin status and Dead-letter review), line:worker --once and full regression. Live LINE provider still blocked. See docs/P4_LINE_OPERATIONS.md.
+
+## P4-03c verified deployment checkpoint 2026-11-03
+- Feature commit 983fd6b pushed to GitHub main; built images and Docker Compose updated within existing Dokploy project apartment-dokploy-dev-ajcnbm without modifying other services.
+- Managed services api/web/line-observer all Healthy; apartment-dev-postgres-1 Healthy and database 23 tables, migration 0010 applied.
+- Public https://apartme.makemarket.space and /readyz 200 with TLS verify=0; both unauthenticated operator endpoints 401.
+- line-observer mode observe, approved false, outbound disabled, poll 60s, heartbeat age 11s, dispatched 0. Dedicated no-port worker is running but does NOT send.
+- 59 tests + all regression suites + Vite/TypeScript + LINE worker one-shot passed. No LINE live provider keys are configured.
+- Docs/P4_LINE_OPERATIONS.md contains operator monitoring endpoints, restrictions, remaining quota/alert/consent live gates.
