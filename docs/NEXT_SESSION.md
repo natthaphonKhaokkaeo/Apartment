@@ -6,7 +6,9 @@
 
 Continue the Apartment LINE-first multi-tenant SaaS in `/root/Projects/Apartment`.
 
-**Start with P3-02b.6**: implement private payment-evidence cleanup / retention controls and a malware-scanning integration contract, with TDD. Keep files inaccessible except after authorization and keep production blocked until an actual provider with tested IAM/SigV4/CORS + malware scanning is configured. Do not remove evidence attached to live invoices or claims; make deletion reconcile with DB state and legal retention. See `docs/P3_S3_STORAGE_RUNBOOK.md`.
+**Start with P3-04b:** define safe financial credit, refund and dispute policy with test-first implementation and no real-money movement. If S3 and ClamAV ENV is ready, prioritize real provider SigV4/IAM/CORS, EICAR and backup/restore security proof.
+
+**P3-02b.6 DEV code completed:** manual dry-run-first cleanup with Legal Hold, EXPIRED retry state and no Payment Claim deletion; optional fail-closed ClamAV TCP INSTREAM adapter. Production gating, actual scanner, lifecycle, admin retention and scheduler are still NOT done. Read docs/P3_EVIDENCE_RETENTION_MALWARE.md.
 
 **P3-01b PromptPay QR implemented in DEV:** read `docs/P3_PROMPTPAY_QR.md`. BOT/EMV Tag 29 payload+CRC golden test, tenant and owner scoped API, local browser QR image + refresh/download, fixed outstanding amount and pending/full-payment guards passed. Real bank-app scan / recipient name verification is **not yet done**, so keep the overall P3-01b checkbox pending external sign-off. No payment is marked paid automatically.
 
@@ -34,6 +36,8 @@ corepack pnpm --filter @apartment/api smoke
 corepack pnpm --filter @apartment/api smoke:http
 corepack pnpm --filter @apartment/api smoke:payments
 corepack pnpm --filter @apartment/api smoke:s3
+corepack pnpm --filter @apartment/api smoke:cleanup
+corepack pnpm --filter @apartment/api evidence:cleanup  # DRY RUN ONLY
 corepack pnpm --filter @apartment/api exec tsx scripts/preview-billing-pdf.ts
 corepack pnpm --filter @apartment/api exec tsx scripts/preview-billing-pdf.ts --long
 ```
@@ -90,3 +94,5 @@ Before declaring phase work complete, run tests/typecheck/build/database smoke, 
 - `apps/web/src/components/PromptPayQRCode.tsx` — browser-only QR pixels via lazy `qrcode`, download and refresh
 - `apps/web/src/components/TenantPayments.tsx`, `PaymentCenter.tsx` — tenant bill and owner invoice preview integrations
 - `apps/api/scripts/smoke-http.ts` — real PostgreSQL, identity/IDOR, pending/full and partial payments QR smoke.
+
+P3-02b.6 files: apps/api/src/services/malware-scanner.ts, services/evidence-cleanup.ts, scripts/cleanup-evidence.ts, scripts/smoke-evidence-cleanup.ts, tests/malware-scanner.test.ts, tests/evidence-cleanup.test.ts, apps/api/drizzle/0007_mixed_christian_walker.sql.

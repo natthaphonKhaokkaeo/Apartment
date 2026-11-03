@@ -13,9 +13,9 @@
 
 ## Current checkpoint (live)
 
-- **Current phase:** P3 — PromptPay QR DEV implementation complete (P3-01b code/tests); real bank app scan and other P3 production controls remain outstanding. Overall P3 PARTIAL.
-- **Immediate task:** P3-02b.6 implement private evidence cleanup/retention guard and malware scan integration contract (without requiring provider keys), then run tests. When keys arrive, perform P3-02b.5 real provider IAM/SigV4/CORS E2E and P2-06 LINE sandbox. P3-01b real bank app scan remains external acceptance. No production deployment.
-- **Last verified:** 40 unit tests (11 domain + 29 API) plus API/HTTP PromptPay authorization and partial-balance tests, TypeScript and Vite build; dedicated DEV PostgreSQL. Repeat final verification before accepting.
+- **Current phase:** P3 — P3-02b.6 DEV orphan cleanup and opt-in ClamAV contract implemented; real scanner/provider, legal retention and Production safety still pending. Overall P3 PARTIAL.
+- **Immediate task:** P3-04b financial credit/refund/dispute rules and immutable ledger adjustment design. When provider ENV arrives, prioritize P3-02b.5 real S3 IAM/CORS/SigV4 and P3-02b.6d ClamAV EICAR/lifecycle/restore. P2-06 LINE sandbox and PromptPay bank scan remain blocked. No production deployment.
+- **Last verified:** 46 tests total (11 domain + 35 API), TypeScript checks, React build, real DEV PostgreSQL migrations 0007 and isolated cleanup smoke, HTTP/Payment/S3 smoke and DRY_RUN CLI; all passed 2026-11-03. No real clamd or storage provider acceptance.
 
 - **Deployment:** Postgres DEV on `127.0.0.1:55432`; API/web not deployed. Actual LINE credentials not configured.
 - **Git:** Preserve user files, check `git status --short` before edits; commit with evidence; no push or production deploy without explicit instruction. Last completed commit: see `git log -1 --oneline`.
@@ -74,7 +74,11 @@
   - [x] P3-02b.3 Tenant LIFF chooses S3 direct workflow when enabled; single-use READY→CLAIMED ticket bound to verified tenant/invoice with transactional idempotent payment claim
   - [x] P3-02b.4 Real PostgreSQL + local HTTP S3 **mock** test (SigV4 URL shape, checksum mismatch, replay, tenant IDOR, one-time claim and authorized private read); no external keys required
   - [ ] P3-02b.5 **BLOCKED:** live provider IAM/signature/CORS validation with real credentials + HTTPS endpoint, object policy and permitted origins
-  - [ ] P3-02b.6 **BLOCKED:** malware scanning, orphan/expiry garbage-collection worker, lifecycle policies/retention, backup/restore proof, production security gate
+  - [ ] P3-02b.6 Safe evidence expiry/cleanup and malware scanning (PARTIAL — Production acceptance pending)
+    - [x] P3-02b.6a Migration 0007: legal_hold, EXPIRED, expired_at, cleaned_at; dry-run default, explicit org/confirmation apply; expiry grace, row lock, payment claim reference protection and retry
+    - [x] P3-02b.6b Isolated PostgreSQL smoke: dry-run, expired ticket, retained legal hold/CLAIMED/referenced evidence and failed-delete retry
+    - [x] P3-02b.6c ClamAV TCP INSTREAM adapter: optional DEV, source+sanitized image scans, mock daemon clean/infected/error/timeout/connection refusal tests, fail-closed when enabled
+    - [ ] P3-02b.6d Live clamd EICAR/signature update, S3 lifecycle and restore proof, admin legal retention workflow, worker scheduling, metrics, production security QA
   - [x] P3-02c Production startup fails until production evidence/security hardening is implemented
 - [x] P3-03 Owner-only manual review/approve/reject with transaction, transfer-reference unique per property, idempotency key, partial payments and overpayment **rejection**
   - [ ] P3-03b Overpayment credit / refund / dispute policy and workflow; automatic bank verification not implemented
@@ -157,7 +161,7 @@
 You are continuing the Apartment SaaS project on **/root/Projects/Apartment** (DEV only). Before coding:
 1. Read `AGENTS.md`, `README.md`, and **`docs/PHASES.md`**, especially *Current checkpoint* and the first unchecked item in the active phase.
 2. Check `git status --short --branch` and `git log -1 --oneline`. Preserve uncommitted work; do NOT reset, stash, discard, push, deploy or send actual LINE notifications.
-3. Inspect targeted source files. Apply test-first behavior for the next unchecked item and reuse existing Fastify/Drizzle conventions. Default scope: **P3-02b.6 private evidence cleanup/retention controls and malware scan integration contract** (do not mark storage production-ready without real provider tests); P3-02b live provider E2E requires user credentials and HTTPS endpoint. Review `docs/ENV_REQUIRED.md`. Do not mark any invoice PAID automatically. Independently run P2-06 only after real LINE sandbox configuration arrives.
+3. Inspect targeted source files. Apply test-first behavior for the next unchecked item and reuse existing Fastify/Drizzle conventions. Default scope: **P3-04b safe credits/refunds/disputes workflow**; complete P3-02b.5/6d real provider/scanner gates when ENV is ready; P3-02b live provider E2E requires user credentials and HTTPS endpoint. Review `docs/ENV_REQUIRED.md`. Do not mark any invoice PAID automatically. Independently run P2-06 only after real LINE sandbox configuration arrives.
 4. Run `corepack pnpm test`, `corepack pnpm typecheck`, `corepack pnpm --filter @apartment/web build`, `corepack pnpm --filter @apartment/api smoke`, and `corepack pnpm --filter @apartment/api smoke:http` when the private Postgres DEV container is up.
 5. Update this file with exact checkbox evidence, pending risks, next task and git commit. Do not claim real LINE or finance E2E without keys or evidence.
 6. If external secrets or a product decision are required, leave that specific checkbox blocked and continue other independent work.
@@ -170,3 +174,5 @@ You are continuing the Apartment SaaS project on **/root/Projects/Apartment** (D
 - Legal admissibility of water/electric tariff values and proof for each property
 - Figma target plan selection
 - P3 evidence provider and storage keys; PromptPay QR reference standard, refund/credit policy, official receipt identity
+
+- P3-02b.6 DEV: migration 0007, ClamAV INSTREAM fake TCP tests, and PostgreSQL fixture cleanup smoke completed. No real evidence deleted. Read docs/P3_EVIDENCE_RETENTION_MALWARE.md.

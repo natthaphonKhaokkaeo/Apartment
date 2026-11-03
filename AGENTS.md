@@ -15,3 +15,6 @@
 - Next phase P3-05 may create Billing Notice PDF only, explicitly NOT a receipt or tax invoice until legal requirements and issuer data approved.
 
 - P3-05b informational PDF must never be represented as tax invoice or official payment receipt. Validate stored immutable invoice line total; new invoice gets issuance-time metadata snapshot, old invoice gets explicit legacy current-record warning.
+
+- Orphan cleanup is manual DRY_RUN by default and must not delete legal-hold/CLAIMED/Payment Claim-linked evidence. Production policy, lifecycle, provider tests and backups are incomplete.
+- ClamAV disabled in DEV means NOT SCANNED. Enabled scanner is fail-closed; never expose clamd TCP publicly.

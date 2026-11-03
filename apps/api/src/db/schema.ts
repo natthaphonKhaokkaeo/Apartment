@@ -1,4 +1,4 @@
-import {pgTable, pgEnum, uuid, text, timestamp, varchar, date, integer, numeric, jsonb, uniqueIndex, index} from "drizzle-orm/pg-core";
+import {pgTable, pgEnum, uuid, text, timestamp, varchar, date, integer, numeric, boolean, jsonb, uniqueIndex, index} from "drizzle-orm/pg-core";
 
 export const roles = pgEnum("membership_role", ["OWNER","MANAGER"]);
 export const cadence = pgEnum("billing_cadence", ["MONTHLY","SEMI_MONTHLY","EVERY_15_DAYS"]);
@@ -184,7 +184,7 @@ export const paymentClaims = pgTable("payment_claims", {
   uniqueIndex("uq_payment_claim_property_transfer").on(t.propertyId,t.transferReference)
 ]);
 
-export const evidenceUploadStatus = pgEnum("evidence_upload_status",["INITIATED","PROCESSING","READY","CLAIMED","FAILED"]);
+export const evidenceUploadStatus = pgEnum("evidence_upload_status",["INITIATED","PROCESSING","READY","CLAIMED","FAILED","EXPIRED"]);
 export const evidenceUploads = pgTable("evidence_uploads", {
  id: uuid("id").primaryKey().defaultRandom(),
  organizationId: uuid("organization_id").notNull().references(() => organizations.id),
@@ -200,7 +200,10 @@ export const evidenceUploads = pgTable("evidence_uploads", {
  expiresAt: timestamp("expires_at",{withTimezone:true}).notNull(),
  createdAt: timestamp("created_at",{withTimezone:true}).notNull().defaultNow(),
  processedAt: timestamp("processed_at",{withTimezone:true}),
- claimedAt: timestamp("claimed_at",{withTimezone:true})
+ claimedAt: timestamp("claimed_at",{withTimezone:true}),
+ legalHold: boolean("legal_hold").notNull().default(false),
+ expiredAt: timestamp("expired_at",{withTimezone:true}),
+ cleanedAt: timestamp("cleaned_at",{withTimezone:true})
 },t=>[
  index("idx_evidence_upload_invoice_user").on(t.invoiceId,t.submittedBy),
  index("idx_evidence_upload_expires").on(t.expiresAt)

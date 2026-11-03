@@ -17,7 +17,11 @@ const schema = z.object({
  EVIDENCE_S3_ENDPOINT: z.preprocess(v=>v===""?undefined:v,z.url().optional()),
  EVIDENCE_S3_ACCESS_KEY_ID: z.string().optional(),
  EVIDENCE_S3_SECRET_ACCESS_KEY: z.string().optional(),
- EVIDENCE_S3_FORCE_PATH_STYLE: z.enum(["true","false"]).default("false")
+ EVIDENCE_S3_FORCE_PATH_STYLE: z.enum(["true","false"]).default("false"),
+ EVIDENCE_MALWARE_SCANNER: z.enum(["disabled","clamav"]).default("disabled"),
+ CLAMAV_HOST: z.string().min(1).default("127.0.0.1"),
+ CLAMAV_PORT: z.coerce.number().int().min(1).max(65535).default(3310),
+ CLAMAV_TIMEOUT_MS: z.coerce.number().int().min(50).max(30000).default(5000)
 });
 export const config = schema.parse(process.env);
 if(config.EVIDENCE_STORAGE_DRIVER==="s3" && (

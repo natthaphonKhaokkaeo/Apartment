@@ -86,3 +86,6 @@ No additional environment variables or credentials are required. The API depends
 
 ## I. PromptPay QR configuration (P3-01b)
 No new ENV / external API key is required. The authorized organization owner sets a 10-digit Thai mobile or 13-digit tax/national PromptPay proxy via the property Payment Settings UI, not in environment files. App bank-registration verification and real bank-app scan are **not implemented**. LINE Login and HTTPS remain separate sandbox ENV requirements.
+
+## J. Optional P3 malware scanner
+DEV default: EVIDENCE_MALWARE_SCANNER=disabled (images explicitly NOT virus scanned). To enable actual scanner: EVIDENCE_MALWARE_SCANNER=clamav, CLAMAV_HOST=127.0.0.1, CLAMAV_PORT=3310, CLAMAV_TIMEOUT_MS=5000. Provision clamd and signature updates separately on a private network; mock TCP tests only so far. No scanner secret key required. Production startup remains blocked.

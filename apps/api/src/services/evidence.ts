@@ -4,6 +4,7 @@ import {fileURLToPath} from "node:url";
 import {resolve} from "node:path";
 import sharp from "sharp";
 import {config} from "../config.js";
+import {verifyEvidenceMalware} from "./malware-scanner.js";
 import {AppError} from "../security.js";
 import {
  MAX_EVIDENCE_BYTES,MAX_EVIDENCE_PIXELS,
@@ -29,6 +30,8 @@ export async function sanitizeEvidence(content:Buffer,mime:string):Promise<Buffe
   throw new AppError(413,"EVIDENCE_FILE_TOO_LARGE");
  if(!["image/jpeg","image/png","image/webp"].includes(mime))
   throw new AppError(415,"UNSUPPORTED_EVIDENCE_MEDIA");
+ // Scan untrusted source bytes before decode, then scan sanitized pixels before storage.
+ await verifyEvidenceMalware(content);
  let metadata;
  try{metadata=await sharp(content,{limitInputPixels:MAX_EVIDENCE_PIXELS,failOn:"error",animated:false}).metadata();}
  catch{throw new AppError(422,"INVALID_EVIDENCE_IMAGE");}
@@ -46,6 +49,7 @@ export async function sanitizeEvidence(content:Buffer,mime:string):Promise<Buffe
  return safe;
 }
 export async function storeSanitizedEvidence(safe:Buffer):Promise<SavedEvidence>{
+ await verifyEvidenceMalware(safe);
  if(config.EVIDENCE_STORAGE_DRIVER==="s3")return saveSanitizedObject(safe);
  if(safe.length===0||safe.length>MAX_EVIDENCE_BYTES)throw new AppError(413,"EVIDENCE_FILE_TOO_LARGE");
  await ensurePrivateDirectory();

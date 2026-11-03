@@ -77,3 +77,11 @@ Next: P3-01b PromptPay display-only QR. Canonical plan: docs/PHASES.md.
 - [ ] Scan with actual banking apps and verify registered receiver and amount; real LIFF/HTTPS E2E
 - [ ] Real bank reconciliation and official receipt (not part of QR rendering)
 Canonical plan: docs/PHASES.md. Details: docs/P3_PROMPTPAY_QR.md.
+
+## P3-02b.6 DEV — safe orphan cleanup and optional scanner
+- [x] Expiry state + legal hold + DB row locking + payment claim protection
+- [x] Manual DRY_RUN default, explicit org-scoped two-flag apply, failed-delete retry
+- [x] ClamAV INSTREAM fail-closed adapter and isolated mock TCP tests
+- [x] PostgreSQL fixture cleanup smoke with legal hold/linked payment and retry protection
+- [ ] Real ClamAV EICAR, S3 lifecycle, orphan inventory, backup/restore, legal policy/admin holds, scheduled worker and production security
+Next: P3-04b credit/refund/dispute policy, or real provider verification when ENV is available.

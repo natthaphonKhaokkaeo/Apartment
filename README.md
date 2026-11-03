@@ -63,3 +63,6 @@ PDFKit embeds Noto Sans Thai from @expo-google-fonts/noto-sans-thai; no addition
 
 ## P3-01b PromptPay QR (DEV)
 Owner/tenant invoice-scoped endpoints: `GET /v1/properties/:propertyId/invoices/:invoiceId/promptpay-qr` and `GET /v1/tenant/invoices/:invoiceId/promptpay-qr`. PromptPay ID must be a Thai mobile (10 digits, 06/08/09) or 13-digit tax/national ID set by owner in Property Payment Settings; no other ENV required. API encodes BOT/EMV Tag 29/54/63 with integer-satang outstanding and returns no-store display-only payload. Web uses a local `qrcode` library to render pixels; it does not send IDs to a third party. QR disappears while a payment claim is pending or when the manually recorded balance is zero. It does **not** verify recipient registration or bank settlement. Real bank app scan is still a required acceptance gate. See docs/P3_PROMPTPAY_QR.md.
+
+## P3-02b.6 DEV orphan evidence cleanup / optional ClamAV
+See docs/P3_EVIDENCE_RETENTION_MALWARE.md. Manual CLI defaults to read-only: corepack pnpm --filter @apartment/api evidence:cleanup. Deletion requires --apply --confirm-orphans-only --organization-id=<UUID> and must not run against production until legal/storage acceptance. Real PostgreSQL smoke: corepack pnpm --filter @apartment/api smoke:cleanup. ClamAV is optional and disabled in DEV; disabling does NOT imply clean.

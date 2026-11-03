@@ -60,3 +60,6 @@ Bucket lifecycle:
 - [ ] Production security/performance signoff; API rejects NODE_ENV=production.
 
 Test: `corepack pnpm --filter @apartment/api smoke:s3`. This uses its own in-memory HTTP mock on 127.0.0.1:59000. It does NOT verify provider IAM/SigV4 validation.
+
+## P3-02b.6 DEV retention and scanner
+See docs/P3_EVIDENCE_RETENTION_MALWARE.md for manual dry-run-first cleanup, legal-hold rules, ClamAV protocol, and remaining production gates. No production cleanup scheduling or real provider validation completed.
