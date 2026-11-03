@@ -220,6 +220,47 @@ export const paymentLedger = pgTable("payment_ledger", {
  createdAt: timestamp("created_at", {withTimezone:true}).notNull().defaultNow()
 },t=>[index("idx_payment_ledger_invoice").on(t.invoiceId)]);
 
+export const financeAdjustmentKind=pgEnum("finance_adjustment_kind",[
+ "INTERNAL_CREDIT","REVERSE_MANUAL_PAYMENT","REFUND_REVIEW","DISPUTE_REVIEW"
+]);
+export const financeAdjustmentStatus=pgEnum("finance_adjustment_status",["PENDING","APPROVED","REJECTED"]);
+export const financeAdjustmentRequests=pgTable("finance_adjustment_requests",{
+ id:uuid("id").primaryKey().defaultRandom(),
+ organizationId:uuid("organization_id").notNull().references(()=>organizations.id),
+ propertyId:uuid("property_id").notNull().references(()=>properties.id),
+ invoiceId:uuid("invoice_id").notNull().references(()=>invoices.id),
+ kind:financeAdjustmentKind("kind").notNull(),
+ originalLedgerId:uuid("original_ledger_id").references(()=>paymentLedger.id),
+ amountSatang:integer("amount_satang").notNull(),
+ reason:varchar("reason",{length:500}).notNull(),
+ idempotencyKey:varchar("idempotency_key",{length:128}).notNull(),
+ status:financeAdjustmentStatus("status").notNull().default("PENDING"),
+ requestedBy:uuid("requested_by").notNull().references(()=>users.id),
+ reviewedBy:uuid("reviewed_by").references(()=>users.id),
+ reviewReason:varchar("review_reason",{length:500}),
+ createdAt:timestamp("created_at",{withTimezone:true}).notNull().defaultNow(),
+ reviewedAt:timestamp("reviewed_at",{withTimezone:true})
+},t=>[
+ index("idx_finance_adjustments_property").on(t.propertyId,t.status),
+ index("idx_finance_adjustments_invoice").on(t.invoiceId),
+ uniqueIndex("uq_finance_adjustments_request_idempotency").on(t.requestedBy,t.idempotencyKey)
+]);
+export const financeAdjustmentEntries=pgTable("finance_adjustment_entries",{
+ id:uuid("id").primaryKey().defaultRandom(),
+ requestId:uuid("request_id").notNull().unique().references(()=>financeAdjustmentRequests.id),
+ organizationId:uuid("organization_id").notNull().references(()=>organizations.id),
+ propertyId:uuid("property_id").notNull().references(()=>properties.id),
+ invoiceId:uuid("invoice_id").notNull().references(()=>invoices.id),
+ kind:financeAdjustmentKind("kind").notNull(),
+ originalLedgerId:uuid("original_ledger_id").references(()=>paymentLedger.id),
+ amountSatang:integer("amount_satang").notNull(),
+ createdBy:uuid("created_by").notNull().references(()=>users.id),
+ createdAt:timestamp("created_at",{withTimezone:true}).notNull().defaultNow()
+},t=>[
+ index("idx_finance_entries_invoice").on(t.invoiceId),
+ uniqueIndex("uq_finance_entries_reversal_once").on(t.originalLedgerId)
+]);
+
 export const auditLogs = pgTable("audit_logs", {
   id: uuid("id").primaryKey().defaultRandom(),
   actorId: uuid("actor_id").notNull().references(() => users.id),

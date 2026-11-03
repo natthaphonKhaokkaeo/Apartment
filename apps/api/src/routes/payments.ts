@@ -5,6 +5,7 @@ import {z} from "zod";
 import {db} from "../db/client.js";
 import {auditLogs,invoices,leases,organizations,paymentClaims,paymentInstructions,paymentLedger,properties,users,memberships} from "../db/schema.js";
 import {AppError,requireActor,requireProperty,type Actor} from "../security.js";
+import {getFinancialPosition} from "../services/financial-position.js";
 import {assertApprovalAllowed,maskBankAccount,normalizePaymentReference,remainingSatang,PaymentInvariantError} from "../services/payment-rules.js";
 import {isValidPromptPayId} from "../services/promptpay.js";
 import {savePrivateEvidence,loadPrivateEvidence,deletePrivateEvidence} from "../services/evidence.js";
@@ -56,11 +57,10 @@ export async function tenantBill(actor:Actor,invoiceId:string):Promise<Bill>{
  return row.invoice;
 }
 export async function approvedSum(invoiceId:string,tx:Pick<typeof db,"select">=db):Promise<number>{
- const rows=await tx.select({amount:paymentLedger.amountSatang}).from(paymentLedger).where(eq(paymentLedger.invoiceId,invoiceId));
- const sum=rows.reduce((n,r)=>n+r.amount,0);
- if(!Number.isSafeInteger(sum))throw new AppError(500,"PAYMENT_LEDGER_OVERFLOW");
- return sum;
+ const position=await getFinancialPosition(invoiceId,tx);
+ return position.totalAppliedSatang;
 }
+
 function overviewFor(invoice:Bill,alreadyApproved:number,pendingCount:number){
  const remaining=remainingSatang(invoice.amountSatang,[alreadyApproved]);
  return {invoiceId:invoice.id,totalSatang:invoice.amountSatang,manuallyApprovedSatang:alreadyApproved,
@@ -69,12 +69,17 @@ function overviewFor(invoice:Bill,alreadyApproved:number,pendingCount:number){
   verification:"MANUAL_REVIEW_ONLY_NO_BANK_API"};
 }
 async function billOverview(invoice:Bill){
- const [approved,pending]=await Promise.all([
-  approvedSum(invoice.id),
+ const [position,pending]=await Promise.all([
+  getFinancialPosition(invoice.id),
   db.select({id:paymentClaims.id}).from(paymentClaims)
    .where(and(eq(paymentClaims.invoiceId,invoice.id),eq(paymentClaims.status,"PENDING")))
  ]);
- return overviewFor(invoice,approved,pending.length);
+ return {...overviewFor(invoice,position.totalAppliedSatang,pending.length),
+  manuallyApprovedSatang:position.netManualApprovedSatang,
+  internalCreditSatang:position.internalCreditSatang,
+  reversedManualSatang:position.reversedManualSatang,
+  grossManualApprovedSatang:position.grossManualApprovedSatang,
+  accounting:"MANUAL_APPROVAL_AND_INTERNAL_CREDIT_NOT_BANK_RECONCILED"};
 }
 async function findOwnerClaim(propertyId:string,claimId:string){
  const [claim]=await db.select().from(paymentClaims)

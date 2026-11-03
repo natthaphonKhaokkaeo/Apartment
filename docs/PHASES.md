@@ -13,9 +13,9 @@
 
 ## Current checkpoint (live)
 
-- **Current phase:** P3 — P3-02b.6 DEV orphan cleanup and opt-in ClamAV contract implemented; real scanner/provider, legal retention and Production safety still pending. Overall P3 PARTIAL.
-- **Immediate task:** P3-04b financial credit/refund/dispute rules and immutable ledger adjustment design. When provider ENV arrives, prioritize P3-02b.5 real S3 IAM/CORS/SigV4 and P3-02b.6d ClamAV EICAR/lifecycle/restore. P2-06 LINE sandbox and PromptPay bank scan remain blocked. No production deployment.
-- **Last verified:** 46 tests total (11 domain + 35 API), TypeScript checks, React build, real DEV PostgreSQL migrations 0007 and isolated cleanup smoke, HTTP/Payment/S3 smoke and DRY_RUN CLI; all passed 2026-11-03. No real clamd or storage provider acceptance.
+- **Current phase:** P3 — internal dual-owner financial correction workflow P3-04b implemented in DEV with audit and immutable entries. Official refunds/tax credit notes and real bank checks still pending; overall P3 PARTIAL.
+- **Immediate task:** P4-01 design persistent LINE OA webhook/outbox contract and testable local worker without vendor keys; or complete real S3/ClamAV/LINE E2E after user sets ENV. P3-04b official refund/bank reconciliation/legal credit-note sign-off remain pending. Never auto-transfer money.
+- **Last verified:** 49 unit tests (11 domain + 38 API), TypeScript + React build, PostgreSQL migration 0008, API HTTP/finance dual-owner, payment, S3 and cleanup smoke tests passed. Container DEV health 200 / unauthorized 401. No real LINE/bank, S3/ClamAV or Dokploy API registration.
 
 - **Deployment:** Postgres DEV on `127.0.0.1:55432`; API/web not deployed. Actual LINE credentials not configured.
 - **Git:** Preserve user files, check `git status --short` before edits; commit with evidence; no push or production deploy without explicit instruction. Last completed commit: see `git log -1 --oneline`.
@@ -84,7 +84,11 @@
   - [ ] P3-03b Overpayment credit / refund / dispute policy and workflow; automatic bank verification not implemented
 - [ ] P3-04 Ledger and receivables reporting (**partial**)
   - [x] P3-04a Append-only payment Ledger created transactionally with approval, immutable invoice still ISSUED, outstanding and manual-approved totals, overdue counts and aging amounts on Dashboard
-  - [ ] P3-04b Refunds, credit notes, adjustments and approved/reconciled reversals with dual control and traceable audit history
+  - [ ] P3-04b Financial corrections / refunds / disputes (PARTIAL, legal/bank gates pending)
+  - [x] P3-04b.1 Internal credit and manual payment record reversal: append-only entries, original payment Ledger immutable, invoice lock, one original reversal, same-property authorization
+  - [x] P3-04b.2 Two-owner workflow: distinct active OWNER request/review; MANAGER rejected; status/idempotency/audit, client request/review UI
+  - [x] P3-04b.3 Review-only refund/dispute requests, no cash payouts, no bank-verified settlement; balance reporting separates net manual payments and internal credits
+  - [ ] P3-04b.4 Actual refund/chargeback, statutory credit note/tax compliance, reconciliation, dispute evidence & audit sign-off
 - [ ] P3-05 Invoice/receipt PDFs and document compliance (PARTIAL: specification only)
   - [x] P3-05a Document type / snapshot / numbering / issuer / access-control / Thai glyph acceptance criteria in `docs/P3_PDF_RECEIPT_SPEC.md`
   - [x] P3-05b Non-tax Billing Notice PDF from immutable amount/lines + issuance-time issuer/property/tenant/room snapshot; Thai font embedded from npm, A4 / multi-page footer, explicit **NOT receipt/tax** banner, owner/tenant authorized download, HTTP IDOR and legacy fallback tests
@@ -161,7 +165,7 @@
 You are continuing the Apartment SaaS project on **/root/Projects/Apartment** (DEV only). Before coding:
 1. Read `AGENTS.md`, `README.md`, and **`docs/PHASES.md`**, especially *Current checkpoint* and the first unchecked item in the active phase.
 2. Check `git status --short --branch` and `git log -1 --oneline`. Preserve uncommitted work; do NOT reset, stash, discard, push, deploy or send actual LINE notifications.
-3. Inspect targeted source files. Apply test-first behavior for the next unchecked item and reuse existing Fastify/Drizzle conventions. Default scope: **P3-04b safe credits/refunds/disputes workflow**; complete P3-02b.5/6d real provider/scanner gates when ENV is ready; P3-02b live provider E2E requires user credentials and HTTPS endpoint. Review `docs/ENV_REQUIRED.md`. Do not mark any invoice PAID automatically. Independently run P2-06 only after real LINE sandbox configuration arrives.
+3. Inspect targeted source files. Apply test-first behavior for the next unchecked item and reuse existing Fastify/Drizzle conventions. Default scope: **P4-01 durable LINE OA webhook/outbox without vendor keys**; keep P3-04b.4 and S3/ClamAV/LINE real provider acceptance pending; P3-02b live provider E2E requires user credentials and HTTPS endpoint. Review `docs/ENV_REQUIRED.md`. Do not mark any invoice PAID automatically. Independently run P2-06 only after real LINE sandbox configuration arrives.
 4. Run `corepack pnpm test`, `corepack pnpm typecheck`, `corepack pnpm --filter @apartment/web build`, `corepack pnpm --filter @apartment/api smoke`, and `corepack pnpm --filter @apartment/api smoke:http` when the private Postgres DEV container is up.
 5. Update this file with exact checkbox evidence, pending risks, next task and git commit. Do not claim real LINE or finance E2E without keys or evidence.
 6. If external secrets or a product decision are required, leave that specific checkbox blocked and continue other independent work.

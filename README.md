@@ -66,3 +66,8 @@ Owner/tenant invoice-scoped endpoints: `GET /v1/properties/:propertyId/invoices/
 
 ## P3-02b.6 DEV orphan evidence cleanup / optional ClamAV
 See docs/P3_EVIDENCE_RETENTION_MALWARE.md. Manual CLI defaults to read-only: corepack pnpm --filter @apartment/api evidence:cleanup. Deletion requires --apply --confirm-orphans-only --organization-id=<UUID> and must not run against production until legal/storage acceptance. Real PostgreSQL smoke: corepack pnpm --filter @apartment/api smoke:cleanup. ClamAV is optional and disabled in DEV; disabling does NOT imply clean.
+
+## DEV Docker deployment and P3-04b finance
+Source git@github.com:natthaphonKhaokkaeo/Apartment.git. Docker Compose from docker-compose.dokploy.yml builds DEV API/Web, binds web to VPS loopback 127.0.0.1:18088 and reuses PostgreSQL. **Not yet Dokploy-managed:** Dokploy API refused unauthenticated calls; see docs/DEPLOY_DOKPLOY_DEV.md.
+
+Finance workflow adds internal credits, append-only manual payment reversals, and review-only refund/dispute requests with dual OWNER approval and audit. No real transfers or statutory credit notes. Test: corepack pnpm --filter @apartment/api smoke:finance. Details: docs/P3_FINANCIAL_ADJUSTMENTS.md.

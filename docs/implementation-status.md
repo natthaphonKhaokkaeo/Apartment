@@ -85,3 +85,11 @@ Canonical plan: docs/PHASES.md. Details: docs/P3_PROMPTPAY_QR.md.
 - [x] PostgreSQL fixture cleanup smoke with legal hold/linked payment and retry protection
 - [ ] Real ClamAV EICAR, S3 lifecycle, orphan inventory, backup/restore, legal policy/admin holds, scheduled worker and production security
 Next: P3-04b credit/refund/dispute policy, or real provider verification when ENV is available.
+
+## P3-04b DEV finance and deployment — 2026-11-03
+- [x] Separate active OWNER requester and reviewer, append-only corrections with original payment Ledger unchanged
+- [x] Internal credits and manual payment reversals update effective outstanding; refund/dispute review only has no transfer
+- [x] Real PostgreSQL HTTP smoke, unit tests, migration 0008, frontend request/review UI
+- [x] GitHub main pushed and local Docker Compose built and running on loopback, health 200 / auth guard 401
+- [ ] Dokploy-managed registration (missing authorized API key), public HTTPS/LINE, real refund, statutory credit note, bank reconciliation
+NEXT: P4-01 LINE OA durable outbox and webhook contract, or Dokploy registration after access is available.

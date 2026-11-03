@@ -1,0 +1,51 @@
+# Dokploy Compose DEV. Run only after a valid Dokploy API key/account is available.
+# Uses existing apartment-dev PostgreSQL via its Docker bridge; does not create/alter DB.
+name: apartment-web-dev
+services:
+  api:
+    build:
+      context: .
+      dockerfile: infra/Dockerfile
+      target: api
+    image: apartment-api:dev
+    restart: unless-stopped
+    init: true
+    env_file:
+      - /etc/dokploy/runtime-env/apartment-api.env
+    # DEV single-replica startup: apply checked-in migrations before serving requests.
+    command: ["sh", "-lc", "corepack pnpm --filter @apartment/api db:migrate && exec corepack pnpm --filter @apartment/api start"]
+    environment:
+      NODE_ENV: development
+      HOST: 0.0.0.0
+      PORT: "8088"
+    volumes:
+      - /root/Projects/Apartment/.private-payment-evidence:/workspace/.private-payment-evidence
+    networks:
+      - default
+      - apartment-db
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8088/readyz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 4
+      start_period: 30s
+  web:
+    build:
+      context: .
+      dockerfile: infra/Dockerfile
+      target: web
+      args:
+        VITE_LIFF_ID: ${VITE_LIFF_ID:-}
+    image: apartment-web:dev
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:18088:80"
+    networks:
+      - default
+networks:
+  apartment-db:
+    external: true
+    name: apartment-dev_default

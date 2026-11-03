@@ -57,6 +57,13 @@
       "when": 1793687470960,
       "tag": "0007_mixed_christian_walker",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1793689303110,
+      "tag": "0008_clever_sersi",
+      "breakpoints": true
     }
   ]
 }

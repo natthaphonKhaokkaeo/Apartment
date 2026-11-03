@@ -18,3 +18,6 @@
 
 - Orphan cleanup is manual DRY_RUN by default and must not delete legal-hold/CLAIMED/Payment Claim-linked evidence. Production policy, lifecycle, provider tests and backups are incomplete.
 - ClamAV disabled in DEV means NOT SCANNED. Enabled scanner is fail-closed; never expose clamd TCP publicly.
+
+- User authorized GitHub push and DEV deployment on 2026-11-03; never open a public service or claim production readiness without LINE/S3/security gates. Dokploy registration still requires authorized API key.
+- Finance adjustments require two distinct active OWNER accounts, immutable original ledger, and no cash transfer for refund/dispute review. See docs/P3_FINANCIAL_ADJUSTMENTS.md.

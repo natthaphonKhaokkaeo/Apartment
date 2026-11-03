@@ -1,6 +1,7 @@
 import {useEffect,useState} from "react";
 import {BadgeCheck,Banknote,Building2,ClipboardCheck,FileImage,RefreshCcw,ShieldAlert} from "lucide-react";
 import {PromptPayQRCode} from "./PromptPayQRCode.js";
+import {FinancialAdjustmentCenter} from "./FinancialAdjustmentCenter.js";
 
 type Api={api:<T>(path:string,options?:RequestInit)=>Promise<T>;post:<T>(path:string,body:unknown)=>Promise<T>};
 type Bank={id:string;bankName:string;accountName:string;accountNumber:string;accountNumberMasked:string;promptPayId:string|null;active:boolean;version:number;updatedAt:string};
@@ -97,5 +98,6 @@ export function PaymentCenter({propertyId,api,post}:Api&{propertyId:string}){
    </div>)}</div>
    {!claims.length&&<div className="empty"><ClipboardCheck size={26}/><p>ยังไม่มีการแจ้งชำระในหอพักนี้</p></div>}
   </section>
+  <FinancialAdjustmentCenter propertyId={propertyId} invoices={invoices} api={api} post={post}/>
  </div>;
 }

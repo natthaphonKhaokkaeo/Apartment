@@ -10,6 +10,7 @@
     "smoke": "tsx scripts/smoke.ts",
     "smoke:http": "tsx scripts/smoke-http.ts",
     "smoke:payments": "tsx scripts/smoke-payment-concurrency.ts",
+    "smoke:finance": "tsx scripts/smoke-financial-adjustments.ts",
     "smoke:s3": "tsx scripts/smoke-storage-s3.ts",
     "evidence:cleanup": "tsx scripts/cleanup-evidence.ts",
     "smoke:cleanup": "tsx scripts/smoke-evidence-cleanup.ts",

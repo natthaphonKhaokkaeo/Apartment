@@ -6,7 +6,7 @@
 
 Continue the Apartment LINE-first multi-tenant SaaS in `/root/Projects/Apartment`.
 
-**Start with P3-04b:** define safe financial credit, refund and dispute policy with test-first implementation and no real-money movement. If S3 and ClamAV ENV is ready, prioritize real provider SigV4/IAM/CORS, EICAR and backup/restore security proof.
+**Start with P4-01:** design and test a durable LINE OA webhook + outbox worker without vendor keys. If a Dokploy API key becomes available, register the currently private Apartment DEV Compose stack as a Dokploy-managed project. P3-04b legal credit notes, actual refunds and bank reconciliation remain unimplemented.
 
 **P3-02b.6 DEV code completed:** manual dry-run-first cleanup with Legal Hold, EXPIRED retry state and no Payment Claim deletion; optional fail-closed ClamAV TCP INSTREAM adapter. Production gating, actual scanner, lifecycle, admin retention and scheduler are still NOT done. Read docs/P3_EVIDENCE_RETENTION_MALWARE.md.
 
@@ -35,6 +35,7 @@ docker compose --env-file .env -f infra/compose.dev.yaml ps
 corepack pnpm --filter @apartment/api smoke
 corepack pnpm --filter @apartment/api smoke:http
 corepack pnpm --filter @apartment/api smoke:payments
+corepack pnpm --filter @apartment/api smoke:finance
 corepack pnpm --filter @apartment/api smoke:s3
 corepack pnpm --filter @apartment/api smoke:cleanup
 corepack pnpm --filter @apartment/api evidence:cleanup  # DRY RUN ONLY
@@ -96,3 +97,11 @@ Before declaring phase work complete, run tests/typecheck/build/database smoke, 
 - `apps/api/scripts/smoke-http.ts` — real PostgreSQL, identity/IDOR, pending/full and partial payments QR smoke.
 
 P3-02b.6 files: apps/api/src/services/malware-scanner.ts, services/evidence-cleanup.ts, scripts/cleanup-evidence.ts, scripts/smoke-evidence-cleanup.ts, tests/malware-scanner.test.ts, tests/evidence-cleanup.test.ts, apps/api/drizzle/0007_mixed_christian_walker.sql.
+
+## DEV handoff 2026-11-03
+- GitHub: git@github.com:natthaphonKhaokkaeo/Apartment.git, main.
+- Docker Compose DEV web + API on VPS loopback 127.0.0.1:18088; /readyz 200 and unauthorized API 401. **Not Dokploy-managed** (Dokploy API 401 without x-api-key).
+- Deployment files: docker-compose.dokploy.yml, infra/Dockerfile, infra/nginx.dev.conf; runtime secrets at /etc/dokploy/runtime-env/apartment-api.env (mode 0600, untracked).
+- Existing PostgreSQL reused via apartment-dev_default network; no duplicate database.
+- P3 finance: apps/api/src/routes/financial-adjustments.ts, services/financial-position.ts, services/financial-rules.ts, tests/financial-rules.test.ts, scripts/smoke-financial-adjustments.ts, Drizzle 0008, apps/web/src/components/FinancialAdjustmentCenter.tsx.
+- Documents: docs/DEPLOY_DOKPLOY_DEV.md and docs/P3_FINANCIAL_ADJUSTMENTS.md.

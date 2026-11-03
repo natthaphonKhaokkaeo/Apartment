@@ -1,0 +1,11 @@
+**/node_modules
+**/dist
+.git
+.env
+.env.*
+!**/.env.example
+.private-payment-evidence
+**/.private-payment-evidence
+**/*.log
+**/coverage
+docs

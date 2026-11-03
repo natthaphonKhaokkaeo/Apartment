@@ -89,3 +89,6 @@ No new ENV / external API key is required. The authorized organization owner set
 
 ## J. Optional P3 malware scanner
 DEV default: EVIDENCE_MALWARE_SCANNER=disabled (images explicitly NOT virus scanned). To enable actual scanner: EVIDENCE_MALWARE_SCANNER=clamav, CLAMAV_HOST=127.0.0.1, CLAMAV_PORT=3310, CLAMAV_TIMEOUT_MS=5000. Provision clamd and signature updates separately on a private network; mock TCP tests only so far. No scanner secret key required. Production startup remains blocked.
+
+## K. Dokploy and finance DEV
+No new finance API keys. Dokploy API requires an authenticated x-api-key generated under Settings > Profile > API/CLI, or an authorized Dashboard login; it is an operator secret and NOT an application ENV variable. VITE_LIFF_ID is a public *build-time* variable. Real LINE_CHANNEL_ID, WEB_ORIGIN exact HTTPS domain and COOKIE_SECURE=true remain pending for public LIFF testing. See docs/DEPLOY_DOKPLOY_DEV.md.
