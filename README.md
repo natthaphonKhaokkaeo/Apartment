@@ -45,3 +45,11 @@ Tenant endpoints: GET `/v1/tenant/invoices/:invoiceId/payment-instructions`, POS
 Private evidence is stored as sanitized WebP in a non-public DEV-only directory; `PAYMENT_EVIDENCE_DIR` is optional. Production startup is intentionally blocked. No bank verification, receipt PDFs, refunds, external payment APIs or signed object-store uploads yet.
 
 Additional concurrency test: `corepack pnpm --filter @apartment/api smoke:payments`. ENV checklist: [docs/ENV_REQUIRED.md](docs/ENV_REQUIRED.md).
+
+
+## P3 signed S3-compatible upload (code completed, real credentials pending)
+- `EVIDENCE_STORAGE_DRIVER=local`: existing Fastify multipart flow remains available on private DEV storage.
+- `EVIDENCE_STORAGE_DRIVER=s3`: client requests 5-min quarantine PUT URL, uploads with checksum and content length, backend verifies and decodes to private WebP, then links one-time ticket to payment claim. See `docs/P3_S3_STORAGE_RUNBOOK.md`.
+- `corepack pnpm --filter @apartment/api smoke:s3` runs HTTP S3 mock and actual PostgreSQL workflow without remote keys.
+- **Do not confuse S3 mock tests with real S3/provider E2E.** Production remains disabled while malware scan / lifecycle / real provider IAM-CORS tests are outstanding.
+- Receipt/tax PDF requirements (not yet implemented): `docs/P3_PDF_RECEIPT_SPEC.md`.

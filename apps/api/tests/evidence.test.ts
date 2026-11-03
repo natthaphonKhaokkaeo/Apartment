@@ -20,6 +20,8 @@ describe("private evidence storage",()=>{
  it("rejects mime mismatches and malformed images",async()=>{
   const bytes=Buffer.from("<script>alert(1)</script>");
   await expect(savePrivateEvidence(bytes,"image/png")).rejects.toMatchObject({code:"INVALID_EVIDENCE_IMAGE"});
+  const jpeg=await sharp({create:{width:8,height:8,channels:3,background:{r:2,g:3,b:4}}}).jpeg().toBuffer();
+  await expect(savePrivateEvidence(jpeg,"image/png")).rejects.toMatchObject({code:"INVALID_EVIDENCE_IMAGE"});
   await expect(savePrivateEvidence(bytes,"text/html")).rejects.toMatchObject({code:"UNSUPPORTED_EVIDENCE_MEDIA"});
   await expect(savePrivateEvidence(Buffer.alloc(4_000_001),"image/png")).rejects.toMatchObject({code:"EVIDENCE_FILE_TOO_LARGE"});
  });

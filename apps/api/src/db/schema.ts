@@ -174,6 +174,28 @@ export const paymentClaims = pgTable("payment_claims", {
   uniqueIndex("uq_payment_claim_property_transfer").on(t.propertyId,t.transferReference)
 ]);
 
+export const evidenceUploadStatus = pgEnum("evidence_upload_status",["INITIATED","PROCESSING","READY","CLAIMED","FAILED"]);
+export const evidenceUploads = pgTable("evidence_uploads", {
+ id: uuid("id").primaryKey().defaultRandom(),
+ organizationId: uuid("organization_id").notNull().references(() => organizations.id),
+ propertyId: uuid("property_id").notNull().references(() => properties.id),
+ invoiceId: uuid("invoice_id").notNull().references(() => invoices.id),
+ submittedBy: uuid("submitted_by").notNull().references(() => users.id),
+ contentType: varchar("content_type",{length:32}).notNull(),
+ contentLength: integer("content_length").notNull(),
+ checksumSha256: varchar("checksum_sha256",{length:44}).notNull(),
+ status: evidenceUploadStatus("status").notNull().default("INITIATED"),
+ evidenceKey: uuid("evidence_key").unique(),
+ evidenceSha256: varchar("evidence_sha256",{length:64}),
+ expiresAt: timestamp("expires_at",{withTimezone:true}).notNull(),
+ createdAt: timestamp("created_at",{withTimezone:true}).notNull().defaultNow(),
+ processedAt: timestamp("processed_at",{withTimezone:true}),
+ claimedAt: timestamp("claimed_at",{withTimezone:true})
+},t=>[
+ index("idx_evidence_upload_invoice_user").on(t.invoiceId,t.submittedBy),
+ index("idx_evidence_upload_expires").on(t.expiresAt)
+]);
+
 export const paymentLedger = pgTable("payment_ledger", {
  id: uuid("id").primaryKey().defaultRandom(),
  organizationId: uuid("organization_id").notNull().references(() => organizations.id),

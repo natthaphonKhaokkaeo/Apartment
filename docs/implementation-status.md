@@ -44,3 +44,15 @@ A user may create their own organization and properties, but cannot access other
 
 ## Current handoff
 Canonical phases: `docs/PHASES.md`. P2 local code complete; LINE sandbox E2E blocked by actual LINE credentials. P3 DEV manual payment foundation implemented; continue P3-02b signed object storage and P3-05 receipt/legal specification; never mark paid without reconciliation.
+
+
+## P3 signed S3 workflow checkpoint — 2026-11-03
+- [x] Private S3 adapter, presigned 5-minute quarantine PUT, checksum/length validation, sanitized WebP
+- [x] PostgreSQL evidence_uploads state machine + migration 0005 (16 total tables)
+- [x] LIFF direct upload flow selectable via authenticated evidence-upload-mode; local upload preserved
+- [x] Real PostgreSQL + local HTTP S3 mock E2E with checksum fail, tenant IDOR, duplicate claim protection
+- [x] Document/receipt issuer, numbering and privacy requirements specification
+- [ ] Live provider IAM/SigV4/CORS E2E, malware scanner, quarantine lifecycle, backup/restore and retention
+- [ ] Non-tax Billing Notice PDF, official receipt/tax legal signoff and real LINE Sandbox
+- [ ] Any production enablement; fail-closed guard remains active
+Canonical handoff remains `docs/PHASES.md`; full key list `docs/ENV_REQUIRED.md`; S3 instructions `docs/P3_S3_STORAGE_RUNBOOK.md`.

@@ -40,7 +40,7 @@ async function subject(actor:Actor){
  if(!u)throw new AppError(401,"UNAUTHENTICATED");
  return u.subject;
 }
-async function tenantBill(actor:Actor,invoiceId:string):Promise<Bill>{
+export async function tenantBill(actor:Actor,invoiceId:string):Promise<Bill>{
  const sub=await subject(actor);
  const [row]=await db.select({invoice:invoices}).from(invoices)
   .innerJoin(leases,eq(invoices.leaseId,leases.id))
@@ -54,7 +54,7 @@ async function tenantBill(actor:Actor,invoiceId:string):Promise<Bill>{
  if(!row)throw new AppError(404,"INVOICE_NOT_FOUND");
  return row.invoice;
 }
-async function approvedSum(invoiceId:string,tx:Pick<typeof db,"select">=db):Promise<number>{
+export async function approvedSum(invoiceId:string,tx:Pick<typeof db,"select">=db):Promise<number>{
  const rows=await tx.select({amount:paymentLedger.amountSatang}).from(paymentLedger).where(eq(paymentLedger.invoiceId,invoiceId));
  const sum=rows.reduce((n,r)=>n+r.amount,0);
  if(!Number.isSafeInteger(sum))throw new AppError(500,"PAYMENT_LEDGER_OVERFLOW");

@@ -18,30 +18,60 @@ export function TenantPayments({invoiceId,api}:Api&{invoiceId:string}){
  const [amount,setAmount]=useState(""),[paidAt,setPaidAt]=useState(localDateTime()),[reference,setReference]=useState("");
  const [file,setFile]=useState<File|null>(null),[busy,setBusy]=useState(false),[error,setError]=useState(""),[message,setMessage]=useState("");
  const [key,setKey]=useState(()=>crypto.randomUUID());
+ const [uploadMode,setUploadMode]=useState<"DIRECT_S3"|"SERVER_MULTIPART">("SERVER_MULTIPART");
  async function reload(){
-  const [b,s,c]=await Promise.all([
+  const [b,s,c,mode]=await Promise.all([
    api<Bank>("/tenant/invoices/"+invoiceId+"/payment-instructions").catch(()=>null),
    api<Summary>("/tenant/invoices/"+invoiceId+"/payment-summary"),
-   api<Claim[]>("/tenant/payment-claims")
+   api<Claim[]>("/tenant/payment-claims"),
+   api<{mode:"DIRECT_S3"|"SERVER_MULTIPART"}>("/evidence-upload-mode")
   ]);
-  setBank(b);setSummary(s);setClaims(c.filter(x=>x.invoiceId===invoiceId));
+  setBank(b);setSummary(s);setClaims(c.filter(x=>x.invoiceId===invoiceId));setUploadMode(mode.mode);
  }
  useEffect(()=>{setAmount("");setKey(crypto.randomUUID());setFile(null);setError("");setMessage("");void reload().catch(e=>setError((e as Error).message));},[invoiceId]);
+ async function directUpload(file:File,moneySatang:number,paidAtIso:string,idempotencyKey:string){
+  if(!crypto.subtle)throw new Error("อัปโหลดไปยัง Object Storage ต้องเปิดผ่าน HTTPS");
+  // SHA-256 signed by backend means a different file cannot replace the upload after approval.
+  const digest=new Uint8Array(await crypto.subtle.digest("SHA-256",await file.arrayBuffer()));
+  const checksumSha256=btoa(String.fromCharCode(...digest));
+  const start=await api<{
+   uploadId:string;uploadUrl:string;method:"PUT";headers:Record<string,string>;expiresInSeconds:number
+  }>("/tenant/invoices/"+invoiceId+"/payment-uploads/initiate",{
+   method:"POST",body:JSON.stringify({contentType:file.type,size:file.size,checksumSha256})
+  });
+  // No cookies or application tokens are sent to the external object storage.
+  const put=await fetch(start.uploadUrl,{method:start.method,headers:start.headers,body:file});
+  if(!put.ok)throw new Error("ส่งภาพไปยัง Object Storage ไม่สำเร็จ: "+put.status);
+  await api("/tenant/invoices/"+invoiceId+"/payment-uploads/"+start.uploadId+"/finalize",{
+   method:"POST",body:"{}"
+  });
+  await api("/tenant/invoices/"+invoiceId+"/payment-claims/from-upload",{
+   method:"POST",headers:{"idempotency-key":idempotencyKey},
+   body:JSON.stringify({uploadId:start.uploadId,amountSatang:moneySatang,
+    paidAt:paidAtIso,...(reference.trim()?{transferReference:reference.trim()}:{})})
+  });
+ }
  async function submit(e:React.FormEvent<HTMLFormElement>){
   e.preventDefault();setBusy(true);setError("");setMessage("");
   try{
    if(!file)throw new Error("กรุณาเลือกภาพหลักฐานการโอน");
    if(file.size>4_000_000)throw new Error("ไฟล์ต้องไม่เกิน 4 MB");
-   const data=new FormData();
-   data.append("amountSatang",String(toSatang(amount)));
-   data.append("paidAt",new Date(paidAt).toISOString());
-   if(reference.trim())data.append("transferReference",reference.trim());
-   data.append("evidence",file);
-   const r=await fetch("/v1/tenant/invoices/"+invoiceId+"/payment-claims",{
-    method:"POST",body:data,credentials:"include",headers:{"idempotency-key":key}
-   });
-   const payload=await r.json() as {error?:string;claim?:{id:string}};
-   if(!r.ok)throw new Error(payload.error||"แจ้งชำระไม่สำเร็จ");
+   const moneySatang=toSatang(amount);
+   const paidAtIso=new Date(paidAt).toISOString();
+   if(uploadMode==="DIRECT_S3"){
+    await directUpload(file,moneySatang,paidAtIso,key);
+   }else{
+    const data=new FormData();
+    data.append("amountSatang",String(moneySatang));
+    data.append("paidAt",paidAtIso);
+    if(reference.trim())data.append("transferReference",reference.trim());
+    data.append("evidence",file);
+    const r=await fetch("/v1/tenant/invoices/"+invoiceId+"/payment-claims",{
+     method:"POST",body:data,credentials:"include",headers:{"idempotency-key":key}
+    });
+    const payload=await r.json() as {error?:string;claim?:{id:string}};
+    if(!r.ok)throw new Error(payload.error||"แจ้งชำระไม่สำเร็จ");
+   }
    setKey(crypto.randomUUID());setAmount("");setReference("");setFile(null);
    setMessage("ส่งหลักฐานเรียบร้อยแล้ว รอเจ้าของตรวจสอบยอดเงินเข้าบัญชีและอนุมัติ");
    await reload();

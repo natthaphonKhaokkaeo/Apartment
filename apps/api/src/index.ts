@@ -12,6 +12,7 @@ import {AppError,newSessionToken,tokenHash,requireActor,requireOrg,requireProper
 import {prepareInvoice} from "./services/billing.js";
 import {registerTenantRoutes} from "./routes/tenant.js";
 import {registerPaymentRoutes} from "./routes/payments.js";
+import {registerEvidenceUploadRoutes} from "./routes/evidence-uploads.js";
 import {readingToMilli,parseDay} from "@apartment/domain";
 
 const app=Fastify({logger:{redact:["req.headers.cookie","req.headers.authorization","res.headers.set-cookie"]},bodyLimit:1048576});
@@ -247,4 +248,5 @@ app.get("/v1/admin/overview",async req=>{
 });
 await registerTenantRoutes(app);
 await registerPaymentRoutes(app);
+await registerEvidenceUploadRoutes(app);
 await app.listen({host:config.HOST,port:config.PORT});

@@ -40,18 +40,23 @@ These are proposed ENV names that are NOT read by the current code:
 
 OA topology is pending user choice: provisional one OA per owner organization; multiple properties attached. Supporting many OAs may require per-organization secrets, not a single global ENV.
 
-## D. Future P3 cloud storage with signed uploads (NOT IMPLEMENTED)
+## D. P3 S3-compatible storage with signed upload (IMPLEMENTED; PROVIDER E2E BLOCKED)
 
-Current implementation **only supports sanitized local private file storage in DEV**. Setting these proposed variables has no effect until the S3-compatible adapter and secure signed upload flow are built:
+The API now **reads** these ENV names when `EVIDENCE_STORAGE_DRIVER=s3`:
 
-- `EVIDENCE_STORAGE_DRIVER=s3`
-- `EVIDENCE_S3_BUCKET`
-- `EVIDENCE_S3_REGION`
-- `EVIDENCE_S3_ENDPOINT` (optional custom endpoint)
-- `EVIDENCE_S3_ACCESS_KEY_ID`
-- `EVIDENCE_S3_SECRET_ACCESS_KEY`
+| ENV | Required? | Explanation |
+|---|---|---|
+| `EVIDENCE_STORAGE_DRIVER` | Yes to enable | `local` (DEV default) or `s3` |
+| `EVIDENCE_S3_BUCKET` | Yes with s3 | Private bucket, never public, with required scoped IAM and CORS |
+| `EVIDENCE_S3_REGION` | Yes with s3 | Storage region, e.g. `ap-southeast-1` if provider supports it |
+| `EVIDENCE_S3_ACCESS_KEY_ID` | Yes with s3 | Limited-scope service credential, keep in secret manager |
+| `EVIDENCE_S3_SECRET_ACCESS_KEY` | Yes with s3 | Corresponding private secret |
+| `EVIDENCE_S3_ENDPOINT` | For compatible provider | HTTPS endpoint from storage vendor; omit for AWS S3 |
+| `EVIDENCE_S3_FORCE_PATH_STYLE` | Optional | `true` for providers that require path style; default false |
 
-Future production: private bucket, least privilege, encryption, quarantine validation, signed upload scopes, re-encoding, malware scan, retention/deletion and restore test. **Do not use public buckets or URLs.**
+For real provider browser testing, bucket CORS must allow `PUT` from exact `WEB_ORIGIN`, plus `content-type`, `content-length`, and `x-amz-checksum-sha256` headers. Consult `docs/P3_S3_STORAGE_RUNBOOK.md` before any configuration.
+
+Backend implements a 5-minute presigned quarantine PUT, SHA-256 and size verification, metadata stripping via WebP re-encoding, and single-use upload ticket binding. The local HTTP S3 mock smoke test passes. **A real provider's IAM/bucket policy/SigV4/CORS has NOT been tested yet**, and production startup intentionally remains disabled pending security controls (malware scanning, backup/restore, lifecycle, retention). Storage credentials are not needed to run DEV in default `local` mode.
 
 ## E. Future receipts / tax / bank reconciliation (NOT IMPLEMENTED)
 

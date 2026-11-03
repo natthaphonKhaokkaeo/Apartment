@@ -6,7 +6,9 @@
 
 Continue the Apartment LINE-first multi-tenant SaaS in `/root/Projects/Apartment`.
 
-**Start with P3-02b / P3-05** after confirming tests, and read `docs/ENV_REQUIRED.md`. P3-01a owner payment settings, P3-02a DEV private sanitized images, P3-03 owner manual payment review / ledger and P3-04a outstanding/aging are implemented locally. The whole P3 is **NOT complete**: real object storage with signed/quarantined upload, malware scanning/retention, PromptPay QR verification, refunds and official receipts remain pending. If cloud provider keys are not available, work on legal/receipt specification and security/test coverage without prematurely enabling production.
+**Start with P3-05b**: implement **non-tax / non-receipt Billing Notice PDF** with immutable invoice snapshots, authenticated owner/tenant access, Thai font embedding and render verification. `docs/P3_PDF_RECEIPT_SPEC.md` has exact acceptance criteria. When complete, tackle P3-01b PromptPay QR; preserve production fail-closed stance.
+
+P3-02b Signed S3 upload code is implemented for DEV and passes `smoke:s3` using a local HTTP mock with actual PostgreSQL. It is **NOT yet verified against a real cloud/S3-compatible provider**, so P3-02b remains unchecked. When the user configures storage ENV, validate provider IAM + SigV4 signature verification, CORS, browser LIFF flow, lifecycle, malware scan, restore and security review. See `docs/P3_S3_STORAGE_RUNBOOK.md` and `docs/ENV_REQUIRED.md`.
 
 **Do not assume that a manually approved slip proves receipt of money.** Ledger postings are manually reviewed only; invoice status remains ISSUED. Do not send real bank transactions or auto-mark PAID.
 
@@ -27,6 +29,7 @@ docker compose --env-file .env -f infra/compose.dev.yaml ps
 corepack pnpm --filter @apartment/api smoke
 corepack pnpm --filter @apartment/api smoke:http
 corepack pnpm --filter @apartment/api smoke:payments
+corepack pnpm --filter @apartment/api smoke:s3
 ```
 
 Do **not** execute `db:migrate` blindly on any shared or production DB; this is a dedicated local DEV database. New migrations must be reviewed first.
@@ -42,7 +45,12 @@ Do **not** execute `db:migrate` blindly on any shared or production DB; this is 
 - `apps/web/src/components/OwnerInvitations.tsx`: generate/copy invite and manually approve claimant.
 - `apps/web/src/components/TenantPortal.tsx`: pending claims, own leases, own invoice lines.
 - `docs/PHASES.md`: source of truth, each phase's checkbox and acceptance gate.
-- `docs/ENV_REQUIRED.md`: keys needed now (LINE Login) and future-only LINE OA/object-store keys.
+- `docs/ENV_REQUIRED.md`: keys needed for real LINE Login and **now-supported S3 driver**, plus future-only OA keys.
+- `docs/P3_S3_STORAGE_RUNBOOK.md`: storage threat model, private bucket IAM/CORS and lifecycle policy.
+- `docs/P3_PDF_RECEIPT_SPEC.md`: Billing Notice vs official receipt/tax restrictions and PDF acceptance.
+- `apps/api/src/routes/evidence-uploads.ts`: create signed quarantine ticket, finalize/sanitize, create claim transactionally from uploaded evidence.
+- `apps/api/src/services/evidence-s3.ts`: AWS SDK S3 adapter with presigned PUT and bounded reads.
+- `apps/api/scripts/smoke-storage-s3.ts`: real Postgres + local HTTP S3 mock integration; **not** proof of provider SigV4/IAM.
 - `apps/api/src/routes/payments.ts`: banking instructions, tenant evidence claims, owner manual reviews, ledger.
 - `apps/api/src/services/evidence.ts`: DEV-only sanitized WebP private storage.
 - `apps/api/src/services/payment-rules.ts`: integer satang, overpayment reject and reference rules.
@@ -53,7 +61,7 @@ Do **not** execute `db:migrate` blindly on any shared or production DB; this is 
 
 - Locally implemented and verified: invite+approval+read-only tenant portal and database migration, unit tests, actual Postgres/HTTP smoke. Invoice visibility only **after** owner approval.
 - Not verified: actual LINE Developers sandbox login + LIFF integration + external HTTPS, visual browser E2E. The local HTTP smoke uses temporary DB sessions and is **not** real LINE E2E.
-- P3 has DEV-only payment Ledger, sanitized image uploads and owner manual review. Still **no actual bank API, external payment settlement confirmation, S3 signed URLs, receipts, PromptPay QR, or background jobs**.
+- P3 has DEV-only Ledger and owner manual review plus S3 presigned quarantine PUT **code** (mock E2E verified). No live provider validation, malware scanner, object lifecycle worker, bank verification, receipts/PDF, PromptPay QR, or background jobs.
 - For Figma creation the user still needs to select a workspace/team; do not assume the organization's team.
 
 ## End-of-session policy
