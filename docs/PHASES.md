@@ -15,7 +15,7 @@
 
 - **Current phase:** P1-05 verification gates (IN PROGRESS). P1-04 staff access and P1-01b/P5 maintenance tickets and room state are implemented and verified against PostgreSQL/HTTP. P1-03c meter continuity and MOVE_OUT partial remain DEV complete; legal evidence/deposit acceptance OPEN.
 - **Immediate task:** continue with a larger bounded load profile and independent security/load acceptance. P1-05 (`c0dedbc`) and maintenance (`4f400b2`) are deployed in the existing Apartment DEV Compose project. Keep LINE outbound disabled; deposit workflows and LINE Login/LIFF remain gated on policy/provider acceptance.
-- **Last verified (2026-11-03):** Full unit suite 87/87 (domain 11, API 76), monorepo typecheck and Web production build pass; P1-05 PostgreSQL HTTP/concurrency smoke passed (76 requests; 16 same-key idempotency, 16 distinct-key conflict, 32 parallel previews; p95 395/282/275 ms); P5 maintenance PostgreSQL HTTP smoke passed. Backup `apartment-20261103T153805Z-25493.dump` SHA verified and isolated restore test passed (30 public tables at backup time). Migration 0016 applied; current public base-table count 31. Dokploy Compose API/Web/observer healthy; public HTTPS `/` and `/readyz` return 200; unauthenticated tenant maintenance route returns 401. Observer remains observe-only, approval false, outbound disabled, dispatched=0. See `docs/DEPLOY_DOKPLOY_DEV.md`.
+- **Last verified (2026-11-03):** Full unit suite 87/87 (domain 11, API 76), monorepo typecheck and Web production build pass; P1-05 PostgreSQL HTTP/concurrency smoke passed (76 requests; 16 same-key idempotency, 16 distinct-key conflict, 32 parallel previews; p95 395/282/275 ms; follow-up 64-way preview p95 608 ms with 64/64 HTTP 200); P5 maintenance PostgreSQL HTTP smoke passed. Backup `apartment-20261103T153805Z-25493.dump` SHA verified and isolated restore test passed (30 public tables at backup time). Migration 0016 applied; current public base-table count 31. Dokploy Compose API/Web/observer healthy; public HTTPS `/` and `/readyz` return 200; unauthenticated tenant maintenance route returns 401. Observer remains observe-only, approval false, outbound disabled, dispatched=0. See `docs/DEPLOY_DOKPLOY_DEV.md`.
 - **Deployment:** Apartment DEV only, existing Compose project `apartment-dokploy-dev-ajcnbm`, web loopback-bound at 127.0.0.1:18089. Public HTTPS currently responds, but shared Traefik ACME persistence/renewal remains unverified. Do not restart shared Traefik as part of Apartment maintenance; coordinate separate safe infrastructure work for durable ACME storage and other domains.
 - **Git:** `.serena/` is user data; preserve and leave untracked. User authorized commit, push and DEV deployment for this plan. See `git log -1 --oneline` for latest commit.
 
@@ -44,7 +44,8 @@
   - [x] P1-01a Strict owner-only move-out with final meter/invoice settlement guards, no pending claims/finance, room released AVAILABLE or MAINTENANCE, revoked invitations/consents/outbox, audited lease ENDED, real DB/HTTP security tests, Owner UI
   - [ ] P1-01b Repair/maintenance ticket workflow and room return-from-maintenance, deposit settlement, former-tenant records access and mid-cycle lease transitions (PARTIAL DEV; P1-03 / P5)
     - [x] Tenant/owner maintenance ticket API and UI, ordered status/audit rules, due-time tracking, maintenance-room return gate; migration 0016 generated and pure workflow tests pass. Details in docs/P5_MAINTENANCE_TICKETS.md.
-    - [ ] Apply migration only after checksum-verified backup; PostgreSQL tenant/owner/outsider and room-return HTTP smoke; browser acceptance
+    - [x] Checksum-verified Apartment-only backup and isolated restore before deployment; migration 0016 applied; PostgreSQL tenant/owner/outsider and room-return HTTP smoke passed
+    - [ ] Browser acceptance of owner and tenant maintenance UI (real browser session/UAT)
     - [ ] Deposit/refund policy and workflow, former-tenant invoice/record access policy, mid-cycle lease transition rules
 - [x] P1-02 Property Master effective-dated rate history, owner authorization, audit and immutable invoice rate snapshots (DEV)
   - [x] Migration 0012 backfills historical master baseline and seeds new properties
@@ -63,7 +64,8 @@
   - [x] Invoice line/total and `units_milli` PostgreSQL INTEGER bounds; utility arithmetic overflow returns 422; six focused unit cases pass
   - [x] Isolated DEV HTTP smoke script covers negative/fractional/over-limit input, duplicate reading, cross-org access, 16-way same-key replay, 16-way distinct-key issue race, and a bounded 32-way bill-preview burst (76 total HTTP requests)
   - [x] Execute smoke against private PostgreSQL/HTTP runtime: negative/fraction/overflow, duplicate meter, cross-org denial, idempotent replay, unique-key conflict and bounded 32-way preview burst; p95 395/282/275 ms (76 requests total)
-  - [ ] Run a larger bounded load profile and independent security/load acceptance before closing P1-05.
+  - [x] Larger bounded 64-way preview burst against private DEV runtime: 64/64 returned 200 with stable totals; p95 608 ms (after rate-limit window separation)
+  - [ ] Independent security/load acceptance before closing P1-05.
 - **Gate:** owner cannot access another organization's property, lease, or invoice; previously issued bill never changes.
 
 ## Phase P2 — Tenant onboarding & read-only LIFF portal (IMPLEMENTED LOCALLY; LINE E2E BLOCKED)
@@ -148,7 +150,8 @@
 - [ ] P5-01 Monthly and 15-day scheduled bulk invoices (preview → approval → batch process)
 - [ ] P5-02 Maintenance tickets and room status workflow; files, notifications, SLA (IN PROGRESS — partial DEV)
   - [x] Tenant/owner tickets, workflow states, audit, due-time/overdue display, room MAINTENANCE entry and guarded return; migration 0016 and service tests. See docs/P5_MAINTENANCE_TICKETS.md.
-  - [ ] PostgreSQL authorization/lifecycle smoke, migration rollout, browser QA, private files, SLA policy/reports, consent-bound notifications and independent review
+  - [x] PostgreSQL authorization/lifecycle smoke and migration rollout verified; see `docs/DEPLOY_DOKPLOY_DEV.md`
+  - [ ] Browser QA, private files/attachments, SLA policy/reports, consent-bound notifications and independent review
 - [ ] P5-03 Utility meter photo proof; reading anomalies / reset / replacement
 - [ ] P5-04 Security deposits, move-out settlement, rent/utility disputes, void/credit notes
 - [ ] P5-05 Occupancy and revenue dashboard; exports/reporting with access control

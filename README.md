@@ -76,10 +76,10 @@ Finance workflow adds internal credits, append-only manual payment reversals, an
 Signed raw-body webhook: POST `/v1/line/oa/webhook` (requires LINE Messaging secret and enabled owner org binding). Deduped event storage, explicit consent-bound durable outbox with retry/dead state, and an observe-only worker are implemented. Real credentials are not configured and outbound sending remains disabled. See `docs/P4_LINE_OA_WEBHOOK_OUTBOX.md`.
 ## Dokploy DEV
 
-Apartment DEV uses Dokploy Compose: Project Apartment / environment dev / Compose Apartment DEV. The Web port is bound to `127.0.0.1:18089`. The latest recorded internal checks were healthy; public HTTPS is currently unavailable after the shared Traefik service exited following a VPS reboot. See `docs/DEPLOY_DOKPLOY_DEV.md`.
+Apartment DEV uses Dokploy Compose: Project Apartment / environment dev / Compose Apartment DEV. The Web port is bound to `127.0.0.1:18089`. Latest recorded internal checks show healthy services; public HTTPS currently responds. Shared Traefik ACME persistence and renewal remain unverified. See `docs/DEPLOY_DOKPLOY_DEV.md`.
 
 ## Public Apartment DEV
-URL: https://apartme.makemarket.space (DEV only). Public access is currently down while shared Traefik/ACME storage recovery is pending. Real LINE Login remains unconfigured. See `docs/DEPLOY_DOKPLOY_DEV.md`.
+URL: https://apartme.makemarket.space (DEV only). Public access currently works; shared Traefik/ACME persistence and renewal recovery remain pending. Real LINE Login remains unconfigured. See `docs/DEPLOY_DOKPLOY_DEV.md`.
 
 ## P4-04 LINE tenant consent and bill notifications (DEV)
 Authenticated tenants can explicitly opt into/revoke notification messages for each active linked lease. Invoice issuance queues a generic privacy-safe BILL_ISSUED Outbox event atomically only with consent; otherwise it issues normally without LINE. Manual, org-scoped due-date reminders queue through line:prepare-due with dry-run default and require --apply --confirm-queue-only for actual Outbox insertion (still **no message is sent**). Live LINE outbound remains disabled pending real credentials, LINE sandbox and privacy review. See docs/P4_TENANT_CONSENT_NOTIFICATIONS.md.

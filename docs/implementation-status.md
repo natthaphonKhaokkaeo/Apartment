@@ -5,7 +5,7 @@
 ## Current state
 
 - DEV implementation through P5 maintenance tickets and room maintenance transitions is deployed in the existing Dokploy Compose project; migration 0016 is applied.
-- P1-05 input/storage bounds and PostgreSQL HTTP concurrency gates pass. The 76-request isolated DEV smoke passed negative/fraction/overflow, duplicate meter, cross-org denial, 16-way same-key replay, 16-way distinct-key race and 32-way preview burst; p95 was 395/282/275 ms. Keep P1-05 open for a larger bounded load profile and independent security/load acceptance.
+- P1-05 input/storage bounds and PostgreSQL HTTP concurrency gates pass. The 76-request isolated DEV smoke passed negative/fraction/overflow, duplicate meter, cross-org denial, 16-way same-key replay, 16-way distinct-key race and 32-way preview burst; p95 was 395/282/275 ms; a separated 64-way preview burst also returned 64/64 HTTP 200 (p95 608 ms). Keep P1-05 open for independent security/load acceptance.
 - P5 maintenance PostgreSQL/HTTP smoke passes owner/tenant scope, approved lease binding, history visibility, ordered transitions, audit and return-from-maintenance gate.
 - Unit tests: domain 11/11 and API 76/76; monorepo typecheck and Web production build pass. Backup `apartment-20261103T153805Z-25493.dump` SHA verification and isolated restore test passed before rollout. Migration 0016 applied; database has 31 public base tables.
 - Existing Dokploy Compose API/Web/LINE observer are healthy. Public HTTPS home and `/readyz` return 200; unauthenticated maintenance endpoint returns 401. Worker remains observe-only (`LINE_WORKER_APPROVED=false`, outbound disabled), observed dispatched=0. No LINE messages were sent.
