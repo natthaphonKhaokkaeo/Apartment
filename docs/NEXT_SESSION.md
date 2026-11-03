@@ -183,3 +183,12 @@ Domain checkpoint: https://apartme.makemarket.space now works (HTTPS trusted; we
 - Public HTTPS/readyz 200 with valid TLS; unauthorized move-out POST 401; LINE observer outbound disabled.
 - 64 unit tests (11 domain, 53 API), full payments/finance/S3/LINE/cleanup HTTP and PostgreSQL smoke, TypeScript, Vite and Compose checks passed.
 - No migration. P1-01b repair, deposits, midcycle and former-tenant history still pending. Continue P1-02 rate history and P1-03 prorating next.
+
+## P1-02 verified DEV handoff
+- Commit 2b6897e pushed to main and deployed in Dokploy Apartment DEV.
+- New property_rate_versions migration 0012 (1900-01-01 historical baseline; new-property trigger) applied, no old invoices changed.
+- API GET/POST /v1/properties/:propertyId/rates; only ACTIVE OWNER can schedule complete property rate versions, no past dates or mid-period changes, no unreviewed utility ceilings/future-issued conflicts.
+- Billing resolves effective version at period start; RENT/WATER/ELECTRIC snapshots store rate version ID; Settings displays price history.
+- Full tests PASS: 66 unit tests, real PostgreSQL rate-scope/snapshot smoke, payment/finance/LINE/S3/cleanup and frontend build.
+- Public HTTPS and /readyz=200, new rate endpoints unauthenticated 401, API/Web/Observer/Postgres healthy; backup timer active; no real LINE sends.
+- Next P1-03 partial-period invoices, historical room overrides and meter replacement; legal notices and scheduled rate correction pending.

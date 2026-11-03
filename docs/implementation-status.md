@@ -175,3 +175,12 @@ See docs/P1_LEASE_MOVE_OUT.md.
 - [x] Public HTTPS/readyz 200, unauthed move-out POST 401, LINE outbound disabled; daily backup timer active.
 - [x] Full regression and 64 unit tests, real DB move-out permissions/settlement/replay/room reuse passed.
 - [ ] P1-01b repair/deposit, midcycle bill, former-tenant history and production safety still pending.
+
+## P1-02 Property Master rate history (DEV, 2026-11-03)
+- [x] Migration 0012 baseline backfill and new-property trigger; active rates stored in append-only API versions, rate actor/reason/audit.
+- [x] Owner-only future full-period rate schedules with legal reviewed ceiling and issued-bill conflict guard.
+- [x] Period-start rate selection and version references in immutable invoice line snapshots. Prior invoices unchanged.
+- [x] Settings rate history and future scheduling UI, property read projections show current rate.
+- [x] 66 unit tests, PostgreSQL HTTP billing/authorization, full regression, typecheck, build, Docker DEV deployment and HTTPS smoke passed.
+- [ ] P1-03 dated room overrides, midcycle prorating/meter replacement; P7 notices, correction policy and legal signoff.
+Read docs/P1_PROPERTY_RATE_HISTORY.md.

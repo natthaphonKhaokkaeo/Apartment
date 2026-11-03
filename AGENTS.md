@@ -34,3 +34,10 @@
 - P4-03e: consent revocation and LIVE dispatch use matching lease->OA->consent read locks vs lease/consent write locks; do not remove this serialization without security re-review. Existing provider sends cannot be recalled. Reservation cleanup requires explicit org scope, minimum 30d, dry-run default and explicit apply confirmation.
 
 - P1-01a move-out requires an active OWNER membership (no MANAGER/SUPER_ADMIN shortcut), property→lease→room transaction locks, exclusive end boundary with both final utility readings, final issued settled invoice, no pending payment/finance. Never write off balances automatically; retain immutable finance history. Revoke lease invitations, LINE consents and pending Outbox after termination. Repair/deposit and partial-period support remain separate phases.
+
+- P1-02 price history: append new property_rate_versions only via API. OWNER
+  alone schedules complete rates at full period boundaries, after legal utility
+  review and without changing already-issued invoices. Property locking is
+  shared with billing. Preserve masterRateVersionId in each invoice line
+  snapshot. Never backdate or rewrite historical rates. See
+  docs/P1_PROPERTY_RATE_HISTORY.md; P1-03 room override dates remain open.

@@ -95,3 +95,10 @@ LINE worker now serializes new LIVE send starts with tenant consent revocation u
 
 ## P1-01a Owner move-out (DEV)
 The Rooms owner UI now provides a strict move-out operation (POST /v1/properties/:propertyId/leases/:leaseId/move-out) that checks final water/electric meter readings, final invoice period, no pending payment/financial reviews, and zero outstanding across all issued invoices. It updates the room to AVAILABLE or MAINTENANCE, ends the lease, revokes future invitations/LINE notifications and audits without changing historical finance records. This is DEV functionality, not official security-deposit or legal move-out settlement. See docs/P1_LEASE_MOVE_OUT.md.
+
+## P1-02 effective-dated Master tariffs (DEV)
+Owner Settings supports scheduling property rent, water and electricity rates
+for future complete billing periods. Rate history is preserved, and new bills
+snapshot the selected version without repricing old invoices. Migration 0012
+seeds existing and new property baselines. See docs/P1_PROPERTY_RATE_HISTORY.md.
+Room overrides and midcycle proration remain P1-03.
