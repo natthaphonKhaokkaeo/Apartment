@@ -88,3 +88,9 @@ Feature commit 826550c and quota configuration 9295d2e deployed in existing Apar
 - Commit `c0dedbc` with invoice storage bounds, unit coverage and a bounded PostgreSQL HTTP concurrency/load smoke is pushed to `origin/main`.
 - This source update is **not deployed**. The current workspace cannot access `/var/run/docker.sock` (permission denied), no Dokploy MCP/dashboard tool is available in this session, and Dokploy auto deploy is disabled. The last deployed application baseline remains P1-04 (`d259c94`).
 - Do not count the Git push as a rollout. In the authorized VPS/Dokploy environment, deploy the Apartment Compose project only, then run `pnpm --filter @apartment/api smoke:load-gates` against its private PostgreSQL/API runtime. Keep shared Traefik stopped until the separate ACME persistence recovery plan is executed.
+
+## P5-02 maintenance source update (2026-11-03)
+
+- Commit 4f400b2 adds maintenance tickets, room maintenance state transitions, migration 0016 and a PostgreSQL HTTP smoke; it is pushed to origin/main.
+- This is source-only. Migration 0016 has not been applied and the new API/Web code is not deployed. Take and verify the Apartment-only PostgreSQL backup before Dokploy recreates the API, since the Compose API startup applies checked-in Drizzle migrations before serving.
+- The current workspace does not have Docker socket or Dokploy tooling, and the VPS public HTTPS outage is unresolved. After authorized infrastructure access is restored, redeploy only the existing Apartment Compose project, confirm migration 0016 and app health, then run pnpm --filter @apartment/api smoke:maintenance. Keep shared Traefik untouched until ACME persistence recovery is separately planned.
