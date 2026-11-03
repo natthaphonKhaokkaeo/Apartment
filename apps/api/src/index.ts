@@ -17,6 +17,8 @@ import {registerBillingDocumentRoutes} from "./routes/billing-documents.js";
 import {registerPromptPayRoutes} from "./routes/promptpay.js";
 import {registerFinancialAdjustmentRoutes} from "./routes/financial-adjustments.js";
 import {registerLineOaRoutes} from "./routes/line-oa.js";
+import {registerLineConsentRoutes} from "./routes/line-consent.js";
+import {queueInvoiceIssuedTx} from "./services/line-notifications.js";
 import {readingToMilli,parseDay} from "@apartment/domain";
 
 const app=Fastify({logger:{redact:["req.headers.cookie","req.headers.authorization","res.headers.set-cookie"]},bodyLimit:1048576});
@@ -239,7 +241,10 @@ app.post("/v1/properties/:propertyId/bills/issue",async(req,reply)=>{
   }).returning();
   await tx.insert(invoiceLines).values(preview.lines.map((l,ordinal)=>({invoiceId:i.id,ordinal,...l})));
   await tx.insert(auditLogs).values({actorId:a.id,organizationId:p.organizationId,action:"INVOICE_ISSUED",targetId:i.id,metadata:{amountSatang:i.amountSatang}});
-  return {invoice:i,replayed:false};
+  // Enqueue only with verified active LINE tenant and explicit opt-in. Atomic with
+  // the invoice: a rollback removes both the invoice and its pending notification.
+  const notificationStatus=await queueInvoiceIssuedTx(tx,i);
+  return {invoice:i,replayed:false,notificationStatus};
  });
  return reply.code(result.replayed?200:201).send(result);
 });
@@ -274,4 +279,5 @@ await registerBillingDocumentRoutes(app);
 await registerPromptPayRoutes(app);
 await registerFinancialAdjustmentRoutes(app);
 await registerLineOaRoutes(app);
+await registerLineConsentRoutes(app);
 await app.listen({host:config.HOST,port:config.PORT});

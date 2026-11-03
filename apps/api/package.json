@@ -12,6 +12,8 @@
     "smoke:payments": "tsx scripts/smoke-payment-concurrency.ts",
     "smoke:finance": "tsx scripts/smoke-financial-adjustments.ts",
     "smoke:line": "tsx scripts/smoke-line-oa.ts",
+    "smoke:consent": "tsx scripts/smoke-line-consent.ts",
+    "line:prepare-due": "tsx scripts/prepare-line-due-reminders.ts",
     "line:dispatch": "tsx scripts/dispatch-line-outbox.ts",
     "smoke:s3": "tsx scripts/smoke-storage-s3.ts",
     "evidence:cleanup": "tsx scripts/cleanup-evidence.ts",

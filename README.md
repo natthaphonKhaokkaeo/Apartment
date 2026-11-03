@@ -77,3 +77,6 @@ Apartment DEV is now a Dokploy-managed Compose application: Project Apartment / 
 
 ## Public Apartment DEV
 URL: https://apartme.makemarket.space (DEV only). Routes through Dokploy Traefik and Nginx with trusted current HTTPS certificate. API readiness and authorization tested. Real LINE Login remains unconfigured; Traefik ACME certificate persistence requires infrastructure repair before relying on automatic renewal. See docs/DEPLOY_DOKPLOY_DEV.md.
+
+## P4-04 LINE tenant consent and bill notifications (DEV)
+Authenticated tenants can explicitly opt into/revoke notification messages for each active linked lease. Invoice issuance queues a generic privacy-safe BILL_ISSUED Outbox event atomically only with consent; otherwise it issues normally without LINE. Manual, org-scoped due-date reminders queue through line:prepare-due with dry-run default and require --apply --confirm-queue-only for actual Outbox insertion (still **no message is sent**). Live LINE outbound remains disabled pending real credentials, LINE sandbox and privacy review. See docs/P4_TENANT_CONSENT_NOTIFICATIONS.md.

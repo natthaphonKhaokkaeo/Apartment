@@ -6,7 +6,7 @@
 
 Continue the Apartment LINE-first multi-tenant SaaS in `/root/Projects/Apartment`.
 
-**Start with P4-01:** design and test a durable LINE OA webhook + outbox worker without vendor keys. If a Dokploy API key becomes available, register the currently private Apartment DEV Compose stack as a Dokploy-managed project. P3-04b legal credit notes, actual refunds and bank reconciliation remain unimplemented.
+**Start with P4-05 LINE Login/LIFF and Messaging Sandbox E2E once provider keys are set.** Without keys, continue P4-03c worker operations (manual/scheduled fail-closed, dead-letter monitoring and quotas) or P4-04d owner consent/audit UI, test-first. Never activate live messaging before real consent/privacy and provider validation.
 
 **P3-02b.6 DEV code completed:** manual dry-run-first cleanup with Legal Hold, EXPIRED retry state and no Payment Claim deletion; optional fail-closed ClamAV TCP INSTREAM adapter. Production gating, actual scanner, lifecycle, admin retention and scheduler are still NOT done. Read docs/P3_EVIDENCE_RETENTION_MALWARE.md.
 
@@ -111,3 +111,12 @@ Latest managed deployment proof: Dokploy composeId E62Ag2umCDl9Q2ChzGOPB status 
 P4 rollout gate: source commit 3fd4fb6 pushed, but running Dokploy images are still pre-P4 (webhook 404). Current runtime WEB_ORIGIN=18088 conflicts with managed host port 18089; private runtime ENV file already corrected to 18089, requires authenticated Dokploy Dashboard Redeploy. See docs/DEPLOY_DOKPLOY_DEV.md. Do not claim new P4 route live until verified 503 when no secret and origin guard normal.
 
 Domain checkpoint: https://apartme.makemarket.space now works (HTTPS trusted; web/readyz=200, unauthorized=401, correct-origin POST=200, unsigned OA webhook=503). Runtime WEB_ORIGIN matches domain and Secure Cookie enabled. Important unresolved infrastructure issue: shared Traefik ACME bind is read-only and acme.json empty, so do NOT restart shared Traefik until certificate persistence/renewal is repaired with a maintenance plan. See docs/DEPLOY_DOKPLOY_DEV.md. LINE credentials still missing.
+
+## P4-04 tenant consent and invoice notifications (DEV)
+- API routes: apps/api/src/routes/line-consent.ts (GET own preferences; PUT opt-in/revoke, explicit policyVersion + affirmative acknowledgment; cross-tenant IDOR blocked)
+- Service: apps/api/src/services/line-notifications.ts (generic Thai messages; transactional consent-bound BILL_ISSUED/PAYMENT_DUE outbox entries)
+- Due CLI: apps/api/src/services/line-due-reminders.ts and scripts/prepare-line-due-reminders.ts (Bangkok date, organization-specific dry-run by default, exact due date, outstanding and pending-claim checks, queue only)
+- UI: apps/web/src/components/TenantNotificationPreferences.tsx integrated in TenantPortal.
+- Test: apps/api/tests/line-notifications.test.ts and apps/api/scripts/smoke-line-consent.ts; run corepack pnpm --filter @apartment/api smoke:consent.
+- No DB migration necessary; reuses LINE schema from 0009. Real OA/LIFF credentials missing; LINE_OUTBOUND_MODE=disabled, no automated or real sending.
+- Handoff spec: docs/P4_TENANT_CONSENT_NOTIFICATIONS.md.

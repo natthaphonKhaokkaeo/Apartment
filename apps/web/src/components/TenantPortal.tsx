@@ -1,6 +1,7 @@
 import {useEffect,useState} from "react";
 import {DoorOpen,ReceiptText,KeyRound,ShieldCheck,Clock3,FileText} from "lucide-react";
 import {TenantPayments} from "./TenantPayments.js";
+import {TenantNotificationPreferences} from "./TenantNotificationPreferences.js";
 type Api={api:<T>(path:string,options?:RequestInit)=>Promise<T>;post:<T>(path:string,body:unknown)=>Promise<T>};
 type Lease={leaseId:string;tenantName:string;roomNumber:string;propertyName:string;propertyAddress:string;startDate:string;endDate:string|null};
 type Invoice={id:string;leaseId:string;propertyName:string;periodStart:string;periodEnd:string;dueDate:string;amountSatang:number;status:string};
@@ -49,6 +50,7 @@ export function TenantPortal({api,post}:Api){
    <div className="room-grid">{leases.map(l=><div className="room-tile" key={l.leaseId}><strong>{l.propertyName}</strong><b>{l.roomNumber}</b><small>{l.propertyAddress}</small><span className="pill vacant">สัญญาเริ่ม {l.startDate}</span></div>)}</div>
    {!leases.length&&<p className="empty">ยังไม่มีสัญญาที่ผูกกับบัญชีนี้</p>}
   </section>
+  <TenantNotificationPreferences api={api} leaseKey={leases.map(l=>l.leaseId).join(",")}/>
   <section className="panel"><div className="panel-head"><div><h2>ใบแจ้งหนี้ของฉัน</h2><p>ยอดที่แสดงคือยอดออกบิล ไม่ใช่ยอดค้างชำระที่ยืนยันแล้ว</p></div><ReceiptText size={20}/></div>
    {bills.map(b=><button type="button" className="tenant-bill" key={b.id} onClick={()=>void openInvoice(b.id)}>
     <div><b>{b.propertyName}</b><small><Clock3 size={13}/> {b.periodStart} ถึง {b.periodEnd} · ครบกำหนด {b.dueDate}</small></div>

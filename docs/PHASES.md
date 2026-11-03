@@ -13,9 +13,9 @@
 
 ## Current checkpoint (live)
 
-- **Current phase:** P4 — single-OA-per-org binding, signed raw-body webhook/event dedupe and consent-bound persistent outbox worker code completed in DEV; real LINE credentials/sandbox, consent UX, notifications and scheduler still pending.
-- **Immediate task:** P4-04 explicit LIFF tenant notification consent capture/revoke and actual invoice/maintenance event producers; then P4-03 scheduled worker/monitoring after LINE keys, real provider and legal tests. Dokploy Apartment project/env/compose REGISTERED using existing scoped API key but compose.deploy API was blocked by tool safety checks; deployment remains pending. Avoid Production.
-- **Last verified:** 53 unit tests (11 domain + 42 API), migration 0009, real PostgreSQL webhook/outbox HTTP smoke, TypeScript + React build and existing finance/payment/S3/cleanup gates; no real LINE OA provider E2E.
+- **Current phase:** P4-04 DEV tenant notification consent, transactional bill-issued Outbox and manual due-date reminder preparation completed. Real LINE Login/OA, scheduled sender, invitation/maintenance templates and privacy/security signoff remain PENDING.
+- **Immediate task:** P4-05 real LINE Login/LIFF and LINE OA Sandbox E2E once credentials arrive; otherwise continue P4-03c monitored outbox worker and owner consent/audit UI without enabling real sends. P4-04 invitation/repair notification producers depend on P5 workflow and explicit recipient consent. No Production.
+- **Last verified:** 56 unit tests (11 domain + 45 API), TypeScript and Vite build, PostgreSQL HTTP P4 consent/bill/due smoke with IDOR/revoke/duplicate/balance checks, prior payment/finance/S3/cleanup smoke all PASS; real LINE provider still unavailable. Recheck before handoff.
 
 - **Deployment:** Apartment DEV is publicly accessible at https://apartme.makemarket.space through Dokploy Traefik -> Nginx (DEV, not Production). DNS matches VPS; HTTP 301 HTTPS; HTTPS 200 with trusted certificate; API /readyz 200, unauthorized 401, valid HTTPS Origin POST 200, unsigned LINE webhook 503. Runtime WEB_ORIGIN and secure cookies configured. Separate PostgreSQL and other services unchanged. Traefik ACME storage is read-only, so automatic certificate persistence/renewal still requires maintenance.
 - **Git:** Preserve user files, check `git status --short` before edits; commit with evidence; no push or production deploy without explicit instruction. Last completed commit: see `git log -1 --oneline`.
@@ -105,7 +105,11 @@
   - [x] P4-03a Consent-bound transactional enqueue, stable idempotency/retry key, PostgreSQL SKIP LOCKED worker claim, exponential retry, DEAD/SIMULATED/ACCEPTED states, 23-hour retry-key safety guard
   - [x] P4-03b Real PostgreSQL mock HTTP/outbox tests: valid signature, duplicate delivery, consent revoked, simulated no-send, 429 retry, stable retry key, received status
   - [ ] P4-03c Run worker continuously with monitored scheduler, real LINE API keys and consent/notification policy, quota & dead-letter operations
-- [ ] P4-04 Invite, bill-issued, payment-due and repair notifications with consent and templates
+- [ ] P4-04 Tenant consent and notification event producers (PARTIAL — real provider and future workflows pending)
+  - [x] P4-04a Tenant-specific opt-in/revoke endpoints and React UI with explicit purpose acknowledgment, active verified LINE lease scope, audit, idempotent actions, no-store, revoke pending/retry/SENDING jobs
+  - [x] P4-04b Invoice-issued Outbox event created atomically with invoice transaction only on active lease + enabled OA + unrevoked exact recipient consent; generic Thai template and eventKey prevent duplicates
+  - [x] P4-04c Manual due-date Outbox preparation with Bangkok-day guard, org-scoped dry-run default, explicit confirmation for enqueue, payment/outstanding/pending-claim guards; never sends LINE itself
+  - [ ] P4-04d Real LINE Messaging API/LIFF validation and consent policy, invitation and repair event producers (not yet eligible: P5 maintenance and safe invitation contact proof), operator monitoring/scheduling
 - [ ] P4-05 LIFF callback/login/logout/tenant invitation with actual LINE sandbox E2E
 - **Gate:** no outbound notification without legitimate recipient/consent; retries never double-send from application logic.
 

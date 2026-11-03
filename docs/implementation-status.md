@@ -103,3 +103,12 @@ NEXT: P4-01 LINE OA durable outbox and webhook contract, or Dokploy registration
 ### Managed DEV P4 rollout still pending
 - [x] Commit 3fd4fb6 pushed with signed webhook/outbox + PostgreSQL smoke; no real LINE key
 - [ ] Runtime update via Dokploy: tool blocked compose.redeploy response. Managed containers still pre-P4: webhook 404. Runtime WEB_ORIGIN old 18088 rejects POST from 18089 with 403; private file updated, redeploy required.
+
+## P4-04 Tenant consent / transactional bill-issued and due-date Outbox (DEV)
+- [x] Authenticated LINE-linked tenant grants/revokes for own active lease; explicit policy acknowledgement, audit, no-store, IDOR guard, React UI and not-live notice
+- [x] Consent cancellation dead-letters pending/retry/SENDING Outbox entries, regrant does not resurrect DEAD
+- [x] Invoice issuing atomically creates generic Thai BILL_ISSUED notification only if OA/lease/consent eligible, uses stable unique event key and leaves invoice safe when no consent
+- [x] Due reminder manual queue with exact Bangkok-day and org filters, dry-run default, pending payment/zero balance skipping, no real send
+- [x] PostgreSQL HTTP smoke and unit tests (cross-user, missing OA, explicit acknowledgement, invoice replay, consent revoke, due idempotency)
+- [ ] Real LINE Login/LIFF/Messaging Sandbox, receiver/consent legal review, invitation/repair workflows and continuously monitored sender
+Next: P4-05 real LINE sandbox if credentials configured; otherwise P4-03c operational worker and P4-04d owner-facing notification settings. See docs/P4_TENANT_CONSENT_NOTIFICATIONS.md.
