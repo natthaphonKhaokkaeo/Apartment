@@ -98,3 +98,6 @@ consent/tenant notifications, disputed reading adjustments, deposit/refund
 settlement, offsite encrypted PostgreSQL backup, real LINE/bank provider E2E,
 load tests and independent financial/security QA. Never represent this DEV
 workflow as legally certified meter readings or completed deposit settlement.
+
+## Verified DEV rollout
+Feature commit fc4ed64 pushed and deployed in existing Apartment Dokploy DEV Compose. All three app containers/API/Web/Observer and old PostgreSQL Healthy. Migration 0014 applied after checksum-verified root-only PostgreSQL backup, 28 public tables. Public HTTPS site and readiness=200 trusted TLS, anonymous Meter Replacement GET and final MOVE_OUT Preview POST=401. Tests: 75 unit (11 domain/64 API) and all PostgreSQL HTTP/payment/finance/LINE/S3/cleanup/typecheck/web build/Compose gates PASS. LINE still observe-only/no real sends. No formal meter evidence validation or deposit refund implemented.

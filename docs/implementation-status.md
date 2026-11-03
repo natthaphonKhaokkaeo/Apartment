@@ -207,3 +207,10 @@ Read docs/P1_PROPERTY_RATE_HISTORY.md.
 - [x] Owner UI meter swap/history and final partial invoice option; pure TDD and PostgreSQL HTTP integration tests.
 - [ ] Physical evidence verification, tenant notice, deposit handling, Production security/legal acceptance and external provider gates.
 See docs/P1_METER_REPLACEMENT_MOVE_OUT.md.
+
+### P1-03c verified DEV deployment
+- [x] Git fc4ed64 pushed to main; Apartment API/Web/LINE observer rebuilt and deployed, all Healthy, original PostgreSQL Healthy with 28 tables.
+- [x] Public HTTPS/readyz 200 trusted TLS, anonymous Meter Replacement/Final MOVE_OUT Preview 401.
+- [x] 75 Unit Tests, full existing PostgreSQL/payment/finance/LINE/S3/cleanup regression green.
+- [x] LINE Observe-only, outbound disabled; Postgres backup timer active.
+- [ ] Verified physical evidence, deposit/refund legal policy, offsite backups and Production security acceptance pending.

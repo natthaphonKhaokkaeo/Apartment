@@ -218,3 +218,11 @@ Domain checkpoint: https://apartme.makemarket.space now works (HTTPS trusted; we
 - Owner Meter UI has swap form and on-demand history. Billing UI exposes MOVE_OUT partial. See docs/P1_METER_REPLACEMENT_MOVE_OUT.md.
 - Test: meter-replacement.test.ts, billing-partial.test.ts and extended smoke-http.ts with swapped water meter, final invoice/approved payment/lease close.
 - Open: evidence validation, deposit settlement, offsite backup, P1-04 staff invitations and P1-05 load/security verification.
+
+## Verified P1-03c Dokploy DEV rollout (2026-11-03)
+- Git feature fc4ed64 pushed to origin/main. Existing Apartment DEV API/Web/line-observer rebuilt and recreated Healthy, PostgreSQL Healthy (28 tables). Other VPS services untouched.
+- https://apartme.makemarket.space/ and /readyz = 200 with TLS verification 0. Unauthenticated /meter-replacements GET and MOVE_OUT bill preview POST return 401.
+- LINE_WORKER_MODE observe, LINE_WORKER_APPROVED false, LINE_OUTBOUND_MODE disabled. No real LINE dispatch.
+- 75 unit tests (11 domain + 64 API), full existing PostgreSQL HTTP, payment, finance, S3, cleanup, LINE, TypeScript, React build and Compose tests passed. Pre-migration backup checksum verified.
+- apartment-postgres-backup.timer active, next 2026-11-04 03:30 Asia/Bangkok. Backups still only on same VPS, offsite recovery remains pending.
+- NEXT: P1-04 staff roles/invitations/revocation, P1-05 security/load gates, P1-01b repairs/deposit and formal legal/evidence acceptance. See docs/P1_METER_REPLACEMENT_MOVE_OUT.md.
