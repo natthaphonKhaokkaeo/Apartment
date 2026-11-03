@@ -6,7 +6,7 @@ import {db,sqlClient} from "../src/db/client.js";
 import {
  users,sessions,organizations,memberships,properties,rooms,leases,
  meterReadings,invoices,invoiceLines,paymentClaims,paymentLedger,lineOaBindings,lineNotificationConsents,
- lineOutbox,auditLogs
+ lineOutbox,lineDispatchReservations,auditLogs
 } from "../src/db/schema.js";
 import {newSessionToken,tokenHash} from "../src/security.js";
 import {runLineOutboxBatch} from "../src/services/line-outbox.js";
@@ -184,6 +184,7 @@ try{
  child.kill("SIGTERM");
  for(const postId of id.postings)await db.delete(paymentLedger).where(eq(paymentLedger.id,postId));
  for(const claimId of id.claims)await db.delete(paymentClaims).where(eq(paymentClaims.id,claimId));
+ if(id.org)await db.delete(lineDispatchReservations).where(eq(lineDispatchReservations.organizationId,id.org));
  if(id.binding)await db.delete(lineOutbox).where(eq(lineOutbox.bindingId,id.binding));
  if(id.binding)await db.delete(lineNotificationConsents).where(eq(lineNotificationConsents.bindingId,id.binding));
  if(id.binding)await db.delete(lineOaBindings).where(eq(lineOaBindings.id,id.binding));

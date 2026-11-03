@@ -101,3 +101,6 @@ No new required ENV or API key. Tenant opt-in requires a verified enabled OA bin
 
 ## P4-03c Safe LINE observer
 No new key required. Optional future worker controls: LINE_WORKER_MODE=observe, LINE_WORKER_APPROVED=false, LINE_WORKER_INTERVAL_MS=60000 (between 30000 and 300000). LIVE also needs LINE_OUTBOUND_MODE=live and verified Messaging API credentials. **DEV Compose overrides these controls to observe/false/disabled**, so no LINE messages can be sent by this observer. Never enable without real provider, consent, quota/fairness and incident acceptance.
+
+## P4-03d LINE Outbox quota controls (nonsecret)
+LINE_GLOBAL_PER_MINUTE=20 and LINE_ORG_PER_MINUTE=5; positive integers <=60, per-org no greater than global. These are **internal conservative attempt limits, not verified LINE provider quotas**. The DEV observer Compose sets them explicitly but remains observe-only/LINE_OUTBOUND_MODE=disabled. Do not enable live based on these values without actual Messaging API quota, sandbox and security signoff. Internal incident alerts need no external endpoint or secret; there is NO operator paging currently.

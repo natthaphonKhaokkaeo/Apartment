@@ -43,3 +43,6 @@ Open gates: external LINE/LIFF E2E, quota and notification fairness, delivery ca
 
 ## Deployment validation
 Existing Apartment DEV Compose is running api, web and line-observer. All Healthy after deploying feature commit 983fd6b. LINE observer wrote fresh heartbeat and emitted redacted status summary with dispatched=0. Public HTTPS / and /readyz returned 200 with trusted TLS; unauthenticated operations endpoints returned 401. Existing PostgreSQL was preserved, and no other VPS app was touched. Operator scope/acknowledgment tested with real PostgreSQL HTTP fixtures. No real LINE messages sent.
+
+## P4-03d update
+Per-organization + global rolling rate quota reservations, fairness selection, incident episode persistence (unreviewed DEAD, stale SENDING and old QUEUED/RETRY), admin alert API/UI, and observer alert reconciliation now exist in DEV. Alerts are internal only; NO real LINE sending or external paging. Full policy/runbook: docs/P4_LINE_QUOTAS_ALERTS.md.

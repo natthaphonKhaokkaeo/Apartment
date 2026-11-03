@@ -71,3 +71,6 @@ Compose adds private line-observer based on the API image, private apartment-dev
 
 ## Managed LINE observer deployment verified
 After feature commit 983fd6b, apartment-dokploy-dev-ajcnbm-line-observer-1 is Healthy; API and Web remain Healthy and PostgreSQL remains unchanged. Observer logs count statuses and dispatched=0, heartbeat is fresh; LINE_WORKER_MODE observe, LINE_WORKER_APPROVED false, LINE_OUTBOUND_MODE disabled. Public HTTPS and readiness remain 200. No external LINE API messages are sent.
+
+## P4-03d quota + incident DEV
+The DEV line-observer keeps LINE_WORKER_MODE=observe, LINE_WORKER_APPROVED=false, LINE_OUTBOUND_MODE=disabled and bounded internal attempt quota ENV. It now reconciles database-only internal incidents; no external notifications are sent. Source and security gates: docs/P4_LINE_QUOTAS_ALERTS.md.

@@ -1,3 +1,4 @@
+import {isNull} from "drizzle-orm";
 import {pgTable, pgEnum, uuid, text, timestamp, varchar, date, integer, numeric, boolean, jsonb, uniqueIndex, index} from "drizzle-orm/pg-core";
 
 export const roles = pgEnum("membership_role", ["OWNER","MANAGER"]);
@@ -327,6 +328,31 @@ export const lineOutboxDeadReviews=pgTable("line_outbox_dead_reviews",{
  reviewedAt:timestamp("reviewed_at",{withTimezone:true}).notNull().defaultNow()
 },t=>[
  index("idx_line_dead_reviews_org").on(t.organizationId,t.reviewedAt)
+]);
+
+/** A send reservation is counted even if the provider times out; conservative rate limit. */
+export const lineDispatchReservations=pgTable("line_dispatch_reservations",{
+ id:uuid("id").primaryKey().defaultRandom(),
+ organizationId:uuid("organization_id").notNull().references(()=>organizations.id),
+ outboxId:uuid("outbox_id").notNull().references(()=>lineOutbox.id),
+ reservedAt:timestamp("reserved_at",{withTimezone:true}).notNull().defaultNow()
+},t=>[
+ index("idx_line_dispatch_reservation_window").on(t.reservedAt,t.organizationId)
+]);
+
+/** Dedupe only active incidents, preserving closed episodes for audit. */
+export const lineOpsAlerts=pgTable("line_ops_alerts",{
+ id:uuid("id").primaryKey().defaultRandom(),
+ organizationId:uuid("organization_id").notNull().references(()=>organizations.id),
+ kind:varchar("kind",{length:64}).notNull(),
+ openedAt:timestamp("opened_at",{withTimezone:true}).notNull().defaultNow(),
+ lastSeenAt:timestamp("last_seen_at",{withTimezone:true}).notNull().defaultNow(),
+ resolvedAt:timestamp("resolved_at",{withTimezone:true}),
+ acknowledgedAt:timestamp("acknowledged_at",{withTimezone:true}),
+ acknowledgedBy:uuid("acknowledged_by").references(()=>users.id)
+},t=>[
+ uniqueIndex("uq_line_ops_open_incident").on(t.organizationId,t.kind).where(isNull(t.resolvedAt)),
+ index("idx_line_ops_alert_org").on(t.organizationId,t.openedAt)
 ]);
 
 export const auditLogs = pgTable("audit_logs", {

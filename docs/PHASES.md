@@ -13,9 +13,9 @@
 
 ## Current checkpoint (live)
 
-- **Current phase:** P4-03c safe LINE monitoring, Super Admin Dead-letter review and separate continuous DEV observe-only worker implemented. Real LINE delivery and provider verification remain blocked; P4-04 tenant consent stays DEV-only.
-- **Immediate task:** P4-05 LINE Login/LIFF and Messaging Sandbox E2E when keys are available. Without keys, continue P4-03d quota/fairness and incident alerts or P4-04d operator consent/audit improvements. Do not activate real outbound.
-- **Last verified:** 59 tests (11 domain + 48 API), TypeScript, React build, PostgreSQL and HTTP LINE-operations/admin smoke, payment/finance/S3/cleanup regression PASS; commit 983fd6b deployed in Apartment Dokploy Compose DEV. API/web/line-observer and PostgreSQL healthy, public HTTPS/readyz 200 trusted TLS, unauthenticated ops API 401. Observer heartbeat 11s and actual dispatched=0, mode observe; live provider not configured.
+- **Current phase:** P4-03d PostgreSQL global/per-org quota reservations, least-used-org queue fairness and durable internal incident alerts implemented in DEV. Continuous worker remains observe-only, no LINE sending, real provider and live operator paging acceptance pending.
+- **Immediate task:** P4-05 LINE Login/LIFF + Messaging Sandbox E2E when real keys arrive. Without keys, P4-03e in-flight consent revocation/uncertain delivery safety, alert escalation integration and quota retention cleanup (test-first). Never enable real outbound without provider/consent approval.
+- **Last verified:** P4-03d 61 tests (11 domain + 50 API), PostgreSQL quota concurrency/incident HTTP smoke, TypeScript/React build; full regression and Dokploy deployment verification to be completed before final signoff.
 
 - **Deployment:** Apartment DEV is publicly accessible at https://apartme.makemarket.space through Dokploy Traefik -> Nginx (DEV, not Production). DNS matches VPS; HTTP 301 HTTPS; HTTPS 200 with trusted certificate; API /readyz 200, unauthorized 401, valid HTTPS Origin POST 200, unsigned LINE webhook 503. Runtime WEB_ORIGIN and secure cookies configured. Separate PostgreSQL and other services unchanged. Traefik ACME storage is read-only, so automatic certificate persistence/renewal still requires maintenance.
 - **Git:** Preserve user files, check `git status --short` before edits; commit with evidence; no push or production deploy without explicit instruction. Last completed commit: see `git log -1 --oneline`.
@@ -108,7 +108,10 @@
     - [x] P4-03c.1 Scoped, sanitized Super Admin counters + Dead-letter list, one-time review and audit, migration 0010
     - [x] P4-03c.2 Separate continuous observe-only DEV worker with heartbeat health, 60-second poll, no public port, fail-closed live gate
     - [x] P4-03c.3 TDD unit and real PostgreSQL HTTP tests for role/scope/PII/duplicate review/immutable terminal status
-    - [ ] P4-03c.4 Real LINE provider quotas/fairness, live sender, incident paging and in-flight consent revocation security acceptance
+    - [x] P4-03d.1 Durable per-org/global rolling 60-second attempt reservations with cross-worker PostgreSQL advisory transaction lock, bounded ENV quotas and least-used-org selection
+    - [x] P4-03d.2 Durable internal incident episodes (Dead-letter unreviewed / expired Sending / queue backlog), duplicate-suppression, auto-resolution, admin acknowledgment and masked UI
+    - [x] P4-03d.3 Pure TDD fairness/threshold tests + real PostgreSQL concurrent mock-sender quota and admin incident lifecycle HTTP smoke
+    - [ ] P4-03d.4 Real provider quota calibration, multi-channel fairness, external incident paging, retention cleanup, safe in-flight consent revoke and production live sender acceptance
 - [ ] P4-04 Tenant consent and notification event producers (PARTIAL — real provider and future workflows pending)
   - [x] P4-04a Tenant-specific opt-in/revoke endpoints and React UI with explicit purpose acknowledgment, active verified LINE lease scope, audit, idempotent actions, no-store, revoke pending/retry/SENDING jobs
   - [x] P4-04b Invoice-issued Outbox event created atomically with invoice transaction only on active lease + enabled OA + unrevoked exact recipient consent; generic Thai template and eventKey prevent duplicates

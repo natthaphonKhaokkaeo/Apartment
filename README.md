@@ -83,3 +83,6 @@ Authenticated tenants can explicitly opt into/revoke notification messages for e
 
 ## P4-03c LINE Outbox operations (DEV)
 The Dokploy Compose service line-observer continuously monitors aggregate queue health with heartbeat (no sending). Platform Super Admin can read scoped counts and masked Dead-letters and acknowledge once (no retry). LIVE LINE dispatch remains disabled. See docs/P4_LINE_OPERATIONS.md.
+
+## P4-03d safe LINE quotas and internal incidents
+The observe-only Dokploy worker now tracks durable internal incidents; admin dashboard shows per-org quota window usage and alerts. A future live dispatcher uses PostgreSQL-serialized global/per-org attempt quotas and least-used-org fairness, verified with mock sender. There are NO real LINE sends or external incident notifications. See docs/P4_LINE_QUOTAS_ALERTS.md.

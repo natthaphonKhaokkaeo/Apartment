@@ -1,6 +1,7 @@
-import {and,asc,count,desc,eq,inArray,isNull,lt} from "drizzle-orm";
+import {and,asc,count,desc,eq,gte,inArray,isNull,lt} from "drizzle-orm";
 import {db} from "../db/client.js";
-import {auditLogs,lineOutbox,lineOutboxDeadReviews} from "../db/schema.js";
+import {auditLogs,lineOutbox,lineOutboxDeadReviews,lineDispatchReservations} from "../db/schema.js";
+import {config} from "../config.js";
 import {AppError} from "../security.js";
 
 const statuses=["QUEUED","SENDING","RETRY","ACCEPTED","SIMULATED","DEAD"] as const;
@@ -56,10 +57,16 @@ export async function outboxOrgOverview(organizationId:string,now=new Date()){
   .leftJoin(lineOutboxDeadReviews,eq(lineOutboxDeadReviews.outboxId,lineOutbox.id))
   .where(and(eq(lineOutbox.organizationId,organizationId),
    eq(lineOutbox.status,"DEAD"),isNull(lineOutboxDeadReviews.id)));
+ const [orgReserved]=await db.select({total:count()}).from(lineDispatchReservations)
+  .where(and(eq(lineDispatchReservations.organizationId,organizationId),
+   gte(lineDispatchReservations.reservedAt,new Date(now.getTime()-60_000))));
  const [expiredLease]=await db.select({total:count()}).from(lineOutbox)
   .where(and(eq(lineOutbox.organizationId,organizationId),
    eq(lineOutbox.status,"SENDING"),lt(lineOutbox.leaseUntil,now)));
- return {organizationId,counts:counters,unreviewedDeadCount:unreviewed?.total??0,
+ return {organizationId,counts:counters,
+  quotaWindowUsed:orgReserved?.total??0,
+  quotaPerMinute:config.LINE_ORG_PER_MINUTE,
+  unreviewedDeadCount:unreviewed?.total??0,
   expiredSendingLeaseCount:expiredLease?.total??0,
   oldestActiveAgeSeconds:staleAgeSeconds(oldestActive?.createdAt??null,now),
   oldestUnreviewedDeadAgeSeconds:staleAgeSeconds(oldestDead?.createdAt??null,now),

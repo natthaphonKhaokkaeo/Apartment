@@ -78,6 +78,13 @@
       "when": 1793696457816,
       "tag": "0010_ordinary_black_tom",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1793697443927,
+      "tag": "0011_cuddly_harpoon",
+      "breakpoints": true
     }
   ]
 }

@@ -141,3 +141,11 @@ Domain checkpoint: https://apartme.makemarket.space now works (HTTPS trusted; we
 - line-observer mode observe, approved false, outbound disabled, poll 60s, heartbeat age 11s, dispatched 0. Dedicated no-port worker is running but does NOT send.
 - 59 tests + all regression suites + Vite/TypeScript + LINE worker one-shot passed. No LINE live provider keys are configured.
 - Docs/P4_LINE_OPERATIONS.md contains operator monitoring endpoints, restrictions, remaining quota/alert/consent live gates.
+
+## P4-03d quota/fairness and internal alerts DEV
+- API modules: src/services/line-fairness.ts, line-alerts.ts, line-outbox.ts (PostgreSQL global advisory transaction lock and reserved attempt table), line-operations.ts (per-org window usage), routes/line-operations.ts (scoped alert list/ack).
+- Worker: scripts/line-outbox-worker.ts now reconciles internal alerts in OBSERVE mode on each heartbeat; never sends LINE.
+- New schema migration 0011: line_dispatch_reservations and line_ops_alerts (unique open incident per org/kind).
+- UI: apps/web/src/components/LineOperationsAdmin.tsx displays quota-window usage and active internal incidents; acknowledgment does not retry.
+- Tests: tests/line-fairness.test.ts + extended scripts/smoke-line-oa.ts for concurrent quota and durable alert lifecycle.
+- No external alerts, no real LINE deliveries, multi-channel fairness/retention/consent in-flight gates remain pending. See docs/P4_LINE_QUOTAS_ALERTS.md.

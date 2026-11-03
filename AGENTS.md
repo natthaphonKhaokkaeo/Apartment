@@ -27,3 +27,5 @@
 - P4-04 explicit LINE tenant notification consent is scoped to active verified lease + server session LINE subject. Never use user-provided recipient/org, never send if revoked, and do not auto-enable consent. Invoice BILL_ISSUED and due-date reminders are queued transactionally only after exact active consent; no live LINE sender/scheduler until real sandbox/security acceptance.
 
 - P4-03c DEV line-observer is ALWAYS observe-only in Compose (LINE_WORKER_MODE observe, approval false, outbound disabled). Never activate a live worker without sandbox, consent, quotas, monitoring and operational signoff. Admin operations cannot reveal LINE IDs, message bodies or retry keys, and terminal reviews must never resend.
+
+- P4-03d live send quotas: all reservations must be serialized through the transaction-level PostgreSQL advisory lock (global 72853019947) and counted even for failed provider sends, with least-used-org fairness. DEV must remain observe-only / outbound disabled. Incidents are internal DB/UI alerts only (not external paging); never auto-requeue acknowledged/DEAD jobs or expose recipient PII.

@@ -131,3 +131,12 @@ See docs/P4_LINE_OPERATIONS.md.
 - [x] Public HTTPS/readyz 200 trusted TLS; unauthenticated line operations API 401.
 - [x] Observer heartbeat updated, LINE_WORKER_MODE observe, LINE_WORKER_APPROVED false and LINE_OUTBOUND_MODE disabled, dispatched 0.
 - [ ] Actual LINE provider sandbox/live sender, paging/quotas and production acceptance pending.
+
+## P4-03d quota, fairness and durable internal alerts
+- [x] Conservative rolling 60s global/per-org attempt reservations with PostgreSQL serialization and least-used-org selection; no provider calls in DEV.
+- [x] Configurable bounded quotas and Super Admin quota usage display.
+- [x] Durable deduped incidents: DEAD unreviewed, expired SENDING lease and backlog older than 900s; observer reconciles and auto-resolves.
+- [x] Admin incident list/one-time ack with audit, no cross-org read, no resubmit or external paging.
+- [x] Pure TDD fairness/threshold + concurrent PostgreSQL mock sender and HTTP incident lifecycle tests.
+- [ ] Real LINE quota verification, external paging, durable retention, multi-OA credential routing and live-send security acceptance.
+See docs/P4_LINE_QUOTAS_ALERTS.md.

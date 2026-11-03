@@ -10,6 +10,7 @@ import {config} from "../src/config.js";
 import {sqlClient} from "../src/db/client.js";
 import {runLineOutboxBatch} from "../src/services/line-outbox.js";
 import {decideWorkerMode,outboxGlobalCounts} from "../src/services/line-operations.js";
+import {reconcileLineOpsAlerts} from "../src/services/line-alerts.js";
 
 const heartbeat="/tmp/apartment-line-worker-heartbeat";
 const args=process.argv.slice(2);
@@ -30,6 +31,7 @@ process.once("SIGINT",()=>{stopping=true;});
 let tick=0;
 async function oneTick(){
  const counts=await outboxGlobalCounts();
+ const alerts=await reconcileLineOpsAlerts();
  let dispatch:Awaited<ReturnType<typeof runLineOutboxBatch>>|null=null;
  // Single DEV replica, deliberately throttled <=3 jobs / 60s. Production
  // provider quota and per-organization rate fairness are not yet accepted.
@@ -40,7 +42,7 @@ async function oneTick(){
  if(once||tick%5===1||counts.DEAD>0||counts.RETRY>0)
   console.log(JSON.stringify({
    event:"LINE_OUTBOX_OBSERVER",mode,
-   counts,dispatched:dispatch?.attempted??0,
+   counts,alerts,dispatched:dispatch?.attempted??0,
    deadLetterAttention:counts.DEAD>0,
    observedAt:new Date(stamp).toISOString(),
    deliveryVerified:false

@@ -26,9 +26,13 @@ const schema = z.object({
  LINE_MESSAGING_CHANNEL_ACCESS_TOKEN: z.string().optional(),
  LINE_OA_BOT_USER_ID: z.preprocess(v=>v===""?undefined:v,
   z.string().regex(/^U[0-9a-f]{32}$/i).optional()),
- LINE_OUTBOUND_MODE: z.enum(["disabled","simulate","live"]).default("disabled")
+ LINE_OUTBOUND_MODE: z.enum(["disabled","simulate","live"]).default("disabled"),
+ LINE_GLOBAL_PER_MINUTE: z.coerce.number().int().min(1).max(60).default(20),
+ LINE_ORG_PER_MINUTE: z.coerce.number().int().min(1).max(60).default(5)
 });
 export const config = schema.parse(process.env);
+if(config.LINE_ORG_PER_MINUTE>config.LINE_GLOBAL_PER_MINUTE)
+ throw new Error("LINE_ORG_QUOTA_EXCEEDS_GLOBAL");
 if(config.LINE_OUTBOUND_MODE==="live" && (
  !config.LINE_MESSAGING_CHANNEL_SECRET ||
  !config.LINE_MESSAGING_CHANNEL_ACCESS_TOKEN ||

@@ -4,9 +4,10 @@ import {strict as assert} from "node:assert";
 import {eq} from "drizzle-orm";
 import {db,sqlClient} from "../src/db/client.js";
 import {users,sessions,organizations,properties,rooms,leases,invoiceLines,
- lineOaBindings,lineWebhookEvents,lineNotificationConsents,lineOutbox,lineOutboxDeadReviews,
+ lineOaBindings,lineWebhookEvents,lineNotificationConsents,lineOutbox,lineOutboxDeadReviews,lineDispatchReservations,lineOpsAlerts,
  memberships,financeAdjustmentRequests,auditLogs} from "../src/db/schema.js";
 import {enqueueLineNotification,runLineOutboxBatch} from "../src/services/line-outbox.js";
+import {reconcileLineOpsAlerts} from "../src/services/line-alerts.js";
 import {newSessionToken,tokenHash} from "../src/security.js";
 const tag=randomUUID().slice(0,8),base="http://127.0.0.1:8088";
 const bot="U8e742f61d673b39c7fff3cecb7536ef0";
@@ -130,6 +131,27 @@ try{
  assert.equal(overview.body.unreviewedDeadCount,1);
  assert.equal((await ops("/v1/admin/line-operations/overview?organizationId="+randomUUID(),adminToken)).status,404);
  assert.ok(!JSON.stringify(overview.body).includes(tenantLineId));
+ const incidentAt=new Date();
+ const incidentPass=await reconcileLineOpsAlerts(incidentAt);
+ assert.ok(incidentPass.opened>=1,JSON.stringify(incidentPass));
+ assert.equal((await ops("/v1/admin/line-operations/alerts"+qs,"invalid")).status,401);
+ assert.equal((await ops("/v1/admin/line-operations/alerts"+qs,userToken)).status,403);
+ const alerts=await ops("/v1/admin/line-operations/alerts"+qs,adminToken);
+ assert.equal(alerts.status,200);
+ const deadIncident=alerts.body.find((v:any)=>v.kind==="DEAD_UNREVIEWED");
+ assert.ok(deadIncident,JSON.stringify(alerts.body));
+ assert.equal(deadIncident.resolvedAt,null);
+ assert.ok(!JSON.stringify(alerts.body).includes(tenantLineId));
+ const alertPath="/v1/admin/line-operations/alerts/"+deadIncident.id+"/acknowledge";
+ assert.equal((await ops(alertPath,userToken,"POST",{organizationId:o.id})).status,403);
+ assert.equal((await ops(alertPath,adminToken,"POST",{organizationId:randomUUID()})).status,404);
+ const firstAck=await ops(alertPath,adminToken,"POST",{organizationId:o.id});
+ assert.equal(firstAck.status,200,JSON.stringify(firstAck.body));
+ assert.equal(firstAck.body.externalNotificationSent,false);
+ assert.equal((await ops(alertPath,adminToken,"POST",{organizationId:o.id})).status,409);
+ assert.ok((await ops("/v1/admin/line-operations/alerts"+qs,adminToken)).body
+  .find((v:any)=>v.id===deadIncident.id)?.acknowledgedAt);
+
  const list=await ops("/v1/admin/line-operations/dead-letters"+qs,adminToken);
  assert.equal(list.status,200);assert.equal(list.body.length,1);
  assert.equal(list.body[0].id,last.id);
@@ -150,10 +172,51 @@ try{
  const after=await ops("/v1/admin/line-operations/overview"+qs,adminToken);
  assert.equal(after.body.unreviewedDeadCount,0);
  assert.ok((await ops("/v1/admin/line-operations/dead-letters"+qs,adminToken)).body[0].reviewedAt);
- console.log("PASS LINE OA HTTP: admin-only org-scoped safe counters, masked dead-letter review and audit, no re-send");
+ const incidentClosed=await reconcileLineOpsAlerts(new Date(incidentAt.getTime()+1500));
+ assert.ok(incidentClosed.resolved>=1,JSON.stringify(incidentClosed));
+ const closed=(await ops("/v1/admin/line-operations/alerts"+qs,adminToken)).body
+  .find((v:any)=>v.id===deadIncident.id);
+ assert.ok(closed?.resolvedAt);
+ // Concurrent workers share a global PostgreSQL reservation lock: neither
+ // may exceed 1 delivery per organization or globally in the same minute.
+ await db.update(lineNotificationConsents).set({revokedAt:null})
+  .where(eq(lineNotificationConsents.id,consent.id));
+ const qa=await enqueueLineNotification({...baseNotification,eventKey:"quota:"+tag+":1"});
+ const qb=await enqueueLineNotification({...baseNotification,eventKey:"quota:"+tag+":2"});
+ const mockedNow=new Date(Date.now()+120000);
+ let quotaSends=0;
+ const quotaSend=async()=>{
+  quotaSends++;
+  return {status:"ACCEPTED" as const,httpStatus:200,requestId:"mock-quota"};
+ };
+ const [quotaA,quotaB]=await Promise.all([
+  runLineOutboxBatch({mode:"live",limit:1,now:mockedNow,
+   quota:{globalPerMinute:1,perOrgPerMinute:1},send:quotaSend}),
+  runLineOutboxBatch({mode:"live",limit:1,now:mockedNow,
+   quota:{globalPerMinute:1,perOrgPerMinute:1},send:quotaSend})
+ ]);
+ assert.equal(quotaA.attempted+quotaB.attempted,1,JSON.stringify([quotaA,quotaB]));
+ assert.equal(quotaA.quotaLimited||quotaB.quotaLimited,true);
+ assert.equal(quotaSends,1);
+ let quotaJobs=await db.select().from(lineOutbox).where(eq(lineOutbox.organizationId,o.id));
+ assert.equal(quotaJobs.filter(x=>[qa.entry.id,qb.entry.id].includes(x.id)&&x.status==="QUEUED").length,1);
+ const following=await runLineOutboxBatch({
+  mode:"live",limit:1,now:new Date(mockedNow.getTime()+61000),
+  quota:{globalPerMinute:1,perOrgPerMinute:1},send:quotaSend
+ });
+ assert.equal(following.accepted,1);
+ assert.equal(quotaSends,2);
+ const reservations=await db.select().from(lineDispatchReservations)
+  .where(eq(lineDispatchReservations.organizationId,o.id));
+ assert.ok(reservations.length>=4);
+ console.log("PASS LINE fair quota: parallel global DB reservation, strict per-org max, future window reset and accepted mock only");
+
+ console.log("PASS LINE OA HTTP: admin-only scoped safe counters, durable deduped incident open/ack/resolve, masked dead-letter review/audit, no resend");
  console.log("PASS LINE OA HTTP: raw signature/401, malformed/400, destination/404, DB event dedupe/no message PII; consent-bound outbox idempotency, SIMULATED no send, 429 retry stable key, ACCEPTED, consent revoked DEAD");
 }finally{
  child.kill("SIGTERM");
+ if(ids.org)await db.delete(lineOpsAlerts).where(eq(lineOpsAlerts.organizationId,ids.org));
+ if(ids.org)await db.delete(lineDispatchReservations).where(eq(lineDispatchReservations.organizationId,ids.org));
  if(ids.binding)await db.delete(lineOutboxDeadReviews).where(eq(lineOutboxDeadReviews.organizationId,ids.org!));
  if(ids.binding)await db.delete(lineOutbox).where(eq(lineOutbox.bindingId,ids.binding));
  if(ids.binding)await db.delete(lineWebhookEvents).where(eq(lineWebhookEvents.bindingId,ids.binding));
