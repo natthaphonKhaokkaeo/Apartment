@@ -1,6 +1,6 @@
 # Apartment — Dokploy DEV deployment handoff
 
-**2026-11-03:** GitHub main has been pushed. Docker Compose API and web containers run **locally on VPS**, web bound to `127.0.0.1:18088`, and health checks returned HTTP 200. **Registered and deployed under Dokploy**, confirmed by Compose API status done, Docker project labels and running healthy containers. The Deploy tool response was blocked, but the deployment was independently observed as successful afterward. Do not call this Dokploy-managed or publicly deployed.
+**Latest state (2026-11-03):** Apartment DEV is running in the existing Dokploy Compose project `apartment-dokploy-dev-ajcnbm`, with API, Web and observe-only LINE worker healthy. Web is bound to `127.0.0.1:18089`; the registered HTTPS domain currently returns 200. P1-05 and P5 maintenance rollout evidence is recorded at the end of this file. Earlier entries below are historical checkpoints; newer dated entries supersede them.
 
 ## Architecture
 
@@ -94,3 +94,14 @@ Feature commit 826550c and quota configuration 9295d2e deployed in existing Apar
 - Commit 4f400b2 adds maintenance tickets, room maintenance state transitions, migration 0016 and a PostgreSQL HTTP smoke; it is pushed to origin/main.
 - This is source-only. Migration 0016 has not been applied and the new API/Web code is not deployed. Take and verify the Apartment-only PostgreSQL backup before Dokploy recreates the API, since the Compose API startup applies checked-in Drizzle migrations before serving.
 - The current workspace does not have Docker socket or Dokploy tooling, and the VPS public HTTPS outage is unresolved. After authorized infrastructure access is restored, redeploy only the existing Apartment Compose project, confirm migration 0016 and app health, then run pnpm --filter @apartment/api smoke:maintenance. Keep shared Traefik untouched until ACME persistence recovery is separately planned.
+
+
+## P1-05 + P5 maintenance rollout verified (2026-11-03)
+
+- Before rollout, Apartment-only backup `apartment-20261103T153805Z-25493.dump` passed SHA-256 verification and isolated restore (`RESTORE_TEST_OK restored_public_tables=30 network=none`).
+- Built and recreated only API, Web and line-observer in existing Compose project `apartment-dokploy-dev-ajcnbm`; no database container or shared Traefik was restarted. All three services report healthy; web remains bound to 127.0.0.1:18089. Startup applied migration 0016; current public base-table count is 31.
+- `smoke:load-gates` passed against the private DEV PostgreSQL/API runtime: 16 concurrent same-key requests gave one insert and 15 replays; 16 distinct-key requests gave one insert and 15 conflicts; 32 parallel previews returned 200 with stable totals. p95: 395 ms / 282 ms / 275 ms respectively; 76 total HTTP load requests; zero LINE messages sent.
+- `smoke:maintenance` passed: owner/tenant scope, approved lease binding, tenant-only history, ordered status transitions, audit route, and return-from-maintenance gate.
+- `corepack pnpm test`: 23 test files, 87 tests passed (domain 11, API 76). Public HTTPS home and `/readyz` returned 200; unauthenticated `/v1/tenant/maintenance-tickets` returned 401. Observer env is `observe` / `false` / `disabled`, log shows `dispatched:0`.
+- This redeploy was performed through Docker Compose using the existing Dokploy Compose project name and source checkout, since authenticated Dokploy deployment tooling was not available. It did not alter Dokploy metadata, database service, shared Traefik, or other applications. Auto deploy remains disabled. Shared Traefik currently serves HTTPS, but durable ACME storage/renewal remains unverified; do not restart it as part of Apartment maintenance.
+- P1-05 remains open for a larger bounded load profile and independent acceptance. DEV rollout does not close LINE/LIFF, bank, S3/ClamAV, legal, backup/offsite, or Production gates.

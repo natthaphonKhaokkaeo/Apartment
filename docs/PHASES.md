@@ -13,12 +13,11 @@
 
 ## Current checkpoint (live)
 
-- **Current phase:** P1-05 verification gates (IN PROGRESS). P1-04 DEV property-scoped staff authorization, 24h token invite/claim/OWNER approval/revoke, dedicated OWNER staff UI and STAFF room/meter UI are implemented and verified in code + real PostgreSQL/HTTP. P1-03c meter continuity and MOVE_OUT partial remain DEV complete; legal evidence/deposit acceptance OPEN.
-- **Immediate task:** finish P1-05 with PostgreSQL HTTP/concurrency verification; its implementation is committed and pushed as c0dedbc but not deployed. P1-01b/P5-02 maintenance ticket and room-state code is in commit 4f400b2 with generated migration 0016; it needs backup, DB/HTTP and browser verification before rollout. Deposit workflows and LINE Login/LIFF remain gated on policy/provider acceptance. Keep LINE outbound disabled.
-- **Last verified:** P1-05 commit `c0dedbc` and P5 maintenance commit `4f400b2` are pushed to `origin/main`; deployed baseline remains P1-04 commit `d259c94`. Domain tests 11/11, API tests 73/73 excluding the loopback-dependent malware scanner suite, monorepo typecheck, and Web production build pass here. Full unit run has 2 malware scanner integration failures because the sandbox denies loopback binds (`EPERM`). P1-05 HTTP smoke fails its API readiness check in this sandbox; P5 maintenance HTTP smoke was not run because the same private runtime is unavailable; Docker socket access is denied, so no PostgreSQL HTTP or load result is claimed. P5 maintenance API/UI and smoke are committed in `4f400b2`; migration 0016 is not applied. Deployment was not triggered. SHA-256 verified PostgreSQL backup then migration 0015 applied on the VPS; API/Web/LINE Observer were previously healthy internally at 127.0.0.1:18089. Public HTTPS unavailable after VPS reboot (shared Traefik exited 255).
-
-- **Deployment:** Apartment DEV containers are healthy **internally** (Dokploy Compose, 127.0.0.1:18089, not Production). Public https://apartme.makemarket.space is **DOWN after 2026-11-03 reboot**: `dokploy-traefik` Exited (255), no host 80/443 listeners. ACME storage inside shared Traefik remains mounted read-only and logs certificate persistence errors. Do not restart shared Traefik from Apartment maintenance; coordinate separate safe infra recovery of ACME storage/certificates and other domains before public verification. Separate PostgreSQL and other service containers were not changed.
-- **Git:** Preserve user files, check `git status --short` before edits; commit with evidence; push/deploy only when explicitly authorized. `c0dedbc` and `4f400b2` are pushed; neither change is deployed. A `.serena/` user directory remains untracked and untouched. Last completed commit: see `git log -1 --oneline`.
+- **Current phase:** P1-05 verification gates (IN PROGRESS). P1-04 staff access and P1-01b/P5 maintenance tickets and room state are implemented and verified against PostgreSQL/HTTP. P1-03c meter continuity and MOVE_OUT partial remain DEV complete; legal evidence/deposit acceptance OPEN.
+- **Immediate task:** continue with a larger bounded load profile and independent security/load acceptance. P1-05 (`c0dedbc`) and maintenance (`4f400b2`) are deployed in the existing Apartment DEV Compose project. Keep LINE outbound disabled; deposit workflows and LINE Login/LIFF remain gated on policy/provider acceptance.
+- **Last verified (2026-11-03):** Full unit suite 87/87 (domain 11, API 76); P1-05 PostgreSQL HTTP/concurrency smoke passed (76 requests; 16 same-key idempotency, 16 distinct-key conflict, 32 parallel previews; p95 395/282/275 ms); P5 maintenance PostgreSQL HTTP smoke passed. Backup `apartment-20261103T153805Z-25493.dump` SHA verified and isolated restore test passed (30 public tables at backup time). Migration 0016 applied; current public base-table count 31. Dokploy Compose API/Web/observer healthy; public HTTPS `/` and `/readyz` return 200; unauthenticated tenant maintenance route returns 401. Observer remains observe-only, approval false, outbound disabled, dispatched=0. See `docs/DEPLOY_DOKPLOY_DEV.md`.
+- **Deployment:** Apartment DEV only, existing Compose project `apartment-dokploy-dev-ajcnbm`, web loopback-bound at 127.0.0.1:18089. Public HTTPS currently responds, but shared Traefik ACME persistence/renewal remains unverified. Do not restart shared Traefik as part of Apartment maintenance; coordinate separate safe infrastructure work for durable ACME storage and other domains.
+- **Git:** `.serena/` is user data; preserve and leave untracked. User authorized commit, push and DEV deployment for this plan. See `git log -1 --oneline` for latest commit.
 
 ## Phase P0 — Foundation & database (DONE)
 
@@ -63,8 +62,8 @@
 - [ ] P1-05 Negative-amount/overflow/duplicate/concurrency verification gates under load (**IN PROGRESS**)
   - [x] Invoice line/total and `units_milli` PostgreSQL INTEGER bounds; utility arithmetic overflow returns 422; six focused unit cases pass
   - [x] Isolated DEV HTTP smoke script covers negative/fractional/over-limit input, duplicate reading, cross-org access, 16-way same-key replay, 16-way distinct-key issue race, and a bounded 32-way bill-preview burst (76 total HTTP requests)
-  - [ ] Execute smoke against private PostgreSQL/HTTP runtime and record successful response set + latency; run a larger bounded load profile before acceptance
-  - **Current verification blocker:** this workspace's sandbox denies API loopback readiness and Docker socket access. Do not count a script that fails readiness as DEV evidence.
+  - [x] Execute smoke against private PostgreSQL/HTTP runtime: negative/fraction/overflow, duplicate meter, cross-org denial, idempotent replay, unique-key conflict and bounded 32-way preview burst; p95 395/282/275 ms (76 requests total)
+  - [ ] Run a larger bounded load profile and independent security/load acceptance before closing P1-05.
 - **Gate:** owner cannot access another organization's property, lease, or invoice; previously issued bill never changes.
 
 ## Phase P2 — Tenant onboarding & read-only LIFF portal (IMPLEMENTED LOCALLY; LINE E2E BLOCKED)
@@ -204,8 +203,8 @@
 
 You are continuing the Apartment SaaS project on **/root/Projects/Apartment** (DEV only). Before coding:
 1. Read `AGENTS.md`, `README.md`, and **`docs/PHASES.md`**, especially *Current checkpoint* and the first unchecked item in the active phase.
-2. Check `git status --short --branch` and `git log -1 --oneline`; preserve all user work. Current active item is **P1-05**, not P4-01. Its implementation and bounded smoke script may already be in progress; inspect before editing.
-3. Complete `apps/api` P1-05 with the real PostgreSQL HTTP/concurrency smoke and an appropriate load run. Do not mark it complete from unit tests alone. If the DEV database/runtime is unavailable, record the exact blocker and leave it pending.
+2. Check `git status --short --branch` and `git log -1 --oneline`; preserve all user work. Current active item is **P1-05**, not P4-01.
+3. P1-05's isolated PostgreSQL HTTP/concurrency smoke and 32-way bounded burst now pass; continue with a larger bounded load profile and independent acceptance before closing it.
 4. Run `corepack pnpm test`, `corepack pnpm typecheck`, `corepack pnpm --filter @apartment/web build`, and the API PostgreSQL smoke suites when their required local services are available. A restricted sandbox may reject loopback tests; distinguish that from product test failures.
 5. Update this file's current checkpoint and verification evidence. Continue with P1-01b/P5 work after P1-05. Keep real LINE, bank, S3 provider, legal, security, offsite backup, and Production acceptance gates pending until verified with the required external inputs. Never mark an invoice PAID automatically.
 6. If external secrets or a product decision are required, leave that specific checkbox blocked and continue other independent work.

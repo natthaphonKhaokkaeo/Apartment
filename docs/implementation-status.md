@@ -4,12 +4,12 @@
 
 ## Current state
 
-- DEV implementation is through P1-04 staff authorization; deployed baseline commit is `d259c94`.
-- P1-05 amount, storage-bound, duplicate, idempotency and concurrency gates are **in progress** in pushed commit `c0dedbc` (not deployed). `assertInvoiceStorageBounds` guards PostgreSQL INTEGER snapshots, utility arithmetic overflow maps to HTTP 422, six unit cases pass, and `apps/api/scripts/smoke-load-gates.ts` covers negative/fractional inputs, duplicate readings, cross-org denial, concurrent billing races and a bounded 32-way preview burst (76 HTTP requests total).
-- Domain unit tests pass 11/11; API tests pass 73/73 when excluding the loopback-dependent malware scanner suite; monorepo typecheck and Web production build pass. The full unit run has two malware scanner integration tests failing because loopback listeners are denied by the sandbox (`EPERM`). The `.env` contains the DEV `DATABASE_URL`, but the P1-05 HTTP smoke fails its API readiness check (`DEV API not ready`); Docker socket access is also denied. P5 maintenance smoke was not run because it requires the same unavailable private HTTP/database runtime. No PostgreSQL HTTP smoke completed. P5 maintenance API/UI, migration 0016 and smoke source are pushed in commit 4f400b2; migration is not applied or deployed.
-- Do not mark P1-05 complete until its PostgreSQL HTTP/concurrency smoke and load run have passed in the authorized DEV runtime. Deployment was not triggered; the current workspace has no Docker socket access or Dokploy tool, and auto deploy is disabled.
-- Current public deployment is **down** after the VPS reboot: shared `dokploy-traefik` exited with code 255; no host 80/443 listeners. Apartment containers were last verified healthy internally at `127.0.0.1:18089`. Do not restart shared Traefik until ACME persistence is repaired under a separate infrastructure maintenance plan.
-- LINE worker remains observe-only, approval false, outbound disabled. No LINE messages were sent.
+- DEV implementation through P5 maintenance tickets and room maintenance transitions is deployed in the existing Dokploy Compose project; migration 0016 is applied.
+- P1-05 input/storage bounds and PostgreSQL HTTP concurrency gates pass. The 76-request isolated DEV smoke passed negative/fraction/overflow, duplicate meter, cross-org denial, 16-way same-key replay, 16-way distinct-key race and 32-way preview burst; p95 was 395/282/275 ms. Keep P1-05 open for a larger bounded load profile and independent security/load acceptance.
+- P5 maintenance PostgreSQL/HTTP smoke passes owner/tenant scope, approved lease binding, history visibility, ordered transitions, audit and return-from-maintenance gate.
+- Unit tests: domain 11/11 and API 76/76. Backup `apartment-20261103T153805Z-25493.dump` SHA verification and isolated restore test passed before rollout. Migration 0016 applied; database has 31 public base tables.
+- Existing Dokploy Compose API/Web/LINE observer are healthy. Public HTTPS home and `/readyz` return 200; unauthenticated maintenance endpoint returns 401. Worker remains observe-only (`LINE_WORKER_APPROVED=false`, outbound disabled), observed dispatched=0. No LINE messages were sent.
+- Public TLS currently works, but shared Traefik ACME persistence/renewal remains unverified; do not restart shared Traefik during Apartment maintenance. Full external readiness still requires LINE/LIFF, bank-app QR recipient confirmation, live S3/ClamAV controls, legal/tax review, offsite backup, independent security/load review and Production acceptance.
 
 ## Completed implementation
 
@@ -19,8 +19,8 @@ These are DEV implementations. Their provider, legal, financial, reliability, lo
 
 ## Next work
 
-1. Finish P1-05 using the private PostgreSQL HTTP and concurrency smoke, then an agreed bounded load run.
-2. Continue P1-01b/P5 maintenance, deposits, settlement, bulk billing and tenant operations.
-3. Keep LINE/LIFF, bank, S3/ClamAV, legal/tax, independent security, offsite backup, Figma and Production acceptance blocked until their required credentials, decisions and external verification exist.
+1. Run a larger bounded load profile and independent security/load acceptance for P1-05.
+2. Continue deposits, settlement, bulk billing and tenant operations; P5 maintenance workflow is deployed and smoke-verified.
+3. Keep LINE/LIFF, bank, S3/ClamAV, legal/tax, offsite backup and Production acceptance open until their required credentials, decisions and external verification exist.
 
 Never treat a manual payment approval as bank-verified funds, issue an official receipt/tax invoice without legal approval, or enable live LINE sending from the DEV observer.
