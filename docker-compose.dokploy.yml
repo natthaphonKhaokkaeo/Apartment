@@ -45,7 +45,11 @@ services:
       - "127.0.0.1:18089:80"
     networks:
       - default
+      - dokploy-network
 networks:
+  dokploy-network:
+    external: true
+    name: dokploy-network
   apartment-db:
     external: true
     name: apartment-dev_default
