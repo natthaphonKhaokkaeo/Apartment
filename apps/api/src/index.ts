@@ -19,6 +19,7 @@ import {registerFinancialAdjustmentRoutes} from "./routes/financial-adjustments.
 import {registerLineOaRoutes} from "./routes/line-oa.js";
 import {registerLineConsentRoutes} from "./routes/line-consent.js";
 import {registerLineOperationsRoutes} from "./routes/line-operations.js";
+import {registerLeaseLifecycleRoutes} from "./routes/lease-lifecycle.js";
 import {queueInvoiceIssuedTx} from "./services/line-notifications.js";
 import {readingToMilli,parseDay} from "@apartment/domain";
 
@@ -282,4 +283,5 @@ await registerFinancialAdjustmentRoutes(app);
 await registerLineOaRoutes(app);
 await registerLineConsentRoutes(app);
 await registerLineOperationsRoutes(app);
+await registerLeaseLifecycleRoutes(app);
 await app.listen({host:config.HOST,port:config.PORT});

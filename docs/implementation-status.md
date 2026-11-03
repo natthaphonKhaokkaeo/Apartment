@@ -161,3 +161,11 @@ See docs/P4_LINE_QUOTAS_ALERTS.md.
 - [x] PostgreSQL root-only local backup timer active daily 03:30 Bangkok; service execution 0/success, SHA256 verified, isolated PostgreSQL 16 restore test passed with 25 public tables.
 - [x] 63 unit tests and full regression green, real PostgreSQL consent race and retention tests green.
 - [ ] Encrypted offsite backup + external alerting, live LINE Sandbox/auth/LIFF, provider acceptance, ACME persistence and Production security gate.
+
+## P1-01a move-out strict closure (DEV)
+- [x] Owner-only authenticated org/property/lease scoped move-out endpoint and Owner Rooms UI; Manager, outsider and tenant cannot move-out.
+- [x] Final utility readings, final issued invoice matching exclusive end, zero outstanding all invoices, no pending claims/finance; lock property+lease+room, no implicit writeoffs.
+- [x] On success lease ENDED, room AVAILABLE/MAINTENANCE, invitations/LINE consent and pending outbox revoked, immutable invoice/payment ledger retained, audit record.
+- [x] Unit date policy + HTTP/PostgreSQL IDOR/settlement/duplicate/reuse smoke.
+- [ ] P1-01b maintenance ticket and tenant-history/deposit/partial period support. Not full P1 completion.
+See docs/P1_LEASE_MOVE_OUT.md.

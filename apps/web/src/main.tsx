@@ -9,6 +9,8 @@ import {PaymentCenter} from "./components/PaymentCenter.js";
 import "./styles.css";
 type Organization={id:string;name:string;status:string};
 type Property={id:string;name:string;organizationId:string;address:string;rentSatang:number;waterSatangPerUnit:number;electricSatangPerUnit:number;cadence:string;rollingAnchor:string|null;complianceReviewedAt:string|null};
+type Lease={id:string;roomId:string;tenantName:string;startDate:string;
+ endDate:string|null;status:string};
 type Room={id:string;number:string;floor:number;status:string;rentOverrideSatang:number|null;waterOverrideSatang:number|null;electricOverrideSatang:number|null};
 type Invoice={id:string;roomId:string;amountSatang:number;periodStart:string;periodEnd:string;dueDate:string;status:string;createdAt:string};
 type Me={id:string;name:string;role:string};
@@ -22,6 +24,16 @@ const money=(n:number|undefined|null)=>"฿"+((n??0)/100).toLocaleString("th-TH"
 const satang=(s:string)=>Math.round(Number(s)*100);
 function dateNow(){return new Date(Date.now()+7*3600000).toISOString().slice(0,10);}
 const labels:Record<string,string>={
+ LEASE_MOVE_OUT_OWNER_REQUIRED:"การปิดสัญญาต้องให้ Owner ขององค์กรดำเนินการ",
+ LEASE_ALREADY_ENDED:"สัญญานี้ปิดแล้ว",
+ MOVE_OUT_FINAL_METERS_REQUIRED:"ต้องจดมิเตอร์น้ำและไฟ ณ วันสิ้นสุดสัญญาก่อน",
+ MOVE_OUT_FINAL_INVOICE_REQUIRED:"ยังไม่มีบิลรอบสุดท้ายที่จบตรงวันสิ้นสุดสัญญา",
+ MOVE_OUT_UNSETTLED_INVOICES:"ยังมีใบแจ้งหนี้ที่ค้างชำระ",
+ MOVE_OUT_PENDING_PAYMENT:"ยังมีคำขอแจ้งชำระรอตรวจสอบ",
+ MOVE_OUT_PENDING_FINANCE:"ยังมีคำขอปรับปรุงยอดเงินที่รอตรวจสอบ",
+ MOVE_OUT_FUTURE_INVOICE_EXISTS:"มีใบแจ้งหนี้ที่ออกเกินวันสิ้นสุดที่เลือก",
+ MOVE_OUT_BOUNDARY_OUT_OF_RANGE:"วันสิ้นสุดต้องอยู่หลังวันเริ่มสัญญาและไม่เกินวันนี้",
+ ROOM_NOT_OCCUPIED:"สถานะห้องไม่สอดคล้องกับสัญญาที่ใช้งาน",
  UNAUTHENTICATED:"กรุณาเข้าสู่ระบบ",COMPLIANCE_REVIEW_REQUIRED:"ต้องให้ Super Admin ตรวจอัตราน้ำไฟก่อนออกบิล",
  TARIFF_ABOVE_REVIEWED_LIMIT:"อัตราค่าน้ำหรือค่าไฟเกินวงเงินที่ตรวจสอบแล้ว",
  METER_BOUNDARY_READING_REQUIRED:"ต้องมีเลขมิเตอร์ทั้งวันเริ่มต้นและวันสิ้นสุดรอบบิล",
@@ -43,7 +55,8 @@ function Panel({title,subtitle,children,action}:{title:string;subtitle?:string;c
 function App(){
  const [me,setMe]=useState<Me|null>(null),[orgs,setOrgs]=useState<Organization[]>([]),[props,setProps]=useState<Property[]>([]);
  const [orgId,setOrgId]=useState(""),[propertyId,setPropertyId]=useState(""),[section,setSection]=useState<Section>("overview");
- const [rooms,setRooms]=useState<Room[]>([]),[invoices,setInvoices]=useState<Invoice[]>([]);
+ const [rooms,setRooms]=useState<Room[]>([]),[leases,setLeases]=useState<Lease[]>([]),
+ [invoices,setInvoices]=useState<Invoice[]>([]);
  const [overview,setOverview]=useState<{rooms:number;occupied:number;available:number;totalBilledSatang:number;issuedInvoices:number;manuallyApprovedSatang:number;outstandingSatang:number;overdueSatang:number;overdueInvoiceCount:number}|null>(null);
  const [admin,setAdmin]=useState<{organizationCount:number;propertyCount:number;roomCount:number;invoiceCount:number}|null>(null);
  const [error,setError]=useState(""),[success,setSuccess]=useState(""),[busy,setBusy]=useState(false),[menu,setMenu]=useState(false);
@@ -57,13 +70,17 @@ function App(){
  const loadProps=useCallback(async(org:string)=>{const data=await api<Property[]>("/organizations/"+org+"/properties");
   setProps(data);setPropertyId(prev=>data.some(p=>p.id===prev)?prev:(data[0]?.id||""));},[]);
  const loadProperty=useCallback(async(p:string)=>{
-  const [rs,ins,ov]=await Promise.all([api<Room[]>("/properties/"+p+"/rooms"),api<Invoice[]>("/properties/"+p+"/invoices"),
-    api<typeof overview>("/properties/"+p+"/overview")]);
-  setRooms(rs);setInvoices(ins);setOverview(ov);
+  const [rs,ins,ov,ls]=await Promise.all([
+    api<Room[]>("/properties/"+p+"/rooms"),
+    api<Invoice[]>("/properties/"+p+"/invoices"),
+    api<typeof overview>("/properties/"+p+"/overview"),
+    api<Lease[]>("/properties/"+p+"/leases")
+  ]);
+  setRooms(rs);setInvoices(ins);setOverview(ov);setLeases(ls);
  },[]);
  useEffect(()=>{void loadMe().then(user=>{if(user)void loadOrgs();});},[loadMe,loadOrgs]);
  useEffect(()=>{if(orgId)void loadProps(orgId).catch(e=>setError(e.message));else {setProps([]);setPropertyId("");}},[orgId,loadProps]);
- useEffect(()=>{if(propertyId)void loadProperty(propertyId).catch(e=>setError(e.message));else {setRooms([]);setInvoices([]);setOverview(null);}},[propertyId,loadProperty]);
+ useEffect(()=>{if(propertyId)void loadProperty(propertyId).catch(e=>setError(e.message));else {setRooms([]);setLeases([]);setInvoices([]);setOverview(null);}},[propertyId,loadProperty]);
  useEffect(()=>{if(section==="admin"&&me?.role==="SUPER_ADMIN")void api<typeof admin>("/admin/overview").then(setAdmin).catch(e=>setError(e.message));},[section,me?.role]);
  async function run(task:()=>Promise<void>){setBusy(true);setError("");setSuccess("");try{await task();}catch(e){setError((e as Error).message);}finally{setBusy(false);}}
  async function login(){
@@ -103,6 +120,22 @@ function App(){
    tenantName:String(form.get("name")),startDate:String(form.get("start"))});
   await loadProperty(property.id);notify("บันทึกสัญญาเช่าแล้ว");
  });}
+ async function moveOut(form:FormData){
+  if(!property)return;
+  const leaseId=String(form.get("leaseId"));
+  const lease=leases.find(l=>l.id===leaseId);
+  if(!lease||!window.confirm("ยืนยันปิดสัญญา "+lease.tenantName+
+    " หลังตรวจยอดคงค้างและส่งมอบห้องแล้ว? การดำเนินการนี้ย้อนกลับไม่ได้"))return;
+  await run(async()=>{
+   await post("/properties/"+property.id+"/leases/"+leaseId+"/move-out",{
+    endExclusive:String(form.get("endExclusive")),
+    roomDisposition:String(form.get("roomDisposition")),
+    confirmedHandover:true
+   });
+   await loadProperty(property.id);
+   notify("ปิดสัญญาและปรับสถานะห้องเรียบร้อย ข้อมูลบิลเดิมยังอยู่");
+  });
+ }
  async function reading(form:FormData){if(!property)return;await run(async()=>{
   await post("/properties/"+property.id+"/readings",{roomId:String(form.get("roomId")),kind:String(form.get("kind")),
    readAt:String(form.get("day")),value:String(form.get("value"))});
@@ -161,6 +194,26 @@ function App(){
       <Panel title="รายการห้องพัก" subtitle="เลือกแก้ไขราคา: เว้นว่างเพื่อกลับไปใช้ราคา Master"><div className="room-list">{rooms.map(r=><details className="room-detail" key={r.id}><summary><span className="room-number"><DoorOpen size={20}/>{r.number} <small>ชั้น {r.floor}</small></span><span className={"pill "+(r.status==="OCCUPIED"?"occupied":"vacant")}>{r.status==="OCCUPIED"?"มีผู้เช่า":r.status==="AVAILABLE"?"ว่าง":"ซ่อมบำรุง"}</span><ChevronDown size={17}/></summary>
       {form(overrideRoom,<><input name="roomId" type="hidden" value={r.id}/><div className="cols3"><Field label="ค่าเช่า (บาท)"><input name="rent" type="number" min="0" step=".01" placeholder={String(property.rentSatang/100)} defaultValue={r.rentOverrideSatang===null?"":String(r.rentOverrideSatang/100)}/></Field><Field label="ค่าน้ำ (บาท)"><input name="water" type="number" min="0" step=".01" placeholder={String(property.waterSatangPerUnit/100)} defaultValue={r.waterOverrideSatang===null?"":String(r.waterOverrideSatang/100)}/></Field><Field label="ค่าไฟ (บาท)"><input name="electric" type="number" min="0" step=".01" placeholder={String(property.electricSatangPerUnit/100)} defaultValue={r.electricOverrideSatang===null?"":String(r.electricOverrideSatang/100)}/></Field></div></>)}</details>)}</div></Panel>
       <Panel title="เปิดสัญญาเช่าห้อง" subtitle="เริ่มต้นผูกผู้เช่าเข้ากับห้องว่างก่อนจดมิเตอร์และออกบิล">{form(createLease,<div className="cols3"><Field label="ห้องว่าง"><select name="roomId" required>{rooms.filter(r=>r.status==="AVAILABLE").map(r=><option key={r.id} value={r.id}>{r.number}</option>)}</select></Field><Field label="ชื่อผู้เช่า"><input name="name" placeholder="ชื่อ-นามสกุล" required/></Field><Field label="วันเริ่มสัญญา"><input name="start" type="date" required defaultValue={dateNow()}/></Field></div>)}</Panel></>}
+    {property&&section==="rooms"&&
+      <Panel title="สิ้นสุดสัญญาและย้ายออก (Owner)"
+       subtitle="ต้องมีเลขมิเตอร์วันสิ้นสุด บิลรอบสุดท้าย และชำระยอดครบทุกใบก่อนคืนห้อง">
+       {leases.some(l=>l.status==="ACTIVE")?
+        form(moveOut,<div className="cols3">
+         <Field label="สัญญาที่ต้องการปิด"><select required name="leaseId">
+          {leases.filter(l=>l.status==="ACTIVE").map(l=><option key={l.id} value={l.id}>
+           {rooms.find(r=>r.id===l.roomId)?.number??"ห้อง"} — {l.tenantName}
+          </option>)}
+         </select></Field>
+         <Field label="วันสิ้นสุด (ไม่รวมวันนี้)"><input required type="date"
+          name="endExclusive" max={dateNow()} defaultValue={dateNow()}/></Field>
+         <Field label="สถานะห้องหลังส่งมอบ"><select required name="roomDisposition">
+          <option value="MAINTENANCE">รอตรวจ/ซ่อมบำรุง</option>
+          <option value="AVAILABLE">ว่าง พร้อมให้เช่า</option>
+         </select></Field>
+         <p className="hint">ต้องตรวจสอบการคืนเงินประกันและภาระผูกพันตามสัญญานอกระบบก่อนยืนยัน
+          ระบบจะไม่ตัดยอดหนี้หรือคืนเงินให้อัตโนมัติ</p>
+        </div>):<p className="hint">ไม่มีสัญญาเช่าที่กำลังใช้งาน</p>}
+      </Panel>}
     {property&&section==="meter"&&<><Panel title="จดเลขมิเตอร์" subtitle="กรอกเลขมิเตอร์น้ำและไฟ พร้อมวันที่อ่านจริง เลขต้องไม่ลดลง">{form(reading,<div className="cols2"><Field label="ห้องพัก"><select name="roomId">{rooms.map(r=><option key={r.id} value={r.id}>{r.number}</option>)}</select></Field><Field label="ประเภท"><select name="kind"><option value="WATER">ค่าน้ำ</option><option value="ELECTRIC">ค่าไฟ</option></select></Field><Field label="วันที่อ่าน"><input type="date" name="day" required defaultValue={dateNow()}/></Field><Field label="เลขมิเตอร์"><input name="value" required inputMode="decimal" placeholder="1234.000"/></Field></div>)}</Panel><div className="hint"><Gauge size={19}/> จำเป็นต้องมีค่ามิเตอร์ที่วันเริ่มและวันสิ้นสุดของรอบบิลก่อนออกบิล</div></>}
     {property&&section==="billing"&&<><Panel title="ออกใบแจ้งหนี้รายห้อง" subtitle="ทดลองคำนวณก่อน แล้วจึงกดออกบิลจริงภายหลังตรวจความถูกต้อง"><form className="form" onSubmit={e=>{e.preventDefault();void preview(new FormData(e.currentTarget),false);}}><div className="cols3"><Field label="ห้องพัก"><select name="roomId">{rooms.filter(r=>r.status==="OCCUPIED").map(r=><option key={r.id} value={r.id}>{r.number}</option>)}</select></Field><Field label="วันเริ่มรอบ"><input name="start" required type="date"/></Field><Field label="วันสิ้นสุด (ไม่รวมวันนี้)"><input name="end" required type="date"/></Field></div><div className="actions"><button className="btn outline" disabled={busy} type="submit">คำนวณยอดก่อนออกบิล</button><button className="btn primary" disabled={busy} type="button" onClick={e=>{const f=e.currentTarget.closest("form");if(f&&window.confirm("ยืนยันออกบิลจริงสำหรับห้องและรอบวันที่เลือก?"))void preview(new FormData(f),true);}}>ยืนยันออกบิล</button></div></form></Panel>
       <Panel title="ใบแจ้งหนี้ที่ออกแล้ว" subtitle="จำนวนเงินเป็นยอดตั้งหนี้ — ระบบบันทึกรับชำระยังอยู่ในแผนพัฒนา"><div className="table-scroll"><table><thead><tr><th>หมายเลขห้อง</th><th>รอบบิล</th><th>ครบกำหนด</th><th>ยอดเงิน</th><th>สถานะ</th><th>PDF</th></tr></thead><tbody>{invoices.map(i=><tr key={i.id}><td><b>{rooms.find(r=>r.id===i.roomId)?.number??"-"}</b></td><td>{i.periodStart} → {i.periodEnd}</td><td>{i.dueDate}</td><td>{money(i.amountSatang)}</td><td><span className="pill occupied">{i.status}</span></td><td><a className="btn outline" href={"/v1/properties/"+property.id+"/invoices/"+i.id+"/billing-notice.pdf"} target="_blank" rel="noopener noreferrer">ดาวน์โหลด PDF</a></td></tr>)}</tbody></table>{invoices.length===0&&<p className="empty">ยังไม่มีบิล</p>}</div></Panel></>}

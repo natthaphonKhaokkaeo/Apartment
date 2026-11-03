@@ -170,3 +170,10 @@ Domain checkpoint: https://apartme.makemarket.space now works (HTTPS trusted; we
 - systemd apartment-postgres-backup.timer ACTIVE with next 2026-11-04 03:30:00 Asia/Bangkok; backup service manual execution SUCCESS. Root-only /root/backups/apartment-postgres backup files have SHA-256, backup script verify PASS, restore to independent ephemeral PostgreSQL 16 network-none container PASS (25 public tables); no DB downtime. Need OFFSITE backup before Production.
 - 63 unit tests + API/finance/payment/S3/cleanup/LINE suites/typecheck/web build PASS; P4-03e live consent race and reservation retention smoke PASS.
 - P4-05 LINE provider Sandbox/login/LIFF E2E awaits actual credentials; no real sending. Shared Traefik ACME read-only bind still needs risk-controlled maintenance. See docs/POSTGRES_BACKUP_RESTORE.md and docs/P4_LINE_RETENTION.md.
+
+## P1-01a owner move-out / lease closure (DEV)
+- Code: apps/api/src/services/lease-lifecycle.ts, apps/api/src/routes/lease-lifecycle.ts, registered in index.ts; owner Rooms UI in apps/web/src/main.tsx.
+- Strict gates: active owner org membership (not manager/admin override), exclusive end date after start and <= Bangkok today, final water+electric readings, final ISSUED invoice exactly at boundary, all issued invoices settled, no pending payment/finance requests. Property->lease->room transaction locks shared property lock with invoice issuer.
+- Success: ENDED lease/endDate, room AVAILABLE or MAINTENANCE, revoke invitations, LINE consents and queued/retry/sending Outbox; audit. No existing invoice or ledger mutated.
+- Test: apps/api/tests/lease-lifecycle.test.ts and extended apps/api/scripts/smoke-line-consent.ts with owner/manager/IDOR, pending/unsettled, retry, LINE revoke and room reuse.
+- No DB migration needed. P1-01b maintenance repair/deposit, P1-02 effective-dated rates and P1-03 midcycle invoices, former-tenant history remain pending. Read docs/P1_LEASE_MOVE_OUT.md.

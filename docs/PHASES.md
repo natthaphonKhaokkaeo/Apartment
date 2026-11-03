@@ -13,9 +13,9 @@
 
 ## Current checkpoint (live)
 
-- **Current phase:** P4-03e DEV safety: serialized consent/revoke with bounded provider-call lease/OA/consent locks, and org-scoped manual 30-day reservation retention completed; PostgreSQL daily Backup and isolated Restore test verified. Real LINE delivery, external alert paging and offsite backup remain pending.
-- **Immediate task:** P4-05 real LINE Login/LIFF and Messaging Sandbox E2E when credentials arrive. Independently, configure encrypted offsite PostgreSQL backup and external alert paging when provider/credentials are approved. Never enable real LINE sends before sandbox/privacy/signoff.
-- **Last verified:** P4-03e + Apartment PostgreSQL Backup: 63 unit tests (11 domain + 52 API), full API/payment/finance/S3/cleanup/LINE smoke/typecheck/web build pass; consent revocation race and org-scoped 30-day reservation cleanup tested against PostgreSQL. Git feature b0d55eb pushed and Apartment-only Dokploy DEV API/Web/Observer images deployed Healthy. Public HTTPS/readyz=200 (TLS verify 0), unauthenticated alerts=401; PostgreSQL Healthy. Daily systemd backup timer active at 03:30 Asia/Bangkok, two checksummed local backups and full isolated 25-table restore verified.
+- **Current phase:** P1-01a owner move-out lifecycle in DEV (not all P1): guarded final utility boundary, last invoice and zero outstanding, OWNER-only, room disposition, revoked invites/consents/outbox, audit and UI. P1-01b repair workflow and P1-02 effective-date rate history still pending; P2/P4 real LINE and P3 bank/S3 blocked.
+- **Immediate task:** P1-02 effective-date property rate change history and billing rate snapshots; then P1-03 partial-period/meter replacement. Separately P5 maintenance ticket and deposit settlement. LINE/S3/bank provider gates stay blocked on real credentials and external acceptance.
+- **Last verified:** P1-01a pure boundary tests + real PostgreSQL/HTTP move-out owner/manager/tenant permission, final bill/readings, pending/settled balances, consent/outbox revoke and new lease test PASSED. Full regression and DEV image deployment to be completed before signoff.
 
 - **Deployment:** Apartment DEV is publicly accessible at https://apartme.makemarket.space through Dokploy Traefik -> Nginx (DEV, not Production). DNS matches VPS; HTTP 301 HTTPS; HTTPS 200 with trusted certificate; API /readyz 200, unauthorized 401, valid HTTPS Origin POST 200, unsigned LINE webhook 503. Runtime WEB_ORIGIN and secure cookies configured. Separate PostgreSQL and other services unchanged. Traefik ACME storage is read-only, so automatic certificate persistence/renewal still requires maintenance.
 - **Git:** Preserve user files, check `git status --short` before edits; commit with evidence; no push or production deploy without explicit instruction. Last completed commit: see `git log -1 --oneline`.
@@ -41,7 +41,9 @@
 - [x] Single-room invoice preview and transaction + idempotency issue
 - [x] Snapshot line items + audit events; reviewed tariff ceiling guard
 - [x] Responsive owner/dashboard, room, meter, billing UI
-- [ ] P1-01 Room move-out, maintenance and lease lifecycle transitions
+- [ ] P1-01 Room move-out, maintenance and lease lifecycle transitions (PARTIAL)
+  - [x] P1-01a Strict owner-only move-out with final meter/invoice settlement guards, no pending claims/finance, room released AVAILABLE or MAINTENANCE, revoked invitations/consents/outbox, audited lease ENDED, real DB/HTTP security tests, Owner UI
+  - [ ] P1-01b Repair/maintenance ticket workflow and room return-from-maintenance, deposit settlement, former-tenant records access and mid-cycle lease transitions (P1-03 / P5)
 - [ ] P1-02 Property Master rate update with effective-date history, audit & recalculation rules
 - [ ] P1-03 Active-rate validity for partial leases, mid-cycle adjustments, meter replacement
 - [ ] P1-04 Property-level staff permissions, org membership invitation/revocation

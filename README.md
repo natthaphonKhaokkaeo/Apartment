@@ -92,3 +92,6 @@ The PostgreSQL data is in a persistent Docker named volume and is also now backe
 
 ## P4-03e LINE safety
 LINE worker now serializes new LIVE send starts with tenant consent revocation using DB row locks. Existing in-flight messages are not recallable. Per-organization reservation retention cleanup is manual and DRY_RUN by default with >=30 day cutoff. Actual LINE outbound remains disabled in DEV. See docs/P4_LINE_RETENTION.md.
+
+## P1-01a Owner move-out (DEV)
+The Rooms owner UI now provides a strict move-out operation (POST /v1/properties/:propertyId/leases/:leaseId/move-out) that checks final water/electric meter readings, final invoice period, no pending payment/financial reviews, and zero outstanding across all issued invoices. It updates the room to AVAILABLE or MAINTENANCE, ends the lease, revokes future invitations/LINE notifications and audits without changing historical finance records. This is DEV functionality, not official security-deposit or legal move-out settlement. See docs/P1_LEASE_MOVE_OUT.md.
