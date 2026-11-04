@@ -1,3 +1,4 @@
+import {parseSatang} from "./money.js";
 import React,{useEffect,useState,useCallback} from "react";
 import {createRoot} from "react-dom/client";
 import liff from "@line/liff";
@@ -29,7 +30,7 @@ const sections:[Section,string,React.ReactNode][]=[
  ["staff","จัดการพนักงาน",<Users size={19}/>],["tenant","สำหรับผู้เช่า",<DoorOpen size={19}/>],
  ["settings","ตั้งค่า",<Settings size={19}/>],["admin","Super Admin",<ShieldCheck size={19}/>]];
 const money=(n:number|undefined|null)=>"฿"+((n??0)/100).toLocaleString("th-TH",{minimumFractionDigits:2,maximumFractionDigits:2});
-const satang=(s:string)=>Math.round(Number(s)*100);
+const satang=parseSatang;
 function dateNow(){return new Date(Date.now()+7*3600000).toISOString().slice(0,10);}
 const labels:Record<string,string>={
  INVALID_MOVE_OUT_PARTIAL_PERIOD:"บิลย้ายออกกลางรอบต้องเริ่มต้นรอบหรือวันเริ่มสัญญา และสิ้นสุดไม่เกินวันนี้",
