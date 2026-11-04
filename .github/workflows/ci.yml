@@ -16,7 +16,7 @@ concurrency:
 
 jobs:
   quality:
-    name: Unit, types, web build
+    name: Unit, lint, coverage, types, web build
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
@@ -43,12 +43,20 @@ jobs:
           corepack pnpm --version
       - name: Install exact lockfile
         run: corepack pnpm install --frozen-lockfile
+      - name: Security audit — block High and Critical advisories
+        run: corepack pnpm audit --audit-level high
       - name: Whitespace validation
         run: git diff --check HEAD^ HEAD
       - name: Drizzle migration snapshot consistency
         run: corepack pnpm --filter @apartment/api exec drizzle-kit check
       - name: Unit tests
         run: corepack pnpm test
+      - name: TypeScript lint (warnings reported, existing P5 WIP untouched)
+        run: corepack pnpm lint
+      - name: Coverage visibility (threshold not yet met)
+        run: |
+          corepack pnpm coverage:domain
+          corepack pnpm coverage:api
       - name: TypeScript
         run: corepack pnpm typecheck
       - name: Web production build (no live LIFF key)

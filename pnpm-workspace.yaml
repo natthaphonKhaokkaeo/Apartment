@@ -5,3 +5,11 @@ packages:
 allowBuilds:
   esbuild: true
   sharp: true
+
+# Temporary workspace-wide security overrides until each package is bumped
+# within its declaring workspace. Validate TypeScript + PostgreSQL gates before rollout.
+overrides:
+  drizzle-orm: 0.45.2
+  sharp: 0.35.5
+  pdfjs-dist: 6.2.108
+  tinypool: 2.1.2

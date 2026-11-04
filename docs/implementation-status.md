@@ -20,8 +20,15 @@ These are DEV implementations. Their provider, legal, financial, reliability, lo
 ## P7-02 CI groundwork (2026-11-04)
 - [x] New `.github/workflows/ci.yml` with read-only GitHub permission, PR-scoped concurrency, Node 24, pinned Corepack + pnpm from lockfile, Drizzle snapshot validation, monorepo unit/typecheck/Web build and disposable PostgreSQL 16 migration + tenant/staff/invoice/payment/maintenance/LINE/S3-mock HTTP smoke. See `docs/P7_CI_RUNBOOK.md`.
 - [x] Locally YAML parsed and environment fail-closed guards verified, API 76/76 unit tests, domain unit tests, TypeScript and Web production build PASS; `drizzle-kit check` PASS.
-- [ ] GitHub Actions remote jobs have not yet been observed passing; branch-protection, real lint, 80% coverage and Playwright browser E2E still pending.
+- [x] GitHub Actions run `41750529389` at commit `c908f1c`: both quality and clean-PostgreSQL integration/security jobs passed on hosted runners. CI toolchain fixes: Corepack 0.36.0 for pnpm 12 and dummy test ENV in quality job.
+- [x] ESLint 0 errors / 38 warnings, Vitest V8 measured API 29.28% lines and Domain 100% lines (74.35% branches). Dependency audit after workspace security overrides: 0 Critical / 0 High, 6 Moderate. See `docs/P7_DEPENDENCY_AUDIT.md`.
+- [ ] Coverage 80%, warnings/Moderate remediation, browser Playwright, branch-protection Required Checks and new CI after coverage/audit additions remain pending.
 - [ ] Concurrent P5 Bulk Billing uncommitted schema adds `invoices.billing_batch_run_id`; direct HTTP smoke against DEV migration 0016 responded 500 due missing column. This is schema drift from separate WIP (0017 not applied), NOT a deployed P1-05 regression. Do not apply pending migration or alter P5 working files from this CI session.
+
+## November 4, 2026 — phase audit, P1-05 soak and CI toolchain
+- Prior phases P0–P5 remain partial where real provider, legal, refund, deposit, security and browser acceptance gates are pending. Full block-by-block status: `docs/PHASE_COMPLETION_AUDIT.md`.
+- Independent authorization soak on an isolated API + disposable DEV synthetic data completed for 60 seconds at nominal 1 RPS: 60/60 expected HTTP statuses (40 allowed / 20 denied), 0 unexpected, p95 14 ms, p99 36 ms, isolated API RSS sample 236 MB stable, observed max DB connections 4. `docs/P1_P105_SOAK.md`. Not a production load signoff.
+- GitHub Actions `3432db1` failed before tests: Corepack 0.34.2 expects a legacy `pnpm.cjs` that pnpm 12.16.1 does not ship. Workflow upgraded to Corepack 0.36.0 and pushed as `a071448`; follow-up remote run still requires verification. No DEV service or shared proxy was restarted.
 
 ## Next work
 
