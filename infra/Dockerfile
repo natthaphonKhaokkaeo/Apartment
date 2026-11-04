@@ -1,7 +1,7 @@
 # DEV ONLY: production startup remains intentionally blocked by application security guards.
 FROM node:24-bookworm-slim AS build
 WORKDIR /workspace
-RUN corepack enable
+RUN npm install -g corepack@0.36.0 && corepack enable
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY apps/web/package.json apps/web/package.json
 COPY apps/api/package.json apps/api/package.json
@@ -16,7 +16,7 @@ RUN corepack pnpm --filter @apartment/web build
 FROM node:24-bookworm-slim AS api
 WORKDIR /workspace
 ENV NODE_ENV=development
-RUN corepack enable
+RUN npm install -g corepack@0.36.0 && corepack enable
 COPY --from=build /workspace /workspace
 EXPOSE 8088
 CMD ["corepack","pnpm","--filter","@apartment/api","start"]
