@@ -8,7 +8,7 @@ User decision: current VPS only. Independent offsite storage is not a DEV accept
 - Source dumps: /root/backups/apartment-postgres, 0700 directory, 0600 files, 14-day default retention.
 - Encrypted archives: /root/backups/apartment-local-archive, 0700 directory, age ciphertext + ciphertext SHA-256 + plaintext SHA-256, 0600 files, 30-day default retention.
 - Identity: /etc/apartment/backup-age.key, root:root 0600. Never commit, log or paste it in chat.
-- Configuration: /etc/apartment/backup.env, root:root 0600. APARTMENT_ARCHIVE_RETENTION_DAYS (1–3650), APARTMENT_BACKUP_MAX_AGE_HOURS (1–8760), APARTMENT_BACKUP_MAX_DISK_PERCENT (10–99). Explicit environment values override the file.
+- Configuration: /etc/apartment/backup.env, root:root 0600. APARTMENT_BACKUP_RETENTION_DAYS (1–3650, systemd backup environment), APARTMENT_ARCHIVE_RETENTION_DAYS (1–3650), APARTMENT_BACKUP_MAX_AGE_HOURS (1–8760), APARTMENT_BACKUP_MAX_DISK_PERCENT (10–99). Explicit environment values override the file.
 - The existing 03:30 Asia/Bangkok backup service now archives on successful backup via ExecStartPost. Independent 03:45 archive timer catches failed/partial retries. Hourly health timer checks disk, SHA-256 and freshness measured from dump creation filename, not encryption time.
 - Weekly Sunday 05:00 Asia/Bangkok restore timer decrypts to a temporary protected directory and restores to a disposable networkless PostgreSQL 16 container. Original plaintext need not exist. Temporary decrypted material and container are removed on exit.
 - flock prevents concurrent dump/archive jobs. Retention never deletes the currently verified archive. No deletion of source archives occurs during recovery.
