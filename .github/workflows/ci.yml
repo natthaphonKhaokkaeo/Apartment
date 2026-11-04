@@ -19,6 +19,15 @@ jobs:
     name: Unit, types, web build
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    env:
+      NODE_ENV: test
+      DATABASE_URL: postgresql://apartment:unused_ci_only@127.0.0.1:5432/apartment
+      LINE_CHANNEL_ID: ci-placeholder-no-real-provider
+      WEB_ORIGIN: http://localhost:5173
+      COOKIE_SECURE: "false"
+      LINE_OUTBOUND_MODE: disabled
+      LINE_WORKER_MODE: observe
+      LINE_WORKER_APPROVED: "false"
     steps:
       - uses: actions/checkout@v4
         with:
