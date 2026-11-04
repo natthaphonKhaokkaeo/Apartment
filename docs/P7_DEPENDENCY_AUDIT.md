@@ -35,7 +35,7 @@ CI now blocks future **High or Critical** pnpm audit advisories. Six **Moderate*
 
 ## Safety boundaries
 
-- DEV only, no production deploy.
+- DEV only, no production deploy. On 2026-11-04, patched API/observe-only Worker images were rebuilt from committed source and deployed in the Apartment-only DEV Compose project after a checksum-verified database backup. API/Web/Worker and PostgreSQL are Healthy internally; public HTTPS remains unavailable due to missing shared Traefik. See `docs/DEPLOY_DOKPLOY_DEV.md`.
 - No migration applied for concurrently uncommitted P5 Billing Batch migration 0017.
 - Existing Traefik/Dokploy infrastructure was not modified by this audit.
 - This is not a substitute for dependency ownership, license review, external provider testing or independent security acceptance.

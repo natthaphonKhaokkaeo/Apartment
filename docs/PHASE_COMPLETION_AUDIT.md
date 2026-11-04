@@ -20,6 +20,6 @@ Source of truth for checklist states: `docs/PHASES.md`. A completed unit impleme
 3. Coordinate migration 0017 with the session owning P5 Bulk Billing. Do **not** stage their uncommitted changes, apply that migration prematurely, or deploy a partial schema/API combination.
 4. Define policy for deposits, refunds, tax receipts, former-tenant access and data deletion with the product/legal owner before enabling financial side effects.
 5. Configure external LINE/LIFF, cloud object storage and bank-app QA through approved secrets management, then conduct actual-provider tests. Never put credentials in code, docs or chat.
-6. Confirm durable Traefik ACME certificate storage and offsite backups via authorized infrastructure maintenance without restarting shared services in an Apartment feature session.
+6. Public HTTPS is currently DOWN after reboot (TCP 443 unavailable; shared Traefik container absent). Confirm durable Traefik ACME certificate storage and offsite backups via separately authorized infrastructure maintenance without restarting shared services in an Apartment feature session.
 
 The missing items above are **not** considered DONE until there is fresh code, repeatable automated test evidence and required human/provider acceptance where applicable. No live LINE sending, real bank settlement or production cutover is authorized from this audit.
