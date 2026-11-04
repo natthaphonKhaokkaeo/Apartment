@@ -18,18 +18,18 @@ Overrides are centralized in `pnpm-workspace.yaml` so the other session's uncomm
 After `pnpm install --frozen-lockfile` and audited lockfile resolution:
 
 - `corepack pnpm audit --audit-level high --json`: **0 Critical, 0 High; 6 Moderate**.
-- `corepack pnpm test`: **76/76 API unit tests and 11/11 domain tests pass**.
+- `corepack pnpm test`: **76/76 API unit tests and 15/15 domain tests pass** (after 4 additional date/money/meter boundary tests).
 - `corepack pnpm typecheck`: **pass**.
 - `corepack pnpm --filter @apartment/web build`: **pass**.
-- `corepack pnpm lint`: **0 errors, 38 warnings**.
-- PostgreSQL integration and a clean GitHub-hosted CI run with these newly overridden versions still need to pass before treating this upgrade as DEV accepted.
+- `corepack pnpm lint`: **0 errors, 37 warnings**.
+- **Verified on GitHub-hosted Actions Run 41751709175 (commit `f9c9e54`): both quality and clean PostgreSQL integration/security jobs passed** with these overrides. No production deployment is implied.
 
 CI now blocks future **High or Critical** pnpm audit advisories. Six **Moderate** advisories still require triage and remediation; do not label the dependency tree fully vulnerability-free.
 
 ## Coverage measured, not waived
 
 - API Vitest unit coverage: **29.28% lines/statements**, **81.75% branches**, **67.76% functions**.
-- Domain Vitest unit coverage: **100% lines/statements**, **74.35% branches**, **100% functions**.
+- Domain Vitest unit coverage: **100% lines/statements**, **96.42% branches** (15 Domain tests), **100% functions**.
 - Integration HTTP smoke (separate child process) is not included in these Vitest unit coverage percentages; do **not** inflate claims by excluding relevant app routes from total measurement.
 - The overall P7 coverage requirement remains **OPEN** until meaningful total coverage reaches 80% and the CI threshold is enforced. Owner/tenant Playwright browser E2E remains OPEN.
 

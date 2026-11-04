@@ -13,11 +13,11 @@
 - Independent isolated database with a dedicated CI-only password. No access to the VPS runtime DB, Docker socket, object storage, or real tenant data.
 - `NODE_ENV=development` **only in the disposable CI PostgreSQL integration job** so the existing loopback-only S3 mock is permitted. This does **not** enable production runtime. LINE outbound is disabled, worker approval false.
 - GitHub Actions concurrency cancels obsolete runs per PR/ref to avoid waste.
-- ESLint and Vitest V8 coverage are installed and executed; **API line coverage is only 29.28%** and domain branch coverage 74.35%. ESLint currently reports 0 errors and 38 warnings. No Playwright test account/browser acceptance yet. This is **partial P7-02**, not an 80% coverage or browser acceptance claim. See `docs/P7_DEPENDENCY_AUDIT.md`.
+- ESLint and Vitest V8 coverage are installed and executed; **API line coverage is only 29.28%** and domain branch coverage 74.35%. ESLint currently reports 0 errors and 37 warnings. No Playwright test account/browser acceptance yet. This is **partial P7-02**, not an 80% coverage or browser acceptance claim. See `docs/P7_DEPENDENCY_AUDIT.md`.
 
 ## Verification and rollout
 
-Local checks: YAML parse, API/domain Unit Tests, ESLint, V8 coverage, `typecheck`, Web `build`, clean migration snapshot, isolated security soak and dependency audit. **GitHub Actions run 41750529389 (commit `c908f1c`) passed both jobs on GitHub-hosted runners**, including a clean disposable PostgreSQL 16 migration and all API smoke suites. The later addition of coverage/lint/audit/overrides requires a new remote run after its commit; branch-protection Required Checks are still pending.
+Local checks: YAML parse, API/domain Unit Tests, ESLint, V8 coverage, `typecheck`, Web `build`, clean migration snapshot, isolated security soak and dependency audit. **GitHub Actions run 41750529389 (commit `c908f1c`) passed both jobs on GitHub-hosted runners**, including a clean disposable PostgreSQL 16 migration and all API smoke suites. The later coverage/lint/audit/override job also passed on GitHub Actions Run 41751709175 (commit `f9c9e54`); branch-protection Required Checks are still pending.
 
 Any CI false positive must be fixed by changing the source/test configuration. Do not bypass failing tests or use no-verify flags.
 

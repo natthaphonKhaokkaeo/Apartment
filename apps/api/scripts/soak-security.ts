@@ -8,7 +8,7 @@ import {randomUUID} from "node:crypto";
 import {readFile} from "node:fs/promises";
 import {createServer} from "node:net";
 import {strict as assert} from "node:assert";
-import {eq,inArray} from "drizzle-orm";
+import {inArray} from "drizzle-orm";
 import {db,sqlClient} from "../src/db/client.js";
 import {auditLogs,memberships,organizations,properties,propertyStaffGrants,rooms,sessions,users}
  from "../src/db/schema.js";

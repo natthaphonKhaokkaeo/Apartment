@@ -4,7 +4,7 @@ Source of truth for checklist states: `docs/PHASES.md`. A completed unit impleme
 
 | Phase | Observed implementation | Open gates |
 | --- | --- | --- |
-| P0 Foundation | Monorepo, Fastify/React/PostgreSQL, migrations, DEV Compose, core auth and test suites | CI remote green + branch enforcement, coverage >=80%, lint/dependency scanning, proven migration rollback |
+| P0 Foundation | Monorepo, Fastify/React/PostgreSQL, migrations, DEV Compose, core auth and test suites | CI 2/2 remote green, lint and high/critical dependency audit now present; branch enforcement, API line coverage >=80%, remaining Moderate advisories and proven migration rollback pending |
 | P1 Property/Billing | Room/lease/bill, rate history, meter replacement, staff scope, move-in/out and maintenance in DEV | Deposits/refunds/former-tenant record policy, owner/tenant browser UAT, legally verified meter/tariff evidence, duration/throughput acceptance |
 | P2 Tenant/LIFF | Hashed invitation, tenant claim and owner approval, access-isolated tenant billing UI | Actual LINE Channel ID, LIFF ID, linked sandbox test users and real mobile/browser callback/login UAT |
 | P3 Payment | PromptPay QR builder, manual owner ledger, bounded private/S3-mock evidence, informational PDF, two-owner adjustments | Real recipient confirmation in bank app; live S3/IAM/CORS; actual ClamAV; refund/settlement policy; receipt/VAT/tax/retention legal review |
