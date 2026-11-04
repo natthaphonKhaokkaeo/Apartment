@@ -17,6 +17,12 @@ P0 foundation; P1-01a move-out, P1-02 effective-dated property rates, P1-03a/b r
 
 These are DEV implementations. Their provider, legal, financial, reliability, load, or Production gates remain open where listed in `docs/PHASES.md`.
 
+## P7-02 CI groundwork (2026-11-04)
+- [x] New `.github/workflows/ci.yml` with read-only GitHub permission, PR-scoped concurrency, Node 24, pinned Corepack + pnpm from lockfile, Drizzle snapshot validation, monorepo unit/typecheck/Web build and disposable PostgreSQL 16 migration + tenant/staff/invoice/payment/maintenance/LINE/S3-mock HTTP smoke. See `docs/P7_CI_RUNBOOK.md`.
+- [x] Locally YAML parsed and environment fail-closed guards verified, API 76/76 unit tests, domain unit tests, TypeScript and Web production build PASS; `drizzle-kit check` PASS.
+- [ ] GitHub Actions remote jobs have not yet been observed passing; branch-protection, real lint, 80% coverage and Playwright browser E2E still pending.
+- [ ] Concurrent P5 Bulk Billing uncommitted schema adds `invoices.billing_batch_run_id`; direct HTTP smoke against DEV migration 0016 responded 500 due missing column. This is schema drift from separate WIP (0017 not applied), NOT a deployed P1-05 regression. Do not apply pending migration or alter P5 working files from this CI session.
+
 ## Next work
 
 1. Run a larger bounded load profile and independent security/load acceptance for P1-05.

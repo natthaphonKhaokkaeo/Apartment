@@ -14,7 +14,7 @@
 ## Current checkpoint (live)
 
 - **Current phase:** P1-05 verification gates (IN PROGRESS). P1-04 staff access and P1-01b/P5 maintenance tickets and room state are implemented and verified against PostgreSQL/HTTP. P1-03c meter continuity and MOVE_OUT partial remain DEV complete; legal evidence/deposit acceptance OPEN.
-- **Immediate task:** continue with a larger bounded load profile and independent security/load acceptance. P1-05 (`c0dedbc`) and maintenance (`4f400b2`) are deployed in the existing Apartment DEV Compose project. Keep LINE outbound disabled; deposit workflows and LINE Login/LIFF remain gated on policy/provider acceptance.
+- **Immediate task:** P1-05 final longer monitored soak, independent security/load acceptance and P7-02 CI rollout verification. P7-02 PR test workflow implemented locally, with GitHub-hosted run not yet confirmed; P1-05 (`c0dedbc`) and maintenance (`4f400b2`) remain DEV-deployed. P5 Bulk Billing has concurrent uncommitted implementation in the shared tree and MUST NOT be reset, staged, migrated or deployed from this CI work. Keep LINE outbound disabled; deposit workflows and LINE Login/LIFF remain gated on policy/provider acceptance.
 - **Last verified (2026-11-03):** Full unit suite 87/87 (domain 11, API 76), monorepo typecheck and Web production build pass; P1-05 PostgreSQL HTTP/concurrency smoke passed (76 requests; 16 same-key idempotency, 16 distinct-key conflict, 32 parallel previews; p95 395/282/275 ms; follow-up 64-way preview p95 608 ms with 64/64 HTTP 200); P5 maintenance PostgreSQL HTTP smoke passed. Backup `apartment-20261103T153805Z-25493.dump` SHA verified and isolated restore test passed (30 public tables at backup time). Migration 0016 applied; current public base-table count 31. Dokploy Compose API/Web/observer healthy; public HTTPS `/` and `/readyz` return 200; unauthenticated tenant maintenance route returns 401. Observer remains observe-only, approval false, outbound disabled, dispatched=0. See `docs/DEPLOY_DOKPLOY_DEV.md`.
 - **Deployment:** Apartment DEV only, existing Compose project `apartment-dokploy-dev-ajcnbm`, web loopback-bound at 127.0.0.1:18089. Public HTTPS currently responds, but shared Traefik ACME persistence/renewal remains unverified. Do not restart shared Traefik as part of Apartment maintenance; coordinate separate safe infrastructure work for durable ACME storage and other domains.
 - **Git:** `.serena/` is user data; preserve and leave untracked. User authorized commit, push and DEV deployment for this plan. See `git log -1 --oneline` for latest commit.
@@ -172,7 +172,10 @@
 ## Phase P7 — Production security, QA & cutover (NOT STARTED)
 
 - [ ] P7-01 Independent security review: CSRF, tenant IDOR, SSRF, auth/session rotation, role revoke
-- [ ] P7-02 CI lint, tests, ≥80% meaningful coverage, API integration and Playwright browser E2E
+- [ ] P7-02 CI lint, tests, ≥80% meaningful coverage, API integration and Playwright browser E2E (PARTIAL)
+  - [x] GitHub Actions PR/push workflow: pinned Node/Corepack/pnpm, frozen lockfile, Drizzle migration snapshot consistency, API/domain unit tests, typecheck, Web production build, and disposable PostgreSQL 16 migration + HTTP security/finance/LINE/S3-mock tests. See `docs/P7_CI_RUNBOOK.md`.
+  - [ ] Observe a successful GitHub-hosted CI run and enforce required checks in branch protection; no CI-run success claim based only on local YAML validation.
+  - [ ] Add real linter, measured ≥80% meaningful coverage and Playwright owner/tenant browser E2E; external provider/user acceptance remains separately gated.
 - [ ] P7-03 Multi-tenant isolation tests incl. missing, disabled, suspended membership/lease/property
 - [ ] P7-04 Privacy, legal and utility tariff signoff; Thai tenancy, tax/receipt compliance
 - [ ] P7-05 Backup/restore proof, migrations with rollback plan, monitoring / alerting
