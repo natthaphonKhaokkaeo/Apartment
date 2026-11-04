@@ -3,9 +3,10 @@
 set -Eeuo pipefail
 umask 077
 DB_CONTAINER=apartment-dev-postgres-1
-BACKUP_DIR=/root/backups/apartment-postgres
+BACKUP_DIR="${APARTMENT_BACKUP_DIR:-/root/backups/apartment-postgres}"
 LOCK_FILE=/run/lock/apartment-postgres-backup.lock
-RETENTION_DAYS=14
+RETENTION_DAYS="${APARTMENT_BACKUP_RETENTION_DAYS:-14}"
+[[ "$RETENTION_DAYS" =~ ^[1-9][0-9]*$ && "$RETENTION_DAYS" -le 3650 ]] || { echo "ERROR: invalid retention" >&2; exit 2; }
 COMMAND=backup
 if (( $# > 0 )); then COMMAND="$1"; fi
 if (( EUID != 0 )); then echo 'ERROR: root required' >&2; exit 2; fi
@@ -50,6 +51,9 @@ case "$COMMAND" in
   find "$BACKUP_DIR" -maxdepth 1 -type f -name 'apartment-*.dump' \
     -mtime "+$((RETENTION_DAYS - 1))" -print0 |
     while IFS= read -r -d '' archive; do
+      # The newly verified backup is never eligible for deletion.
+      [[ "$archive" == "$BACKUP_DIR/$name" ]] && continue
+      [[ "$(basename "$archive")" =~ ^apartment-[0-9]{8}T[0-9]{6}Z-[0-9]+\.dump$ ]] || continue
       rm -f -- "$archive" "$archive.sha256"
     done
   printf 'BACKUP_OK retention_days=%s\n' "$RETENTION_DAYS"

@@ -1,0 +1,12 @@
+[Unit]
+Description=Apartment encrypted local backup isolated restore drill
+After=docker.service
+Requires=docker.service
+OnFailure=apartment-backup-alert@%n.service
+[Service]
+Type=oneshot
+User=root
+UMask=0077
+ExecStart=/usr/bin/bash /root/Projects/Apartment/infra/local-archive-apartment-postgres.sh restore-test
+TimeoutStartSec=10min
+NoNewPrivileges=true

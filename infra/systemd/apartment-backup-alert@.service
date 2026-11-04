@@ -1,0 +1,5 @@
+[Unit]
+Description=Apartment backup operational failure alert
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/logger -p user.err -t apartment-backup BACKUP_ALERT failed_unit=%i inspect_with_systemctl_and_journalctl

@@ -1,0 +1,7 @@
+[Unit]
+Description=Weekly Apartment encrypted restore verification
+[Timer]
+OnCalendar=Sun *-*-* 05:00:00 Asia/Bangkok
+Persistent=true
+[Install]
+WantedBy=timers.target
