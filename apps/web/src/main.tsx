@@ -1,5 +1,6 @@
 import {PrivacyCenter} from "./components/PrivacyCenter.js";
 import {PlatformAdminCenter} from "./components/PlatformAdminCenter.js";
+import {RoomRateOverrides} from "./components/RoomRateOverrides.js";
 import {MeterEvidenceCenter} from "./components/MeterEvidenceCenter.js";
 import {DepositCenter} from "./components/DepositCenter.js";
 import {parseSatang} from "./money.js";
@@ -198,7 +199,9 @@ function App(){
   await loadProps(orgId);notify("เพิ่มหอพักเรียบร้อย");
  });}
  async function createRoom(form:FormData){if(!property)return;await run(async()=>{
-  await post("/properties/"+property.id+"/rooms",{number:String(form.get("number")),floor:Number(form.get("floor"))});
+  const roomRate=(key:string)=>form.get(key+"Default")==="on"?null:satang(String(form.get(key)??""));
+  await post("/properties/"+property.id+"/rooms",{number:String(form.get("number")),floor:Number(form.get("floor")),
+   rentOverrideSatang:roomRate("rent"),waterOverrideSatang:roomRate("water"),electricOverrideSatang:roomRate("electric")});
   await loadProperty(property.id);notify("เพิ่มห้องพักแล้ว");
  });}
  async function overrideRoom(form:FormData){if(!property)return;await run(async()=>{
@@ -298,7 +301,7 @@ function App(){
     <>
     {orgs.length===0&&section==="overview"&&<Panel title="สร้างบัญชีเจ้าของหอพัก" subtitle="ผู้ใช้หนึ่งคนสามารถมีหลายบัญชีและหลายหอพักได้">{form(createOrg,<Field label="ชื่อบัญชีเจ้าของ"><input name="name" required minLength={2} placeholder="เช่น บริษัท บ้านรุ่งเรือง"/></Field>)}</Panel>}
     {orgId&&props.length===0&&!isStaff&&section!=="tenant"&&<Panel title="เพิ่มหอพักแห่งแรก" subtitle="ตั้งราคา Master ที่ทุกห้องจะได้รับโดยอัตโนมัติ">{form(createProperty,<><Field label="ชื่อหอพัก"><input name="name" required placeholder="บ้านสุขใจ"/></Field><Field label="ที่อยู่"><input name="address" placeholder="ที่อยู่หอพัก"/></Field>
-      <div className="cols3"><Field label="ค่าเช่า / เดือน (บาท)"><input name="rent" type="number" step=".01" min="0" required defaultValue="4000"/></Field><Field label="ค่าน้ำ / หน่วย (บาท)"><input name="water" type="number" step=".01" min="0" required defaultValue="18"/></Field><Field label="ค่าไฟ / หน่วย (บาท)"><input name="electric" type="number" step=".01" min="0" required defaultValue="4"/></Field></div>
+      <div className="cols3"><Field label="ค่าเช่า / เดือน (บาท) · ค่าเริ่มต้นหอพัก (แก้รายห้องได้)"><input name="rent" type="number" step=".01" min="0" required defaultValue="4000"/></Field><Field label="ค่าน้ำ / หน่วย (บาท) · ค่าเริ่มต้นหอพัก (แก้รายห้องได้)"><input name="water" type="number" step=".01" min="0" required defaultValue="18"/></Field><Field label="ค่าไฟ / หน่วย (บาท) · ค่าเริ่มต้นหอพัก (แก้รายห้องได้)"><input name="electric" type="number" step=".01" min="0" required defaultValue="4"/></Field></div>
       <Field label="รอบบิล"><select name="cadence" defaultValue="MONTHLY"><option value="MONTHLY">รายเดือน</option><option value="SEMI_MONTHLY">เดือนละ 2 รอบ</option><option value="EVERY_15_DAYS">ทุก 15 วัน (ต้องระบุ Anchor)</option></select></Field><Field label="วันที่ Anchor (เมื่อใช้ทุก 15 วัน)"><input name="anchor" type="date"/></Field></>)}</Panel>}
     {property&&section==="overview"&&<>
       <div className="hero"><div><span className="hero-kicker">YOUR PROPERTY AT A GLANCE</span><h2>สวัสดี, {me.name} <span>✦</span></h2><p>จัดการ {property.name} ให้เป็นเรื่องง่ายในทุกวัน</p></div><div className="hero-building"><Building2 size={68}/></div></div>
@@ -309,7 +312,7 @@ function App(){
        <div className="stat"><span>ยอดออกบิลสะสม <Wallet size={17}/></span><strong>{money(overview?.totalBilledSatang)}</strong><small>ยังไม่ใช่ยอดรับชำระ</small></div>
       </div><Panel title="ภาพรวมห้องพัก" subtitle="สถานะห้องทั้งหมดในหอพัก"><div className="room-grid">{rooms.map(r=><div className="room-tile" key={r.id}><div className="room-icon"><DoorOpen size={19}/></div><b>{r.number}</b><small>ชั้น {r.floor}</small><span className={"pill "+(r.status==="OCCUPIED"?"occupied":"vacant")}>{r.status==="OCCUPIED"?"มีผู้เช่า":r.status==="AVAILABLE"?"ว่าง":"ซ่อมบำรุง"}</span></div>)}</div>{rooms.length===0&&<p className="empty">ยังไม่มีห้องพัก เริ่มสร้างจากเมนูห้องพัก</p>}</Panel>
       <Panel title="ภาพรวมยอดเรียกเก็บและรับชำระ" subtitle="ยอดอนุมัติเป็นการตรวจสอบด้วยมือของเจ้าของหอพัก ไม่ใช่หลักฐานจาก Bank API"><div className="payment-figures"><div><small>อนุมัติรับชำระสะสม</small><strong>{money(overview?.manuallyApprovedSatang)}</strong></div><div><small>ยอดบิลคงเหลือทั้งหมด</small><strong>{money(overview?.outstandingSatang)}</strong></div><div><small>ยอดเลยกำหนด ({overview?.overdueInvoiceCount??0} ใบ)</small><strong>{money(overview?.overdueSatang)}</strong></div></div></Panel>
-      <div className="two-col"><Panel title="ค่าบริการเริ่มต้น" subtitle="ห้องพักสามารถกำหนดราคาเฉพาะของตัวเอง"><div className="rate-row"><span>ค่าเช่ารายเดือน</span><b>{money(property.rentSatang)}</b></div><div className="rate-row"><span>ค่าน้ำ / หน่วย</span><b>{money(property.waterSatangPerUnit)}</b></div><div className="rate-row"><span>ค่าไฟ / หน่วย</span><b>{money(property.electricSatangPerUnit)}</b></div></Panel>
+      <div className="two-col"><Panel title="ค่าบริการเริ่มต้น" subtitle="ค่าเช่าและค่าน้ำไฟของหอพักเป็นค่าเริ่มต้น ห้องที่ราคาแตกต่างสามารถกำหนดอัตรารายห้องได้"><div className="rate-row"><span>ค่าเช่ารายเดือน</span><b>{money(property.rentSatang)}</b></div><div className="rate-row"><span>ค่าน้ำ / หน่วย</span><b>{money(property.waterSatangPerUnit)}</b></div><div className="rate-row"><span>ค่าไฟ / หน่วย</span><b>{money(property.electricSatangPerUnit)}</b></div></Panel>
       <Panel title="สถานะออกบิล" subtitle="ความพร้อมก่อนส่งใบแจ้งหนี้"><div className="rate-row"><span>รอบบิล</span><b>{property.cadence}</b></div><div className="rate-row"><span>การยืนยันอัตราค่าน้ำไฟ</span><span className={"pill "+(property.complianceReviewedAt?"vacant":"occupied")}>{property.complianceReviewedAt?"ตรวจแล้ว":"รออนุมัติ"}</span></div><div className="rate-row"><span>ใบแจ้งหนี้ที่ออก</span><b>{overview?.issuedInvoices??0} ใบ</b></div></Panel></div>
       {!isStaff&&<PropertyOperationsReports api={api} propertyId={property.id}/>}
     </>}
@@ -318,7 +321,7 @@ function App(){
        <b>{r.number}</b><small>ชั้น {r.floor}</small><span className="pill">{r.status}</span>
       </div>)}</div>{rooms.length===0&&<p className="empty">ยังไม่มีห้องพัก</p>}
      </Panel>}
-    {property&&section==="rooms"&&!isStaff&&<><Panel title="เพิ่มห้องพักใหม่" subtitle="ห้องใหม่จะใช้ราคา Master จนกว่าจะกำหนดราคาเฉพาะห้อง">{form(createRoom,<div className="cols2"><Field label="หมายเลขห้อง"><input name="number" required placeholder="A101"/></Field><Field label="ชั้น"><input name="floor" type="number" min="0" defaultValue="1" required/></Field></div>)}</Panel>
+    {property&&section==="rooms"&&!isStaff&&<><Panel title="เพิ่มห้องพักใหม่" subtitle="ค่าเช่าและค่าน้ำไฟเริ่มจากค่าเริ่มต้นของหอพัก และปรับแยกเฉพาะห้องได้">{form(createRoom,<><div className="cols2"><Field label="หมายเลขห้อง"><input name="number" required placeholder="A101"/></Field><Field label="ชั้น"><input name="floor" type="number" min="0" defaultValue="1" required/></Field></div><RoomRateOverrides property={property}/></>)}</Panel>
       <Panel title="รายการห้องพัก" subtitle="นัดเปลี่ยนอัตรารายห้องตามวันที่เริ่มรอบบิล: เว้นว่างเพื่อสืบทอด Master"><div className="room-list">{rooms.map(r=><details className="room-detail" key={r.id}><summary><span className="room-number"><DoorOpen size={20}/>{r.number} <small>ชั้น {r.floor}</small></span><span className={"pill "+(r.status==="OCCUPIED"?"occupied":"vacant")}>{r.status==="OCCUPIED"?"มีผู้เช่า":r.status==="AVAILABLE"?"ว่าง":"ซ่อมบำรุง"}</span><ChevronDown size={17}/></summary>
       {orgRole==="OWNER"&&form(overrideRoom,<><input name="roomId" type="hidden" value={r.id}/><div className="cols3"><Field label="ค่าเช่า (บาท)"><input name="rent" type="number" min="0" step=".01" placeholder={String(property.rentSatang/100)} defaultValue={r.rentOverrideSatang===null?"":String(r.rentOverrideSatang/100)}/></Field><Field label="ค่าน้ำ (บาท)"><input name="water" type="number" min="0" step=".01" placeholder={String(property.waterSatangPerUnit/100)} defaultValue={r.waterOverrideSatang===null?"":String(r.waterOverrideSatang/100)}/></Field><Field label="ค่าไฟ (บาท)"><input name="electric" type="number" min="0" step=".01" placeholder={String(property.electricSatangPerUnit/100)} defaultValue={r.electricOverrideSatang===null?"":String(r.electricOverrideSatang/100)}/></Field></div><div className="cols3"><Field label="วันที่มีผล (วันเริ่มรอบบิล)">
        <input name="effectiveFrom" required type="date" min={dateNow()}/>

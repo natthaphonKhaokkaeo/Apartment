@@ -83,13 +83,13 @@ export function PropertyRateSettings({propertyId,cadence,current,api,post,onSave
    <div className="cols3">
     <label className="field"><span>วันที่เริ่มใช้อัตราใหม่</span>
      <input type="date" name="effectiveFrom" required min={todayBangkok()}/></label>
-    <label className="field"><span>ค่าเช่า / เดือน (บาท)</span>
+    <label className="field"><span>ค่าเช่า / เดือน (บาท) · ค่าเริ่มต้นหอพัก (กำหนดแยกรายห้องได้)</span>
      <input name="rent" type="number" min="0" step=".01" required
       defaultValue={(current.rentSatang/100).toFixed(2)}/></label>
-    <label className="field"><span>ค่าน้ำ / หน่วย (บาท)</span>
+    <label className="field"><span>ค่าน้ำ / หน่วย (บาท) · ค่าเริ่มต้นหอพัก (กำหนดแยกรายห้องได้)</span>
      <input name="water" type="number" min="0" step=".01" required
       defaultValue={(current.waterSatangPerUnit/100).toFixed(2)}/></label>
-    <label className="field"><span>ค่าไฟ / หน่วย (บาท)</span>
+    <label className="field"><span>ค่าไฟ / หน่วย (บาท) · ค่าเริ่มต้นหอพัก (กำหนดแยกรายห้องได้)</span>
      <input name="electric" type="number" min="0" step=".01" required
       defaultValue={(current.electricSatangPerUnit/100).toFixed(2)}/></label>
    </div>

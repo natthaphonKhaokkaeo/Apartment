@@ -2,6 +2,14 @@
 
 
 
+
+## 2026-11-05 room-level default/override rates (implemented, QA PASS; DEV deploy pending)
+
+- P1/P6-ROOM-RATES: the new-room form now displays the property's rent, water and electricity rates as selected defaults with disabled amount inputs. Clearing an individual default checkbox enables that room's amount field. Mixed default/override values are supported.
+- Room creation sends explicit integer satang overrides, and sends `null` for each rate left on the property's default. This uses the existing nullable room rate fields; no schema migration is needed. Existing effective-dated rate changes remain available for later adjustments.
+- Property creation and property-rate settings now label rent, water and electricity as property defaults that may be overridden per room.
+- Verification: Playwright property/room workflow passes on desktop and mobile 390px/320px; E2E 36/36; API 285/285; domain 15/15; TypeScript and ESLint pass. The browser test verifies 4,500 THB rent and 5.25 THB electricity become 450,000 and 525 satang, while default water remains `null`.
+
 ## 2026-11-05 platform admin management + Super Admin LINE Rich Menu (DEV deployed and provider-provisioned)
 
 - P0/P2/P6-PLATFORM-ADMIN: added authenticated platform-user search and role-change API plus responsive Super Admin UI. Role changes are audited, revoke active sessions, require active LINE-verified accounts, and serialize demotions to protect the last active Super Admin. Bootstrap admin and self-demotion are protected.
