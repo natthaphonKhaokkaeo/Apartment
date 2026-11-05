@@ -425,3 +425,7 @@ Implementation verified: sanitized private image upload/list/download on mainten
 ## 2026-11-05 latest continuation
 
 `003c335` maintenance attachment feature is pushed and deployed to DEV. Local API/domain/browser/PostgreSQL coverage, typecheck/lint and isolated migration rollback passed. Backup encryption/checksum/retention/monitoring/restore and public DEV smoke also passed. Continue implementation backlog before UAT; prioritize verifiable code gaps (financial reporting/workflows, remaining P1 lifecycle and P6 accessibility) and reconcile outdated phase checkboxes before claiming completion. Keep LINE observer-only and outbound disabled; do not treat same-VPS backup as host-loss DR.
+
+### Latest VPS follow-up
+
+Branch `main` is pushed through `57706b1`; only a Playwright locator changed and PostgreSQL browser workflows passed 24/24. Rebuild succeeded, but the deploy script failed its public HTTPS check and safely rolled back app images to `003c335` (API/Web/observer healthy; DB untouched). DNS resolves but no host proxy/Nginx/80/443 listener was found. Diagnose/restore the authorized proxy/ACME route before retry; do not restart shared Traefik blindly. LINE access token is valid and current webhook URL matches DEV; no active org/OA binding exists, so keep outbound disabled/worker observe until an owner org is provisioned and admin binding/consent gates pass.

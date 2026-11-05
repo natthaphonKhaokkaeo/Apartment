@@ -225,3 +225,7 @@ Implementation verified: sanitized private image upload/list/download on mainten
 ## 2026-11-05 continuation update
 
 Latest DEV commit: `003c335f330d63cdf851cf2f70f22c2f113efbb1` (maintenance private attachments). Build/deploy completed; encrypted local pre-deploy backup and isolated restore passed; migrations/observer safety and public web/API readiness smoke passed. Attachment browser workflow passed at desktop, 390px and 320px. Code completion remains in progress; do not infer full phase/UAT/production readiness from this deployment.
+
+## Deployment and LINE configuration follow-up — 2026-11-05
+
+Commit `57706b1` (test selector only) is pushed. Its DEV deploy attempt was rolled back by the deployment script after public TCP/443 failed; runtime revision remains `003c335` and API/Web/observer are healthy. No local proxy or Nginx listener was running, so public HTTPS smoke remains blocked. LINE credentials are present and validated with a read-only Bot Info request; the LINE Console webhook is configured to the Apartment DEV callback. No active organization/OA binding exists; outbound LINE remains safely disabled.
