@@ -33,6 +33,23 @@ export function isMaintenanceTicketOverdue(
   !["RESOLVED","CLOSED","CANCELLED"].includes(status);
 }
 
+export function summarizeMaintenanceSla(
+ tickets:readonly {status:Status;dueAt:Date|null}[],now=new Date()
+){
+ const byStatus:Partial<Record<Status,number>>={};
+ let open=0,overdue=0,dueWithin24Hours=0,missingDueAt=0;
+ const terminal=new Set<Status>(["RESOLVED","CLOSED","CANCELLED"]);
+ for(const ticket of tickets){
+  byStatus[ticket.status]=(byStatus[ticket.status]??0)+1;
+  if(terminal.has(ticket.status)) continue;
+  open++;
+  if(ticket.dueAt===null){missingDueAt++;continue;}
+  if(isMaintenanceTicketOverdue(ticket.dueAt,ticket.status,now)) overdue++;
+  else if(ticket.dueAt.getTime()<=now.getTime()+24*60*60*1000) dueWithin24Hours++;
+ }
+ return {total:tickets.length,open,overdue,dueWithin24Hours,missingDueAt,byStatus};
+}
+
 const ownerCreate=z.object({
  roomId:z.uuid().optional().nullable(),
  title:z.string().trim().min(3).max(160),

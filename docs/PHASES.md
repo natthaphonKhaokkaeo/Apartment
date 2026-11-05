@@ -247,6 +247,7 @@ Recovery-key operator export/custody not yet confirmed. Real LINE dispatch is st
 
 - [ ] P5-01 Monthly and 15-day scheduled bulk invoices (preview → approval → batch process)
 - [ ] P5-02 Maintenance tickets and room status workflow; files, notifications, SLA (IN PROGRESS — partial DEV)
+  - [x] Summary-only SLA report endpoint; property authorization, no-store response, overdue/due-soon/missing-deadline counts without tenant descriptions; PostgreSQL smoke + unit tests pass (2026-11-05)
   - [x] Tenant/owner tickets, workflow states, audit, due-time/overdue display, room MAINTENANCE entry and guarded return; migration 0016 and service tests. See docs/P5_MAINTENANCE_TICKETS.md.
   - [x] PostgreSQL authorization/lifecycle smoke and migration rollout verified; see `docs/DEPLOY_DOKPLOY_DEV.md`
   - [ ] Browser QA, private files/attachments, SLA policy/reports, consent-bound notifications and independent review
@@ -351,3 +352,8 @@ You are continuing the Apartment SaaS project on **/root/Projects/Apartment** (D
 ## Verified checkpoint — 2026-11-05
 
 Candidate `4bdc99157f9a93d8e019378de4355f5aecb8817f` is committed on `main` and deployed to Dokploy DEV. Public health/readiness and web return200, unsigned webhook plus unauthenticated privacy endpoints return401. API/Web/observer healthy; PostgreSQL not restarted; privacy migration0020 deployed. Pre-deploy encrypted local backup and isolated restore drill PASS. Full local gates PASS: unit262/262, domain15/15 (100%), API unit-only40.08%, PostgreSQL HTTP c8 87.41% across68 files, mock browser33/33, real backend browser24/24, migration rollback, lint/typecheck and no critical/high dependency findings. Remaining code/UAT work and external provider verification remain open; this is not 100% complete or production approved.
+
+
+## Continuation checkpoint — 2026-11-05
+
+Code delta in progress: property-scoped summary-only maintenance SLA endpoint added. Authorization reuses `requireProperty`; response is private/no-store and exposes counts only. Unit test, PostgreSQL smoke, lint and typecheck pass; full run: API263 tests, PostgreSQL c8 87.45%, mock browser33/33, real-backend browser24/24. Commit and deployment pending final combined gate. Remaining maintenance attachments/configurable SLA policy and other phase backlog tasks are still open; no 100% claim.

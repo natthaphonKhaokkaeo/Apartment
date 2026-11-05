@@ -23,7 +23,7 @@ NOT 100% DEV READY. No defensible overall percentage is asserted while canonical
 
 Deployed release includes integer-satang frontend parsing, scoped owner/staff/tenant APIs, immutable invoicing, concurrent bulk billing, private sanitized meter photos, persisted owner anomaly assessments, immutable manual deposit receipts, distinct active OWNER review/deductions, consent-bound generic repair notifications and fail-closed invitation notification purpose.
 
-Candidate adds own profile request/cancellation, trusted platform-admin review and explicit profile-only acknowledgement; default-disabled server policy gate; synthetic guarded profile anonymization preserving financial records; serialized account disable vs tenant approval; active OWNER/account/organization recheck on approval; Manager UI restriction; actual backend maintenance/payment/profile browser scenarios. Actual profile erasure is not enabled or executed on DEV.
+Candidate adds owner-scoped summary-only maintenance SLA reporting (overdue, due-soon, missing-deadline and status counts, without tenant description exposure), own profile request/cancellation, trusted platform-admin review and explicit profile-only acknowledgement; default-disabled server policy gate; synthetic guarded profile anonymization preserving financial records; serialized account disable vs tenant approval; active OWNER/account/organization recheck on approval; Manager UI restriction; actual backend maintenance/payment/profile browser scenarios. Actual profile erasure is not enabled or executed on DEV.
 
 ## 4. Files changed
 
@@ -107,3 +107,8 @@ IMPLEMENTATION COMPLETE: NO; remaining code and UAT items are listed in section 
 DEV DEPLOYED: YES, commit 4bdc991; API/Web/observer healthy, PostgreSQL not restarted.
 DEV UAT VERIFIED: PARTIAL; automated workflows pass, real LINE operator callback/UAT is not verified.
 PRODUCTION APPROVED: NO.
+
+
+## Continued code work — 2026-11-05
+
+Added `GET /v1/properties/:propertyId/maintenance-tickets/sla-report`. It reuses the property authorization gate, returns aggregate counts only, and sets `Cache-Control: private, no-store`. Red/green unit test passed; PostgreSQL smoke verifies owner access, cross-property403 and tenant403. Full current verification: API unit tests263 passed; PostgreSQL HTTP coverage87.45% (5715/6535); mocked browser33/33; real-backend browser24/24; TypeScript and ESLint pass. This delta is not yet committed or deployed. Maintenance private attachments and business-configured SLA policies remain open code tasks.

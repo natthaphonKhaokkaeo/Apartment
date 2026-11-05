@@ -1,6 +1,6 @@
 import {describe,expect,it} from "vitest";
 import {
- assertMaintenanceTransition,isMaintenanceTicketOverdue
+ assertMaintenanceTransition,isMaintenanceTicketOverdue,summarizeMaintenanceSla
 } from "../src/services/maintenance-tickets.js";
 
 describe("maintenance ticket workflow rules",()=>{
@@ -27,5 +27,16 @@ describe("maintenance ticket workflow rules",()=>{
   expect(isMaintenanceTicketOverdue(future,"OPEN",now)).toBe(false);
   expect(isMaintenanceTicketOverdue(due,"RESOLVED",now)).toBe(false);
   expect(isMaintenanceTicketOverdue(null,"OPEN",now)).toBe(false);
+ });
+ it("summarizes overdue, due-soon, missing-deadline and terminal tickets without leaking descriptions",()=>{
+  const now=new Date("2026-11-05T12:00:00Z");
+  const result=summarizeMaintenanceSla([
+   {status:"OPEN",dueAt:new Date("2026-11-05T11:00:00Z")},
+   {status:"ACKNOWLEDGED",dueAt:new Date("2026-11-05T13:00:00Z")},
+   {status:"IN_PROGRESS",dueAt:null},
+   {status:"CLOSED",dueAt:new Date("2026-11-05T10:00:00Z")}
+  ],now);
+  expect(result).toEqual({total:4,open:3,overdue:1,dueWithin24Hours:1,missingDueAt:1,byStatus:{OPEN:1,ACKNOWLEDGED:1,IN_PROGRESS:1,CLOSED:1}});
+  expect(Object.keys(result)).toEqual(["total","open","overdue","dueWithin24Hours","missingDueAt","byStatus"]);
  });
 });

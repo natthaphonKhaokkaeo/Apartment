@@ -4,11 +4,19 @@ import {requireActor,requireProperty} from "../security.js";
 import {
  createOwnerMaintenanceTicket,createTenantMaintenanceTicket,
  enterRoomMaintenance,
- listPropertyMaintenanceTickets,listTenantMaintenanceTickets,
+ listPropertyMaintenanceTickets,listTenantMaintenanceTickets,summarizeMaintenanceSla,
  returnRoomFromMaintenance,updateMaintenanceTicket
 } from "../services/maintenance-tickets.js";
 
 export async function registerMaintenanceTicketRoutes(app:FastifyInstance){
+ app.get("/v1/properties/:propertyId/maintenance-tickets/sla-report",async(req,reply)=>{
+  const actor=await requireActor(req);
+  const {propertyId}=z.object({propertyId:z.uuid()}).parse(req.params);
+  const property=await requireProperty(actor,propertyId);
+  const tickets=await listPropertyMaintenanceTickets(property.id,property.organizationId);
+  reply.header("cache-control","private, no-store");
+  return {generatedAt:new Date().toISOString(),...summarizeMaintenanceSla(tickets)};
+ });
  app.get("/v1/properties/:propertyId/maintenance-tickets",async(req,reply)=>{
   const actor=await requireActor(req);
   const {propertyId}=z.object({propertyId:z.uuid()}).parse(req.params);

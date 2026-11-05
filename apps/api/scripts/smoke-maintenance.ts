@@ -86,6 +86,11 @@ async function main(){
   tenantToken)).status,403);
  const list=await request("/v1/properties/"+property.id+"/maintenance-tickets",ownerToken);
  assert.equal(list.status,200);assert.ok(list.body.some((r:any)=>r.id===created.body.id));
+ const sla=await request("/v1/properties/"+property.id+"/maintenance-tickets/sla-report",ownerToken);
+ assert.equal(sla.status,200);assert.equal(sla.body.total,list.body.length);
+ assert.equal(typeof sla.body.overdue,"number");
+ assert.equal((await request("/v1/properties/"+foreignProperty.id+"/maintenance-tickets/sla-report",ownerToken)).status,403);
+ assert.equal((await request("/v1/properties/"+property.id+"/maintenance-tickets/sla-report",tenantToken)).status,403);
  assert.equal((await request("/v1/properties/"+foreignProperty.id+"/maintenance-tickets",
   ownerToken)).status,403);
  console.log("PASS maintenance: owner/tenant scope, approved lease binding and tenant-only history");
