@@ -5,7 +5,7 @@
 - P5-PRIVACY-01 / P6-PRIVACY-01: request, cancel, trusted platform-admin review, and responsive own-profile UI implemented. Additive migration 0020 and metadata validated on isolated PostgreSQL; not yet applied to DEV.
 - P5-PRIVACY-02 / P2-PRIVACY-RACE-01: profile-only guard and anonymization pass synthetic isolated smoke; invitation approval serializes with account disable and requires active OWNER. Actual profile execution remains disabled by default. No live account was erased.
 - Final DEV automated gates PASS: unit271/271 across51 files; domain15/15 with100% lines; API unit-only coverage not remeasured after new report files; PostgreSQL HTTP c8 87.41% (5937/6792) across all70 API source files; mocked browser33/33; real PostgreSQL/browser workflows24/24 across Desktop,390px,320px; Manager owner-action visibility regression PASS; migration0020 rehearsal preserved/restored36 original table fingerprints.
-- Lint and TypeScript PASS, Drizzle check PASS, high/critical audit gate PASS (six moderate advisories documented), disposable backup/restore/predeploy checks are current. Candidate public deployment and GitHub run are pending commit/push; deployed revision remains ce49565.
+- Lint and TypeScript PASS, Drizzle check PASS, high/critical audit gate PASS (six moderate advisories documented), disposable backup/restore/predeploy checks are current. Latest: commit 0048b98 is pushed and DEV deployed; backup/restore and public HTTPS smoke PASS. Fresh LINE user login remains to be verified.
 - External policy approval is required only before enabling real profile anonymization. See docs/P5_PRIVACY_PROFILE_WORKFLOW.md and docs/APARTMENT_IMPLEMENTATION_REPORT_2026-11-05.md. Remaining P0–P7 code/provider/UAT tasks remain open; this is not 100% DEV READY.
 
 ## 2026-11-05 deployed DEV checkpoint (ce49565)
@@ -372,3 +372,11 @@ Implementation verified: sanitized private image upload/list/download on mainten
 - Verification: API 271/271; domain 15/15; Playwright 33/33 (desktop, 390px, 320px); targeted report tests 8/8; focused isolated-PostgreSQL HTTP smoke PASS; full isolated-PostgreSQL API line coverage 87.41% (5,937/6,792); typecheck, ESLint zero warnings, `git diff --check` PASS.
 - Deployment status: not deployed in this task yet; DEV deploy must run the documented fresh encrypted backup/checksum/isolated-restore preflight and public smoke after commit. Production untouched. External LINE user/device login verification remains pending.
 - This slice does not close the remaining P0–P7/provider/UAT tasks and is not a 100% DEV READY claim.
+
+## 2026-11-05 deployment verification — commit 0048b98
+
+- Commit `0048b98` pushed to `origin/main` and deployed through the existing Apartment Dokploy project. Runtime image revision verified as `0048b987ee5b12ea094345e0a6b68baac14a20ad`; API, observer and Web healthy; PostgreSQL was not restarted.
+- Pre-deploy evidence: checksum-verified backup `apartment-20261105T130102Z-60831.dump`; same-VPS age encryption, retention and monitoring PASS; isolated restore PASS for 38 public tables.
+- DEV smoke: public Web, `/healthz`, `/readyz` = 200; unsigned LINE webhook = 401; certificates verified; no live LINE calls.
+- LINE login diagnostic: provider rejection handling was exercised only with a synthetic invalid token and logged `providerStatus=400`, `providerError=invalid_request`; no token or secret appeared in the warning. This is not evidence for the user's real login attempt. The LIFF/API channel prefix matches; prior real attempts predated this diagnostic and cannot be attributed more specifically. Re-test from LINE after deployment to read the sanitized provider reason.
+- External LINE user/device login acceptance remains pending. LINE outbound remains disabled; production untouched.
