@@ -84,10 +84,13 @@ app.post("/v1/auth/line/exchange",async(req,reply)=>{
  });
  if(!r.ok){
   let providerError: string|undefined;
-  try{const payload=await r.json() as {error?:unknown};
+  let providerDescription: string|undefined;
+  try{const payload=await r.json() as {error?:unknown;error_description?:unknown};
    if(typeof payload.error==="string")providerError=payload.error;
+   if(typeof payload.error_description==="string")providerDescription=payload.error_description
+    .replace(/[\r\n\t]/g," ").replace(/[A-Za-z0-9_-]{100,}/g,"[redacted]").slice(0,160);
   }catch{/* Provider returned a non-JSON response. */}
-  req.log.warn({providerStatus:r.status,providerError},
+  req.log.warn({providerStatus:r.status,providerError,providerDescription},
    "LINE ID token verification rejected the login token");
   throw new AppError(401,"INVALID_LINE_TOKEN");
  }
