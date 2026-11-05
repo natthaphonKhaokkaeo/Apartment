@@ -2,14 +2,16 @@
 
 
 
-## 2026-11-05 platform admin management + Super Admin LINE Rich Menu (implementation verified, deployment pending)
+## 2026-11-05 platform admin management + Super Admin LINE Rich Menu (DEV deployed and provider-provisioned)
 
 - P0/P2/P6-PLATFORM-ADMIN: added authenticated platform-user search and role-change API plus responsive Super Admin UI. Role changes are audited, revoke active sessions, require active LINE-verified accounts, and serialize demotions to protect the last active Super Admin. Bootstrap admin and self-demotion are protected.
 - P2/P6-LINE-SUPERADMIN-MENU: role classification now reads the persisted server-side `platformRole`; Super Admin has a distinct admin Rich Menu with `/` `?section=admin` destination. Owner, tenant, public, and account templates remain separate.
 - Automated evidence: API 285/285 across 54 files; domain 15/15; Playwright E2E 36/36 (desktop, mobile 390px and 320px); workspace TypeScript and ESLint pass with zero warnings. API mocked-provider tests are not real second-account LINE UAT.
-- Live LINE evidence from the currently deployed release: public default menu is confirmed through `GET /v2/bot/user/all/richmenu`; four pre-existing templates are provisioned. The fifth Super Admin menu and current source are not deployed yet.
+- Live LINE evidence from the currently deployed release: public default menu is confirmed through `GET /v2/bot/user/all/richmenu`; four pre-existing templates are provisioned. All five templates are confirmed in the LINE channel; the public menu is verified as the default. Super Admin role-to-menu linking takes effect on the account’s next verified LIFF login.
 - Login observation: the application implements LIFF login, not username/password credentials. When LINE opens its hosted account sign-in form for a second account, that page is LINE authentication. The reported second-account callback has not been observed in API logs and remains pending real-account UAT.
-- No external LINE outbound messaging is enabled.
+- DEV deploy evidence: `8051a4b` healthy; `DEV_DEPLOY_PASS`; PostgreSQL backup/checksum/encryption/restore drill pass; migration journal pass; HTTPS web/API/ready and webhook-denial smoke pass; PostgreSQL was not restarted.
+- LINE provisioning evidence: `LINE_RICH_MENU_PROVISION_PASS roles=public,owner,tenant,account,superadmin`; provider verification confirms all five templates and public default.
+- No external LINE outbound messaging is enabled. Real second-account callback and per-user visual UAT still require a real user to complete a LINE login and inspect OA chat.
 
 ## 2026-11-05 LINE login continuation + per-user Rich Menu (implementation verified, deployment pending)
 
