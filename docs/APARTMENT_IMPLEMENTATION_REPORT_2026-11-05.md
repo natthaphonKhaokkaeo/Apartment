@@ -111,4 +111,9 @@ PRODUCTION APPROVED: NO.
 
 ## Continued code work — 2026-11-05
 
-Added `GET /v1/properties/:propertyId/maintenance-tickets/sla-report`. It reuses the property authorization gate, returns aggregate counts only, and sets `Cache-Control: private, no-store`. Red/green unit test passed; PostgreSQL smoke verifies owner access, cross-property403 and tenant403. Full current verification: API unit tests263 passed; PostgreSQL HTTP coverage87.45% (5715/6535); mocked browser33/33; real-backend browser24/24; TypeScript and ESLint pass. This delta is not yet committed or deployed. Maintenance private attachments and business-configured SLA policies remain open code tasks.
+Added `GET /v1/properties/:propertyId/maintenance-tickets/sla-report`. It reuses the property authorization gate, returns aggregate counts only, and sets `Cache-Control: private, no-store`. Red/green unit test passed; PostgreSQL smoke verifies owner access, cross-property403 and tenant403. Full current verification: API unit tests263 passed; PostgreSQL HTTP coverage87.45% (5715/6535); mocked browser33/33; real-backend browser24/24; TypeScript and ESLint pass. This delta was committed as `ab37dac` and deployed to DEV; API/Web/observer are healthy, public SLA route denies unauthenticated access with401, and PostgreSQL was not restarted. Maintenance private attachments and business-configured SLA policies remain open code tasks.
+
+
+## Latest deployment checkpoint — 2026-11-05
+
+`ab37dac` is deployed to Dokploy DEV. SLA report route returns401 unauthenticated; API/Web/observer healthy. Deploy gate passed; PostgreSQL was not restarted. Pre-deploy local encrypted backup/restore drill restored37 public tables with network disabled. The just-finished gates: unit263/263, domain15/15, PostgreSQL API line coverage87.45%, mock browser33/33 and real-backend browser24/24. The code backlog remains open, including private maintenance attachments and other phase tasks; no 100% completion claim.
