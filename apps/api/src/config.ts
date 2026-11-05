@@ -7,6 +7,7 @@ const schema = z.object({
  HOST: z.string().default("0.0.0.0"),
  PORT: z.coerce.number().int().min(1).max(65535).default(8088),
  LINE_CHANNEL_ID: z.string().min(1),
+ VITE_LIFF_ID: z.string().optional(),
  COOKIE_SECURE: z.enum(["true","false"]).default("true"),
  WEB_ORIGIN: z.string().url(),
  SUPER_ADMIN_LINE_USER_ID: z.string().optional(),

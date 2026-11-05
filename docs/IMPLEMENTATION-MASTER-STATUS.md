@@ -1,5 +1,14 @@
 # Apartment — Implementation Master Status (DEV, 2026-11-04)
 
+
+## 2026-11-05 LINE login continuation + per-user Rich Menu (implementation verified, deployment pending)
+
+- P2-LINE-POSTLOGIN: successful LIFF ID-token exchange now requires `/v1/me` to load and presents an explicit error if session bootstrap fails; it routes verified workspace members to overview, active lease users to tenant self-service, and unassigned accounts to onboarding overview. Rich-menu deep links preserve the requested section.
+- P4-LINE-RICHMENU: four versioned rich-menu templates (public, owner, tenant, account) and 2500×1686 Thai PNG artwork implemented. Authenticated server-side roles select per-user menus after LINE token verification; logout unlinks the user menu. Provisioning only calls Rich Menu APIs and never sends messages.
+- Added protected SUPER_ADMIN provisioning endpoint and root-only `infra/provision-line-rich-menus.sh`; LINE credentials stay in runtime env. OA public default is the guest/login menu; per-user assignment has higher display priority.
+- Verification on current tree: TypeScript PASS; changed-file ESLint PASS (zero warnings); API/domain test command PASS (277 API + 15 domain); Playwright mocked browser 33/33 PASS across desktop/390px/320px, including owner profile/logout and tenant flows; web production build PASS (existing >500KB chunk advisory). Rich-menu PNG signature/dimensions/size and provider-call/idempotence unit tests PASS. No database migration needed.
+- Actual LINE API provisioning and DEV rollout are still pending in this status entry; actual user menu appearance requires the user's next verified login while they are a friend of the OA. Provider login/browser UAT has not been observed. This feature increment does not complete P0–P7 or authorize live outbound messages/production.
+
 ## 2026-11-05 privacy release candidate — QA PASS, deploy pending
 
 - P5-PRIVACY-01 / P6-PRIVACY-01: request, cancel, trusted platform-admin review, and responsive own-profile UI implemented. Additive migration 0020 and metadata validated on isolated PostgreSQL; not yet applied to DEV.

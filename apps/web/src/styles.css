@@ -48,3 +48,6 @@
 .maintenance-attachment-upload input { max-width: 100%; }
 .maintenance-attachments ul { margin: .5rem 0 0; padding-left: 1.2rem; }
 .maintenance-attachments a { overflow-wrap: anywhere; }
+
+.profile-summary{display:flex;align-items:center;gap:18px;padding:18px 0 24px}.profile-avatar{width:68px;height:68px;display:grid;place-items:center;border-radius:22px;background:linear-gradient(135deg,#dfeaff,#efe8ff);color:#3657a6;font-size:28px;font-weight:800}.profile-summary h2{margin:0 0 5px}.profile-summary p{margin:0;color:var(--muted,#718096)}.profile-actions{display:flex;justify-content:flex-end;border-top:1px solid var(--line,#e6eaf0);padding-top:18px}
+@media(max-width:600px){.profile-summary{gap:14px}.profile-avatar{width:58px;height:58px;border-radius:18px}}

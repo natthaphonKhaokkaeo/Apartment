@@ -91,7 +91,12 @@ test("authenticated owner loads scoped overview and logs out",async({page})=>{
  await expect(page.getByText(/ยอดนี้ยังไม่ใช่การยืนยันจากธนาคาร/)).toBeVisible();
  const menu=page.getByRole("button",{name:"เมนู"});
  if(await menu.isVisible())await menu.click();
- await page.getByRole("button",{name:/ออกจากระบบ/}).click();
+ await page.getByRole("navigation",{name:"เมนูหลัก"})
+  .getByRole("button",{name:"โปรไฟล์"}).click();
+ await expect(page.getByRole("heading",{name:"โปรไฟล์ของฉัน"})).toBeVisible();
+ await expect(page.getByText("เจ้าของหอพัก",{exact:true})).toBeVisible();
+ if(await menu.isVisible())await menu.click();
+ await page.locator(".aside-bottom").getByRole("button",{name:"ออกจากระบบ"}).click();
  await expect(page.getByRole("button",{name:"เข้าสู่ระบบด้วย LINE"})).toBeVisible();
  await expect(page.getByRole("navigation",{name:"เมนูหลัก"})).toHaveCount(0);
  expect(requests).toContain("POST /v1/auth/logout");
@@ -115,7 +120,7 @@ test("tenant without organization opens tenant-only self-service and no owner fi
  const requests=await intercept(page,{id:"tenant-e2e",name:"ผู้เช่าทดสอบ",role:"USER",memberships:[]});
  await page.route("**/v1/organizations",async route=>
   route.fulfill(json([])));
- await page.goto("/");
+ await page.goto("/?section=tenant");
  await expect(page.getByRole("heading",{name:"สวัสดี ผู้พักอาศัย"})).toBeVisible();
  await expect(page.getByRole("heading",{name:"ผูกบัญชี LINE กับห้องพัก"})).toBeVisible();
  await expect(page.getByText("ยังไม่มีคำขอผูกบัญชี")).toBeVisible();
@@ -135,7 +140,7 @@ test("tenant can open only a server-authorized invoice with immutable line detai
   ...invoice,lines:[{type:"RENT",description:"ค่าเช่าเดือนตุลาคม",unitsMilli:null,
    tariffSatang:null,amountSatang:400000}],
  })));
- await page.goto("/");
+ await page.goto("/?section=tenant");
  await expect(page.locator(".tenant-bill")).toHaveCount(1);
  await page.locator(".tenant-bill").click();
  await expect(page.getByRole("heading",{name:"รายละเอียดใบแจ้งหนี้"})).toBeVisible();
@@ -153,7 +158,7 @@ test("tenant UI does not disclose invoice details after server IDOR denial",asyn
  await page.route("**/v1/tenant/invoices",route=>route.fulfill(json([invoice])));
  await page.route("**/v1/tenant/invoices/foreign-invoice",route=>
   route.fulfill(json({error:"TENANT_INVOICE_NOT_FOUND"},404)));
- await page.goto("/");
+ await page.goto("/?section=tenant");
  await page.locator(".tenant-bill").click();
  await expect(page.getByRole("alert").filter({hasText:"TENANT_INVOICE_NOT_FOUND"})).toBeVisible();
  await expect(page.getByRole("heading",{name:"รายละเอียดใบแจ้งหนี้"})).toHaveCount(0);
@@ -205,7 +210,7 @@ test("tenant invitation claim is submitted explicitly and remains pending owner 
   pending=true;
   return route.fulfill(json({status:"PENDING"},200));
  });
- await page.goto("/");
+ await page.goto("/?section=tenant");
  await page.getByRole("textbox",{name:"Invite Code จากเจ้าของหอพัก"}).fill(code);
  await page.getByRole("button",{name:"ส่งคำขอผูกบัญชี"}).click();
  await expect(page.getByText("รอเจ้าของอนุมัติ",{exact:true})).toBeVisible();

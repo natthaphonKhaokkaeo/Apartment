@@ -5,7 +5,7 @@ import {parseSatang} from "./money.js";
 import React,{useEffect,useState,useCallback} from "react";
 import {createRoot} from "react-dom/client";
 import liff from "@line/liff";
-import {Building2,LayoutDashboard,DoorOpen,ReceiptText,Gauge,Settings,ShieldCheck,LogOut,ChevronDown,CheckCircle2,AlertTriangle,Wallet,Users,Menu,Wrench} from "lucide-react";
+import {Building2,LayoutDashboard,DoorOpen,ReceiptText,Gauge,Settings,ShieldCheck,LogOut,ChevronDown,CheckCircle2,AlertTriangle,Wallet,Users,Menu,Wrench,UserRound} from "lucide-react";
 import {OwnerInvitations} from "./components/OwnerInvitations.js";
 import {TenantPortal} from "./components/TenantPortal.js";
 import {PropertyOperationsReports} from "./components/PropertyOperationsReports.js";
@@ -26,14 +26,15 @@ type Room={id:string;number:string;floor:number;status:string;rentOverrideSatang
 type Invoice={id:string;roomId:string;amountSatang:number;periodStart:string;periodEnd:string;dueDate:string;status:string;createdAt:string};
 type Me={id:string;name:string;role:string;memberships?:{organizationId:string;role:"OWNER"|"MANAGER"|"STAFF"}[];
  propertyGrants?:{propertyId:string;level:"VIEWER"|"METER_READER"}[]};
-type Section="overview"|"rooms"|"meter"|"billing"|"payments"|"maintenance"|"invites"|"staff"|"tenant"|"settings"|"admin";
+type Section="overview"|"rooms"|"meter"|"billing"|"payments"|"maintenance"|"invites"|"staff"|"tenant"|"settings"|"admin"|"profile";
 const sections:[Section,string,React.ReactNode][]=[
  ["overview","ภาพรวม",<LayoutDashboard size={19}/>],["rooms","ห้องพัก",<DoorOpen size={19}/>],
  ["meter","จดมิเตอร์",<Gauge size={19}/>],["billing","ออกบิล",<ReceiptText size={19}/>],
  ["payments","รับชำระเงิน",<Wallet size={19}/>],["maintenance","ซ่อมบำรุง",<Wrench size={19}/>],
  ["invites","เชิญผู้เช่า",<Users size={19}/>],
  ["staff","จัดการพนักงาน",<Users size={19}/>],["tenant","สำหรับผู้เช่า",<DoorOpen size={19}/>],
- ["settings","ตั้งค่า",<Settings size={19}/>],["admin","Super Admin",<ShieldCheck size={19}/>]];
+ ["settings","ตั้งค่า",<Settings size={19}/>],["admin","Super Admin",<ShieldCheck size={19}/>],["profile","โปรไฟล์",<UserRound size={19}/>]];
+const sectionFromUrl=():Section|null=>{const value=new URLSearchParams(window.location.search).get("section");return sections.some(([id])=>id===value)?value as Section:null;};
 const money=(n:number|undefined|null)=>"฿"+((n??0)/100).toLocaleString("th-TH",{minimumFractionDigits:2,maximumFractionDigits:2});
 const satang=parseSatang;
 function dateNow(){return new Date(Date.now()+7*3600000).toISOString().slice(0,10);}
@@ -107,13 +108,13 @@ function Field({label,children}:{label:string;children:React.ReactNode}){return 
 function Panel({title,subtitle,children,action}:{title:string;subtitle?:string;children:React.ReactNode;action?:React.ReactNode}){return <section className="panel"><div className="panel-head"><div><h2>{title}</h2>{subtitle&&<p>{subtitle}</p>}</div>{action}</div>{children}</section>;}
 function App(){
  const [me,setMe]=useState<Me|null>(null),[orgs,setOrgs]=useState<Organization[]>([]),[props,setProps]=useState<Property[]>([]);
- const [orgId,setOrgId]=useState(""),[propertyId,setPropertyId]=useState(""),[section,setSection]=useState<Section>("overview");
+ const [orgId,setOrgId]=useState(""),[propertyId,setPropertyId]=useState(""),[section,setSection]=useState<Section>(sectionFromUrl()??"overview");
  const [rooms,setRooms]=useState<Room[]>([]),[leases,setLeases]=useState<Lease[]>([]),
  [invoices,setInvoices]=useState<Invoice[]>([]);
  const [overview,setOverview]=useState<{rooms:number;occupied:number;available:number;totalBilledSatang:number;issuedInvoices:number;manuallyApprovedSatang:number;outstandingSatang:number;overdueSatang:number;overdueInvoiceCount:number}|null>(null);
  const [admin,setAdmin]=useState<{organizationCount:number;propertyCount:number;roomCount:number;invoiceCount:number}|null>(null);
  const [error,setError]=useState(""),[success,setSuccess]=useState(""),[busy,setBusy]=useState(false),[menu,setMenu]=useState(false);
- const [lineBusy,setLineBusy]=useState(false);
+ const [lineBusy,setLineBusy]=useState(false),[hasTenantLease,setHasTenantLease]=useState(false);
  const property=props.find(p=>p.id===propertyId);
  const orgRole=me?.memberships?.find(m=>m.organizationId===orgId)?.role;
  const isStaff=orgRole==="STAFF";
@@ -122,7 +123,8 @@ function App(){
  const loadMe=useCallback(async()=>{
   try{const result=await api<Me>("/me");setMe(result);return result;}catch{return null;}
  },[]);
- const loadOrgs=useCallback(async()=>{const items=await api<Organization[]>("/organizations");setOrgs(items);setOrgId(v=>items.some(o=>o.id===v)?v:(items[0]?.id||""));if(items.length===0)setSection("tenant");},[]);
+ const loadOrgs=useCallback(async()=>{const items=await api<Organization[]>("/organizations");setOrgs(items);setOrgId(v=>items.some(o=>o.id===v)?v:(items[0]?.id||""));return items;},[]);
+ const loadTenantLeases=useCallback(async()=>{try{const items=await api<{leaseId:string}[]>("/tenant/leases");setHasTenantLease(items.length>0);return items;}catch{setHasTenantLease(false);return [] as {leaseId:string}[];}},[]);
  const loadProps=useCallback(async(org:string)=>{const data=await api<Property[]>("/organizations/"+org+"/properties");
   setProps(data);setPropertyId(prev=>data.some(p=>p.id===prev)?prev:(data[0]?.id||""));},[]);
  const loadProperty=useCallback(async(p:string,staff=false)=>{
@@ -138,7 +140,7 @@ function App(){
   ]);
   setRooms(rs);setInvoices(ins);setOverview(ov);setLeases(ls);
  },[]);
- useEffect(()=>{void loadMe().then(user=>{if(user)void loadOrgs();});},[loadMe,loadOrgs]);
+ useEffect(()=>{void (async()=>{const user=await loadMe();if(!user)return;const [,tenantLeases]=await Promise.all([loadOrgs(),loadTenantLeases()]);const hasWorkspace=user.role==="SUPER_ADMIN"||(user.memberships?.length??0)>0;const requested=sectionFromUrl();if(!requested||(requested==="overview"&&!hasWorkspace&&tenantLeases.length>0))setSection(hasWorkspace?"overview":tenantLeases.length>0?"tenant":"overview");})();},[loadMe,loadOrgs,loadTenantLeases]);
  useEffect(()=>{if(orgId)void loadProps(orgId).catch(e=>setError(e.message));else {setProps([]);setPropertyId("");}},[orgId,loadProps]);
  useEffect(()=>{if(propertyId)void loadProperty(propertyId,isStaff).catch(e=>setError(e.message));else {setRooms([]);setLeases([]);setInvoices([]);setOverview(null);}},[propertyId,isStaff,loadProperty]);
  useEffect(()=>{if(isStaff&&!["rooms","meter","tenant"].includes(section))setSection("rooms");},[isStaff,section]);
@@ -177,7 +179,13 @@ function App(){
     throw e;
    }
    sessionStorage.removeItem("apartment.liff.expired-token-refresh");
-   const user=await loadMe();if(user)await loadOrgs();
+   const user=await loadMe();
+   if(!user)throw new Error("LINE ยืนยันตัวตนแล้ว แต่สร้างเซสชันเว็บไม่สำเร็จ กรุณาลองอีกครั้ง");
+   const [orgItems,tenantLeases]=await Promise.all([loadOrgs(),loadTenantLeases()]);
+   const hasWorkspace=user.role==="SUPER_ADMIN"||(user.memberships?.length??0)>0||orgItems.length>0;
+   const requested=sectionFromUrl();
+   setSection(requested&&!(requested==="overview"&&!hasWorkspace&&tenantLeases.length>0)?requested:hasWorkspace?"overview":tenantLeases.length>0?"tenant":"overview");
+   setMenu(false);notify("เข้าสู่ระบบเรียบร้อย");
   }catch(e){setError((e as Error).message);}finally{setLineBusy(false);}
  }
  async function createOrg(form:FormData){await run(async()=>{await post("/organizations",{name:String(form.get("name"))});await loadMe();await loadOrgs();notify("เพิ่มบัญชีเจ้าของหอพักเรียบร้อย");});}
@@ -270,6 +278,8 @@ function App(){
    <nav aria-label="เมนูหลัก">{sections.filter(([id])=>{
     if(id==="admin")return me.role==="SUPER_ADMIN";
     if(id==="staff")return orgRole==="OWNER";
+    if(id==="profile")return true;
+    if(hasTenantLease&&!me.memberships?.length&&me.role!=="SUPER_ADMIN")return id==="tenant";
     if(isStaff)return ["rooms","meter","tenant"].includes(id);
     return true;
    }).map(([id,label,icon])=><button key={id} onClick={()=>{setSection(id);setMenu(false);setError("");setSuccess("");}} className={"nav-item "+(section===id?"selected":"")}>{icon}<span>{label}</span></button>)}</nav>
@@ -378,6 +388,7 @@ function App(){
     {property&&section==="maintenance"&&!isStaff&&<MaintenanceCenter key={property.id} propertyId={property.id} rooms={rooms} api={api} post={post} onRoomChanged={()=>loadProperty(property.id,isStaff)}/>}
     {property&&section==="invites"&&<OwnerInvitations key={property.id} propertyId={property.id} canApprove={orgRole==="OWNER"} api={api} post={post}/>}
     {section==="staff"&&orgRole==="OWNER"&&<StaffManagement key={orgId} orgId={orgId} properties={props} api={api} post={post}/>}
+    {section==="profile"&&me&&<Panel title="โปรไฟล์ของฉัน" subtitle="ข้อมูลบัญชีที่ยืนยันผ่าน LINE"><div className="profile-summary"><div className="profile-avatar">{me.name.slice(0,1).toUpperCase()}</div><div><h2>{me.name}</h2><p>{me.role==="SUPER_ADMIN"?"ผู้ดูแลระบบ":hasTenantLease&&!me.memberships?.length?"ผู้เช่า":orgRole==="OWNER"?"เจ้าของหอพัก":orgRole==="STAFF"?"พนักงาน":"สมาชิก"}</p></div></div><div className="profile-actions"><button className="btn outline" onClick={()=>void logout()}>ออกจากระบบ</button></div></Panel>}
     {section==="tenant"&&<><StaffInviteClaim post={post}/><TenantPortal api={api} post={post}/></>}
     {property&&section==="settings"&&orgRole==="OWNER"&&<PropertyRateSettings key={property.id} propertyId={property.id} cadence={property.cadence} current={property} api={api} post={post} onSaved={()=>void loadProps(orgId)}/>}
     {property&&section==="settings"&&<Panel title="ข้อมูล Master ของหอพัก" subtitle="สำหรับการตั้งค่าที่มีผลต่อการสร้างบิลใหม่เท่านั้น"><div className="rate-row"><span>ชื่อหอพัก</span><b>{property.name}</b></div><div className="rate-row"><span>ที่อยู่</span><b>{property.address||"—"}</b></div><div className="rate-row"><span>รอบออกบิล</span><b>{property.cadence}</b></div><div className="rate-row"><span>ค่าเช่า Master</span><b>{money(property.rentSatang)}</b></div><div className="rate-row"><span>ค่าน้ำ Master</span><b>{money(property.waterSatangPerUnit)}/หน่วย</b></div><div className="rate-row"><span>ค่าไฟ Master</span><b>{money(property.electricSatangPerUnit)}/หน่วย</b></div><div className="hint">การแก้ไข Master หลังสร้างเริ่มต้น จะเปิดใช้งานเมื่อเพิ่ม Pricing History แบบมีวันมีผล เพื่อป้องกันบิลย้อนหลังเปลี่ยนแปลง</div></Panel>}

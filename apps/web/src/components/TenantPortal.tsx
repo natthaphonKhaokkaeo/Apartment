@@ -22,6 +22,7 @@ export function TenantPortal({api,post}:Api){
   setLeases(newLeases);setBills(newBills);setInvites(newInvites);setHistory(newHistory);
  }
  useEffect(()=>{void reload().catch(e=>setError((e as Error).message));},[]);
+ useEffect(()=>{const target=window.location.hash.slice(1);if(!target.startsWith("tenant-"))return;requestAnimationFrame(()=>document.getElementById(target)?.scrollIntoView({behavior:"smooth",block:"start"}));},[leases,bills,history]);
  async function claim(e:React.FormEvent<HTMLFormElement>){
   e.preventDefault();setLoading(true);setMessage("");setError("");
   try{
@@ -50,20 +51,20 @@ export function TenantPortal({api,post}:Api){
     {!invites.length&&<div className="empty">ยังไม่มีคำขอผูกบัญชี</div>}
    </section>
   </div>
-  <section className="panel"><div className="panel-head"><div><h2>สัญญาเช่าของฉัน</h2><p>เห็นเฉพาะสัญญาที่เจ้าของยืนยันบัญชี LINE แล้ว</p></div><DoorOpen size={20}/></div>
+  <section id="tenant-home" className="panel"><div className="panel-head"><div><h2>สัญญาเช่าของฉัน</h2><p>เห็นเฉพาะสัญญาที่เจ้าของยืนยันบัญชี LINE แล้ว</p></div><DoorOpen size={20}/></div>
    <div className="room-grid">{leases.map(l=><div className="room-tile" key={l.leaseId}><strong>{l.propertyName}</strong><b>{l.roomNumber}</b><small>{l.propertyAddress}</small><span className="pill vacant">สัญญาเริ่ม {l.startDate}</span></div>)}</div>
    {!leases.length&&<p className="empty">ยังไม่มีสัญญาที่ผูกกับบัญชีนี้</p>}
   </section>
   <TenantNotificationPreferences api={api} leaseKey={leases.map(l=>l.leaseId).join(",")}/>
-  <TenantMaintenanceRequests api={api} post={post}
-   leases={leases.map(l=>({leaseId:l.leaseId,roomNumber:l.roomNumber,propertyName:l.propertyName}))}/>
-  <section className="panel"><div className="panel-head"><div><h2>ใบแจ้งหนี้ของฉัน</h2><p>ยอดที่แสดงคือยอดออกบิล ไม่ใช่ยอดค้างชำระที่ยืนยันแล้ว</p></div><ReceiptText size={20}/></div>
+  <div id="tenant-maintenance"><TenantMaintenanceRequests api={api} post={post}
+   leases={leases.map(l=>({leaseId:l.leaseId,roomNumber:l.roomNumber,propertyName:l.propertyName}))}/></div>
+  <section id="tenant-invoices" className="panel"><div className="panel-head"><div><h2>ใบแจ้งหนี้ของฉัน</h2><p>ยอดที่แสดงคือยอดออกบิล ไม่ใช่ยอดค้างชำระที่ยืนยันแล้ว</p></div><ReceiptText size={20}/></div>
    {bills.map(b=><button type="button" className="tenant-bill" key={b.id} onClick={()=>void openInvoice(b.id)}>
     <div><b>{b.propertyName}</b><small><Clock3 size={13}/> {b.periodStart} ถึง {b.periodEnd} · ครบกำหนด {b.dueDate}</small></div>
     <span><strong>{baht(b.amountSatang)}</strong><small>ดูรายละเอียด</small></span></button>)}
    {!bills.length&&<p className="empty">ยังไม่มีใบแจ้งหนี้ที่เปิดให้ดู</p>}
   </section>
-  <section className="panel"><div className="panel-head"><div><h2>ใบแจ้งหนี้ย้อนหลังหลังย้ายออก</h2><p>แสดงเฉพาะบิลจากสัญญาที่สิ้นสุดแล้วและเคยผูกกับบัญชี LINE นี้ · อ่านอย่างเดียว</p></div><FileText size={20}/></div>
+  <section id="tenant-history" className="panel"><div className="panel-head"><div><h2>ใบแจ้งหนี้ย้อนหลังหลังย้ายออก</h2><p>แสดงเฉพาะบิลจากสัญญาที่สิ้นสุดแล้วและเคยผูกกับบัญชี LINE นี้ · อ่านอย่างเดียว</p></div><FileText size={20}/></div>
    {history.map(b=><button type="button" className="tenant-bill" key={b.id} onClick={()=>void openInvoice(b.id,true)}>
     <div><b>{b.propertyName}</b><small>{b.periodStart} ถึง {b.periodEnd} · ครบกำหนด {b.dueDate}</small></div>
     <span><strong>{baht(b.amountSatang)}</strong><small>ดูรายละเอียด</small></span></button>)}

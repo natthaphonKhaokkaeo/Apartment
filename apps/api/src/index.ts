@@ -13,6 +13,7 @@ import {db,sqlClient} from "./db/client.js";
 import {users,sessions,organizations,memberships,properties,rooms,leases,meterReadings,invoices,invoiceLines,auditLogs,paymentLedger,financeAdjustmentEntries,propertyStaffGrants} from "./db/schema.js";
 import {AppError,newSessionToken,tokenHash,requireActor,requireOrg,requireProperty,requireAdmin} from "./security.js";
 import {prepareInvoice} from "./services/billing.js";
+import {classifyRichMenuRole,linkRichMenuToUser,provisionLineRichMenus,unlinkRichMenuFromUser} from "./services/line-rich-menus.js";
 import {registerTenantRoutes} from "./routes/tenant.js";
 import {registerFormerTenantHistoryRoutes} from "./routes/former-tenant-history.js";
 import {registerReceivablesExportRoutes} from "./routes/receivables-export.js";
@@ -76,6 +77,12 @@ app.addHook("onRequest",async req=>{
 });
 app.get("/healthz",async()=>({ok:true}));
 app.get("/readyz",async()=>{await sqlClient.unsafe("select 1");return {ok:true};});
+app.post("/v1/admin/line/rich-menus/provision",async req=>{
+ const actor=await requireActor(req);
+ if(actor.role!=="SUPER_ADMIN")throw new AppError(403,"FORBIDDEN");
+ try{return {menus:await provisionLineRichMenus({channelAccessToken:config.LINE_MESSAGING_CHANNEL_ACCESS_TOKEN,liffId:config.VITE_LIFF_ID})};}
+ catch(error){const message=error instanceof Error?error.message:"unknown";req.log.error({menuError:message.match(/HTTP_\d+/)?.[0]??"provider_or_network_error"},"LINE rich menu provisioning failed");throw new AppError(502,"LINE_RICH_MENU_PROVISION_FAILED");}
+});
 app.post("/v1/auth/line/exchange",async(req,reply)=>{
  const b=take(z.object({idToken:z.string().min(100).max(8192)}),req.body);
  const r=await fetch("https://api.line.me/oauth2/v2.1/verify",{
@@ -103,11 +110,33 @@ app.post("/v1/auth/line/exchange",async(req,reply)=>{
  const token=newSessionToken();
  await db.insert(sessions).values({userId:u.id,tokenHash:tokenHash(token),expiresAt:new Date(Date.now()+604800000)});
  reply.setCookie("apartment_session",token,{httpOnly:true,secure:config.COOKIE_SECURE==="true",sameSite:"lax",path:"/",maxAge:604800});
+ if(config.LINE_MESSAGING_CHANNEL_ACCESS_TOKEN){
+  try{
+   const [membership]=await db.select({role:memberships.role}).from(memberships)
+    .where(and(eq(memberships.userId,u.id),eq(memberships.status,"ACTIVE"))).limit(1);
+   const [tenantLease]=await db.select({id:leases.id}).from(leases)
+    .where(and(eq(leases.tenantLineSubject,data.sub),eq(leases.status,"ACTIVE"))).limit(1);
+   const menuRole=classifyRichMenuRole(root,membership?.role,!!tenantLease);
+   const linked=await linkRichMenuToUser({channelAccessToken:config.LINE_MESSAGING_CHANNEL_ACCESS_TOKEN,lineUserId:data.sub,role:menuRole});
+   if(linked)req.log.info({menuRole},"LINE rich menu assigned to authenticated user");
+  }catch(error){
+   const message=error instanceof Error?error.message:"unknown";
+   req.log.warn({menuError:message.match(/HTTP_\d+/)?.[0]??"provider_or_network_error"},"LINE rich menu assignment failed; login remains active");
+  }
+ }
  return {user:{id:u.id,name:u.displayName,platformRole:u.platformRole}};
 });
 app.post("/v1/auth/logout",async(req,reply)=>{
  const token=req.cookies.apartment_session;
- if(token)await db.update(sessions).set({revokedAt:new Date()}).where(eq(sessions.tokenHash,tokenHash(token)));
+ if(token){
+  const [sessionUser]=await db.select({lineSubject:users.lineSubject}).from(sessions)
+   .innerJoin(users,eq(sessions.userId,users.id)).where(eq(sessions.tokenHash,tokenHash(token))).limit(1);
+  if(sessionUser&&config.LINE_MESSAGING_CHANNEL_ACCESS_TOKEN){
+   try{await unlinkRichMenuFromUser({channelAccessToken:config.LINE_MESSAGING_CHANNEL_ACCESS_TOKEN,lineUserId:sessionUser.lineSubject});}
+   catch(error){const message=error instanceof Error?error.message:"unknown";req.log.warn({menuError:message.match(/HTTP_\d+/)?.[0]??"provider_or_network_error"},"LINE rich menu unlink failed during logout");}
+  }
+  await db.update(sessions).set({revokedAt:new Date()}).where(eq(sessions.tokenHash,tokenHash(token)));
+ }
  reply.clearCookie("apartment_session",{path:"/"});return {ok:true};
 });
 app.get("/v1/me",async req=>{
