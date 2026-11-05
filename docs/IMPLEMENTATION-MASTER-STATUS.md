@@ -262,3 +262,10 @@ Code delta in progress: property-scoped summary-only maintenance SLA endpoint ad
 ## Maintenance attachment code checkpoint — 2026-11-05
 
 Implementation verified: sanitized private image upload/list/download on maintenance tickets, malware scan + re-encode/metadata stripping, 2MB per file, max5 per ticket, PostgreSQL storage and audit. Tenant access is bound to the reporting user; property access uses property/ticket authorization. E2E file upload/download passed at desktop/390/320; PostgreSQL smoke, schema migration/rollback, typecheck/lint passed. Commit/deploy pending. Configurable SLA policy and legally approved retention remain open; this does not complete P5.
+
+## Verified continuation — 2026-11-05 (latest)
+
+- **P5 maintenance attachment code:** `003c335` adds private sanitized image upload/list/download with malware scan, metadata removal, DB-backed storage, owner/tenant ticket scoping, audit and responsive browser coverage. Local validation passed: API 263/263, domain 15/15, mock Playwright 33/33, backend Playwright 24/24, API PostgreSQL coverage 87.6%, typecheck/lint, isolated migration rollback.
+- **Commit / push:** `003c335f330d63cdf851cf2f70f22c2f113efbb1` on `main`, pushed to `origin/main`.
+- **DEV deployment:** deployed to Dokploy DEV. Pre-deploy same-VPS encrypted backup, SHA-256, retention/monitoring and isolated restore of 37 public tables passed. Migration/observer safety passed; Web/API/readiness HTTPS 200; unsigned webhook 401; no live LINE calls; PostgreSQL was not restarted. Runtime commit `003c335f330d63cdf851cf2f70f22c2f113efbb1`.
+- **Scope:** this closes attachment implementation and deployment. It does not close P5 overall: configurable SLA policy, retention/legal policy, consent-bound workflow acceptance and remaining phase backlog stay open. Same-VPS backup does not protect against VPS host loss. No UAT or production approval is claimed.

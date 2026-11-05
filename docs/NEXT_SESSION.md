@@ -421,3 +421,7 @@ Code delta in progress: property-scoped summary-only maintenance SLA endpoint ad
 ## Maintenance attachment code checkpoint — 2026-11-05
 
 Implementation verified: sanitized private image upload/list/download on maintenance tickets, malware scan + re-encode/metadata stripping, 2MB per file, max5 per ticket, PostgreSQL storage and audit. Tenant access is bound to the reporting user; property access uses property/ticket authorization. E2E file upload/download passed at desktop/390/320; PostgreSQL smoke, schema migration/rollback, typecheck/lint passed. Commit/deploy pending. Configurable SLA policy and legally approved retention remain open; this does not complete P5.
+
+## 2026-11-05 latest continuation
+
+`003c335` maintenance attachment feature is pushed and deployed to DEV. Local API/domain/browser/PostgreSQL coverage, typecheck/lint and isolated migration rollback passed. Backup encryption/checksum/retention/monitoring/restore and public DEV smoke also passed. Continue implementation backlog before UAT; prioritize verifiable code gaps (financial reporting/workflows, remaining P1 lifecycle and P6 accessibility) and reconcile outdated phase checkboxes before claiming completion. Keep LINE observer-only and outbound disabled; do not treat same-VPS backup as host-loss DR.
