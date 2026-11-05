@@ -1,6 +1,6 @@
 # APARTMENT PLATFORM IMPLEMENTATION REPORT
 
-Updated 2026-11-05. This report supersedes older test counts and uncommitted-work observations. Current deployed source: ce495657c2b77b9d2cf9043c865a4e1450d58438. Privacy/security/browser increment below is a release candidate, not yet deployed.
+Updated 2026-11-05. This report supersedes older test counts and uncommitted-work observations. Current deployed source: ce495657c2b77b9d2cf9043c865a4e1450d58438. Privacy/security/browser increment below was committed, pushed and deployed to DEV as 4bdc991 after the local full release gates passed.
 
 ## 1. Overall completion
 
@@ -43,7 +43,7 @@ Audit: 0 critical, 0 high, 6 moderate; see verification/dependency-audit-2026-11
 
 ## 7. PostgreSQL migrations
 
-Live deployed schema:20 migrations through0019,36 public tables. Candidate0020 creates privacy_requests and indexes/FKs; migration check and isolated full upgrade/rollback rehearsal PASS, restoring all36 original table fingerprints. It is not yet applied to live DEV; isolated upgrade/rollback and fingerprint restoration passed. Runtime deployment remains pending commit/push, CI and deploy.
+Live deployed schema:20 migrations through0019,36 public tables. Candidate0020 creates privacy_requests and indexes/FKs; migration check and isolated full upgrade/rollback rehearsal PASS, restoring all36 original table fingerprints. Migration0020 was applied by DEV deployment; pre-deploy isolated upgrade/rollback and fingerprint restoration passed. Deployment smoke reported DEV_MIGRATIONS_AND_OBSERVER_SAFE_PASS.
 
 ## 8. Backup and restore
 
@@ -65,7 +65,7 @@ Existing Apartment DEV Compose project apartment-dokploy-dev-ajcnbm, docker-comp
 
 ## 12. Public DEV smoke
 
-https://apartme.makemarket.space — deployed release /, /healthz, /readyz200; unsigned webhook401; protected deposit/meter/export/batch paths401 without authentication. Guest browser1280/390/320 passed, no protected navigation or horizontal overflow. New privacy candidate not yet exposed publicly.
+https://apartme.makemarket.space — deployed release /, /healthz, /readyz200; unsigned webhook401; protected deposit/meter/export/batch paths401 without authentication. Guest browser1280/390/320 passed, no protected navigation or horizontal overflow. Privacy API is deployed; unauthenticated tenant/admin request endpoints return401.
 
 ## 13. Git commits and push
 
@@ -93,11 +93,17 @@ SAFE NEXT ACTION: Retain current protected key and backups; operator performs do
 
 ## 15. Remaining code and acceptance
 
-Manual refund reconciliation and approved reservation resolution; maintenance private attachments and configurable SLA/report acceptance; contract and complete data-retention workflows; full browser/operator/accessibility/design acceptance; candidate commit/CI/DEV deploy; moderate dependency updates. The candidate local full release gates and migration rehearsal now pass. These are not all external blockers. Canonical PHASES.md and P5 runbooks carry task evidence.
+Manual refund reconciliation and approved reservation resolution; maintenance private attachments and configurable SLA/report acceptance; contract and complete data-retention workflows; full browser/operator/accessibility/design acceptance; remaining code workflows; moderate dependency updates. The candidate local full release gates and migration rehearsal now pass. These are not all external blockers. Canonical PHASES.md and P5 runbooks carry task evidence.
+
+
+
+## Current post-deploy checkpoint (2026-11-05)
+
+Commit `4bdc99157f9a93d8e019378de4355f5aecb8817f` pushed to `main` and deployed in Dokploy DEV. `DEV_DEPLOY_PASS`; public web/health/readiness returned200; unsigned webhook and unauthenticated tenant/admin privacy routes returned401. API, web and LINE observer containers healthy; PostgreSQL was not restarted. Pre-deploy backup checksum, encryption, retention, monitoring and isolated restore drill passed (36 tables restored, network disabled); privacy migration0020 applied in DEV. Local release gate: unit262/262, domain15/15 (100%), API unit-only40.08%, PostgreSQL HTTP c8 87.41% across68 API files, mock browser33/33, backend browser24/24, lint/typecheck/migration/security gates pass. No push-triggered GitHub Actions run was returned by the connected wrapper; it only exposes PR-triggered runs.
 
 ## 16. Final readiness classification
 
 IMPLEMENTATION COMPLETE: NO; remaining code and UAT items are listed in section 15.
-DEV DEPLOYED: YES, ce49565 only; this candidate is not yet deployed.
+DEV DEPLOYED: YES, commit 4bdc991; API/Web/observer healthy, PostgreSQL not restarted.
 DEV UAT VERIFIED: PARTIAL; automated workflows pass, real LINE operator callback/UAT is not verified.
 PRODUCTION APPROVED: NO.

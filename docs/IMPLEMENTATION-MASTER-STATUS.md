@@ -247,3 +247,8 @@ Task IDs are derived from the canonical plan. **`[x] DONE` denotes a DEV checkli
 - P7 coverage gate (2026-11-05): `bash infra/test-api-postgres-coverage.sh` completed against disposable PostgreSQL and `coverage/postgres/coverage-summary.json` reports API lines 85.84% (5,069/5,905), zero skipped. This is HTTP/integration coverage including spawned API servers; unit-only `coverage:api` remains 40.38% (2,161/5,351). Keep both measurements distinct.
 
 - P7 independent verification (2026-11-05): domain coverage 100% lines (69/69), 15/15 tests; `pnpm audit --audit-level high` exit 0 with six moderate advisories and zero reported high/critical. Same-VPS archive integration passed checksum, encryption, retention, corruption/disk/lock cases; isolated migration rollback and public HTTPS smoke passed. This does not close provider and business acceptance gates.
+
+
+## Verified checkpoint — 2026-11-05
+
+Candidate `4bdc99157f9a93d8e019378de4355f5aecb8817f` is committed on `main` and deployed to Dokploy DEV. Public health/readiness and web return200, unsigned webhook plus unauthenticated privacy endpoints return401. API/Web/observer healthy; PostgreSQL not restarted; privacy migration0020 deployed. Pre-deploy encrypted local backup and isolated restore drill PASS. Full local gates PASS: unit262/262, domain15/15 (100%), API unit-only40.08%, PostgreSQL HTTP c8 87.41% across68 files, mock browser33/33, real backend browser24/24, migration rollback, lint/typecheck and no critical/high dependency findings. Remaining code/UAT work and external provider verification remain open; this is not 100% complete or production approved.
