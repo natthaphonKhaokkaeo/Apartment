@@ -1,7 +1,7 @@
 import {test,expect,type Page,type BrowserContext} from "@playwright/test";
 import {randomUUID} from "node:crypto";
 import {db,sqlClient} from "../../apps/api/src/db/client.js";
-import {users,sessions,organizations,memberships,properties,propertyStaffGrants} from "../../apps/api/src/db/schema.js";
+import {users,sessions,organizations,memberships,properties,propertyStaffGrants,rooms as roomRows,leases as leaseRows,invoices as invoiceRows,paymentInstructions,leaseInvitations} from "../../apps/api/src/db/schema.js";
 import {newSessionToken,tokenHash} from "../../apps/api/src/security.js";
 
 // Only the disposable runner supplies this environment. No API interception.
@@ -125,4 +125,91 @@ test("STAFF browser hides financial actions and backend rejects direct invoice a
  await expect(page.getByRole("button",{name:"รับชำระเงิน",exact:true})).toHaveCount(0);
  expect((await context.request.get("/v1/properties/"+property.id+"/invoices")).status()).toBe(403);
  expect((await context.request.get("/v1/properties/"+property.id+"/rooms")).status()).toBe(200);
+});
+
+test("profile request submits and cancels through real tenant browser without erasing account",async({page,context})=>{
+ await session(context);await page.goto("/");
+ await expect(page.getByRole("navigation",{name:"เมนูหลัก"})).toBeAttached();
+ await menu(page,"สำหรับผู้เช่า");
+ const privacy=page.getByRole("region",{name:"คำขอข้อมูลส่วนบุคคล",exact:true});
+ await expect(privacy.getByText("ยังไม่เปิดการล้างโปรไฟล์จริง สามารถยื่นและตรวจสอบคำขอได้",{exact:true})).toBeVisible();
+ await privacy.getByLabel("เหตุผลคำขอจัดการโปรไฟล์",{exact:true}).fill("ทดสอบคำขอจัดการโปรไฟล์ผ่านเบราว์เซอร์ในฐานข้อมูลชั่วคราว");
+ await privacy.getByRole("checkbox").check();
+ const submitted=page.waitForResponse(r=>r.url().endsWith("/tenant/privacy/requests")&&r.request().method()==="POST");
+ await privacy.getByRole("button",{name:"ยื่นคำขอจัดการโปรไฟล์",exact:true}).click();
+ expect((await submitted).status()).toBe(201);
+ await expect(privacy.getByText("REQUESTED",{exact:true})).toBeVisible();
+ await privacy.getByRole("button",{name:"ยกเลิกคำขอโปรไฟล์",exact:true}).click();
+ await expect(privacy.getByText("CANCELLED",{exact:true})).toBeVisible();
+ expect((await context.request.get("/v1/organizations")).status()).toBe(200);
+ expect((await context.request.get("/v1/admin/privacy/requests")).status()).toBe(403);
+ const widths=await page.evaluate(()=>({page:document.documentElement.scrollWidth,viewport:innerWidth}));expect(widths.page).toBeLessThanOrEqual(widths.viewport+1);
+});
+
+async function linkedFixtures(ownerContext:BrowserContext,tenantContext:BrowserContext){
+ const owner=await session(ownerContext),tenant=await session(tenantContext);
+ const [org]=await db.insert(organizations).values({name:"Browser linked "+randomUUID()}).returning();await db.insert(memberships).values({organizationId:org.id,userId:owner.id,role:"OWNER"});
+ const [property]=await db.insert(properties).values({organizationId:org.id,name:"Browser linked property",rentSatang:10000,waterSatangPerUnit:100,electricSatangPerUnit:100}).returning();
+ const [room]=await db.insert(roomRows).values({organizationId:org.id,propertyId:property.id,number:"T101",status:"OCCUPIED"}).returning();
+ const [lease]=await db.insert(leaseRows).values({organizationId:org.id,propertyId:property.id,roomId:room.id,tenantName:"Synthetic tenant",tenantLineSubject:tenant.lineSubject,startDate:"2026-01-01"}).returning();return {owner,tenant,org,property,room,lease};
+}
+test("real tenant maintenance request progresses through owner review and closure",async({page,context,browser})=>{
+ const tenantContext=await browser.newContext({viewport:page.viewportSize()!});
+ try{
+ const f=await linkedFixtures(context,tenantContext),tenantPage=await tenantContext.newPage();
+ await tenantPage.goto("/");await expect(tenantPage.getByRole("navigation",{name:"เมนูหลัก"})).toBeAttached();await menu(tenantPage,"สำหรับผู้เช่า");
+ const tenantPanel=tenantPage.locator("section.panel").filter({has:tenantPage.getByRole("heading",{name:"แจ้งซ่อมบำรุง",exact:true})});
+ await tenantPanel.getByLabel("หัวข้อ",{exact:true}).fill("Browser plumbing repair");await tenantPanel.getByLabel("รายละเอียดอาการ",{exact:true}).fill("Synthetic isolated repair request");
+ await tenantPanel.getByRole("button",{name:"ส่งคำขอ",exact:true}).click();await expect(tenantPanel.getByRole("status")).toContainText("ส่งคำขอซ่อมบำรุงให้เจ้าของแล้ว");
+ await page.goto("/");await expect(page.getByRole("combobox",{name:"หอพัก",exact:true})).toHaveValue(f.property.id);await menu(page,"ซ่อมบำรุง");
+ const ticket=page.locator("article.claim-item").filter({hasText:"Browser plumbing repair"});
+ for(const label of ["รับเรื่องแล้ว","กำลังดำเนินการ","แก้ไขแล้ว","ปิดงาน"]){await ticket.getByRole("button",{name:label,exact:true}).click();await expect(ticket.locator(".pill")).toHaveText(label);}
+ await tenantPage.reload();await expect(tenantPanel.locator("article.claim-item").filter({hasText:"Browser plumbing repair"})).toContainText("ปิดงานแล้ว");
+ expect((await tenantContext.request.get("/v1/properties/"+f.property.id+"/maintenance-tickets")).status()).toBe(403);
+ }finally{await tenantContext.close();}
+});
+test("real tenant payment evidence stays pending until manual owner ledger approval",async({page,context,browser})=>{
+ const tenantContext=await browser.newContext({viewport:page.viewportSize()!});
+ try{
+ const f=await linkedFixtures(context,tenantContext),tenantPage=await tenantContext.newPage();
+ const [invoice]=await db.insert(invoiceRows).values({organizationId:f.org.id,propertyId:f.property.id,roomId:f.room.id,leaseId:f.lease.id,periodStart:"2026-10-01",periodEnd:"2026-11-01",dueDate:"2026-11-05",amountSatang:10000,idempotencyKey:randomUUID(),issuedBy:f.owner.id}).returning();
+ await db.insert(paymentInstructions).values({organizationId:f.org.id,propertyId:f.property.id,bankName:"Synthetic test bank",accountName:"Synthetic recipient",accountNumber:"0000000000",updatedBy:f.owner.id});
+ await tenantPage.goto("/");await expect(tenantPage.getByRole("navigation",{name:"เมนูหลัก"})).toBeAttached();await menu(tenantPage,"สำหรับผู้เช่า");await tenantPage.locator("button.tenant-bill").first().click();
+ await tenantPage.getByLabel("ยอดโอน (บาท)",{exact:true}).fill("100.00");await tenantPage.getByLabel("วันและเวลาโอน",{exact:true}).fill("2026-11-04T12:00");
+ const png=await tenantPage.evaluate(()=>{const c=document.createElement("canvas");c.width=16;c.height=16;return c.toDataURL("image/png").split(",")[1];});
+ await tenantPage.getByLabel("ภาพสลิปหรือหลักฐาน (JPEG/PNG/WebP สูงสุด 4 MB)",{exact:true}).setInputFiles({name:"synthetic-payment.png",mimeType:"image/png",buffer:Buffer.from(png,"base64")});
+ const uploaded=tenantPage.waitForResponse(r=>r.url().endsWith("/payment-claims")&&r.request().method()==="POST");await tenantPage.getByRole("button",{name:"ส่งแจ้งชำระให้เจ้าของตรวจสอบ",exact:true}).click();expect((await uploaded).status()).toBe(201);
+ const summaryPath="/v1/tenant/invoices/"+invoice.id+"/payment-summary";const pending=await tenantContext.request.get(summaryPath);expect(pending.status()).toBe(200);expect(await pending.json()).toMatchObject({outstandingSatang:10000});
+ await page.goto("/");await expect(page.getByRole("combobox",{name:"หอพัก",exact:true})).toHaveValue(f.property.id);await menu(page,"รับชำระเงิน");
+ const claim=page.locator(".claim-item").filter({has:page.getByRole("button",{name:"ตรวจแล้ว อนุมัติยอด",exact:true})});
+ const evidence=await context.request.get(await claim.getByRole("link",{name:"เปิดหลักฐาน (ส่วนตัว)",exact:true}).getAttribute("href") as string);expect(evidence.status()).toBe(200);expect(evidence.headers()["content-type"]).toContain("image/webp");
+ page.once("dialog",dialog=>void dialog.accept());await claim.getByRole("button",{name:"ตรวจแล้ว อนุมัติยอด",exact:true}).click();await expect(page.getByRole("status")).toContainText("บันทึกการอนุมัติด้วยมือและยอดใน Ledger แล้ว");
+ const paid=await tenantContext.request.get(summaryPath);expect(paid.status()).toBe(200);expect(await paid.json()).toMatchObject({outstandingSatang:0});
+ }finally{await tenantContext.close();}
+});
+
+test("MANAGER cannot see or call tenant identity approval action",async({page,context,browser})=>{
+ const tenantContext=await browser.newContext({viewport:page.viewportSize()!});
+ try{
+ const f=await linkedFixtures(context,tenantContext);
+ await sqlClient`UPDATE leases SET tenant_line_subject = NULL WHERE id = ${f.lease.id}`;
+ await sqlClient`UPDATE memberships SET role = 'MANAGER' WHERE user_id = ${f.owner.id}`;
+ const [invite]=await db.insert(leaseInvitations).values({organizationId:f.org.id,propertyId:f.property.id,leaseId:f.lease.id,tokenHash:tokenHash(randomUUID()),expiresAt:new Date(Date.now()+300000),claimedAt:new Date(),claimedBy:f.tenant.id,createdBy:f.owner.id}).returning();
+ await page.goto("/");await expect(page.getByRole("combobox",{name:"หอพัก",exact:true})).toHaveValue(f.property.id);await menu(page,"เชิญผู้เช่า");
+ await expect(page.getByText("รอเจ้าของยืนยันบัญชี",{exact:true})).toBeVisible();await expect(page.getByRole("button",{name:"อนุมัติ",exact:true})).toHaveCount(0);
+ expect((await context.request.post("/v1/properties/"+f.property.id+"/leases/"+f.lease.id+"/invitations/"+invite.id+"/approve",{data:{}})).status()).toBe(403);
+ await menu(page,"รับชำระเงิน");
+ await expect(page.getByRole("heading",{name:"การเงินสำหรับเจ้าของหอพัก",exact:true})).toBeVisible();
+ await expect(page.getByRole("button",{name:"ตรวจแล้ว อนุมัติยอด",exact:true})).toHaveCount(0);
+ await menu(page,"ซ่อมบำรุง");
+ await menu(page,"จดมิเตอร์");
+ await expect(page.getByRole("heading",{name:"เปลี่ยนมิเตอร์น้ำ/ไฟ (Owner)",exact:true})).toHaveCount(0);
+ await menu(page,"ตั้งค่า");
+ await expect(page.getByRole("heading",{name:"อัตรา Master ตามวันที่มีผล",exact:true})).toHaveCount(0);
+ await menu(page,"ห้องพัก");
+ await expect(page.getByRole("heading",{name:"สิ้นสุดสัญญาและย้ายออก (Owner)",exact:true})).toHaveCount(0);
+ await expect(page.getByLabel("เหตุผลปรับราคา")).toHaveCount(0);
+ await menu(page,"ออกบิล");
+ await expect(page.getByRole("region",{name:"ออกบิลหลายห้อง",exact:true})).toHaveCount(0);
+ }finally{await tenantContext.close();}
 });

@@ -74,8 +74,8 @@ jobs:
         run: corepack pnpm lint
       - name: Coverage regression gate (API baseline; domain >=80%)
         run: |
-          # API line coverage is currently ~29.34%, NOT the target >=80%.
-          # Block decreases while the suite is expanded to meaningful >=80%.
+          # This unit-only V8 suite has a separate 39% regression floor.
+          # The disposable PostgreSQL HTTP job enforces >=80% across all API source files.
           corepack pnpm --filter @apartment/domain exec vitest run --coverage --coverage.include='src/**/*.ts' --coverage.reporter=text-summary --coverage.thresholds.lines=80
           corepack pnpm --filter @apartment/api exec vitest run --coverage --coverage.include='src/**/*.ts' --coverage.reporter=text-summary --coverage.thresholds.lines=39
       - name: TypeScript

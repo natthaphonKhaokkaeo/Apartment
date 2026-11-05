@@ -1,140 +1,103 @@
 # APARTMENT PLATFORM IMPLEMENTATION REPORT
 
-Date: 2026-11-05, Asia/Bangkok. Scope: current shared Apartment DEV working tree.
+Updated 2026-11-05. This report supersedes older test counts and uncommitted-work observations. Current deployed source: ce495657c2b77b9d2cf9043c865a4e1450d58438. Privacy/security/browser increment below is a release candidate, not yet deployed.
 
 ## 1. Overall completion
 
-**NOT 100% DEV READY. IMPLEMENTATION IN PROGRESS.** A trustworthy whole-project percentage cannot be derived from the overlapping parent/child checklist until all acceptance items are reconciled. This pass closed local encrypted backup implementation and the local API line-coverage threshold, expanded real backend browser verification and corrected frontend money parsing. Both coding work and external acceptance still remain.
+NOT 100% DEV READY. No defensible overall percentage is asserted while canonical phase acceptance items remain open. Selected automated gates passing does not mean every P0–P7 workflow or real provider UAT is complete.
 
 ## 2. Phase status
 
-| Phase | Overall status | Verified increment / remaining gate |
+| Phase | Status | Verified implementation and remaining acceptance |
 |---|---|---|
-| P0 | IN_PROGRESS | Local encrypted backup, monitoring and restore are installed and tested; full operational/release acceptance remains |
-| P1 | IN_PROGRESS | Real browser organization/property/room/lease flow; DB billing/concurrency suites pass; persisted deposit settlement still needed |
-| P2 | IN_PROGRESS | Real DB session expiry/logout and mocked invitations pass; actual LINE Login/LIFF callback/test accounts unverified |
-| P3 | IN_PROGRESS | Payment/finance/IDOR/concurrency and S3 mock pass; exact integer satang input fixed; bank/S3/real scanner/refund acceptance open |
-| P4 | IN_PROGRESS | Signed webhook/consent/outbox/quotas/revocation DB mocks pass; remaining event producers and approved provider tests open |
-| P5 | IN_PROGRESS | Bulk billing, maintenance and selected reports tested; deposit, meter evidence/anomaly review and privacy lifecycle still incomplete |
-| P6 | IN_PROGRESS | 3 viewport browser suites pass selected workflows; complete role/workflow/accessibility/UAT acceptance open |
-| P7 | IN_PROGRESS | Local API >=80% gate met, domain 100%, lint/types/audit/restore/smoke pass; complete browser/security/load/UAT/remote CI acceptance open |
+| P0 | IN_PROGRESS | Local encrypted PostgreSQL backup, timers, freshness/retention/checksum/restore and migration rehearsal implemented; complete operational acceptance and recovery-key custody evidence remain |
+| P1 | IN_PROGRESS | Rooms/leases/rates/meter replacement/billing/concurrency, deposit receipts and two-owner deduction/review deployed; manual refund reconciliation and reservation resolution remain |
+| P2 | IN_PROGRESS | Backend identity/session/invitation tests, actual DB logout/expiry and trusted owner linking implemented; new profile-link race fix under release validation; real LINE/LIFF account callback UAT remains |
+| P3 | IN_PROGRESS | Private sanitized evidence, manual ledger verification, financial adjustments and duplicate/concurrency protection; synthetic actual-backend payment browser passes; real bank/scanner/storage acceptance remains |
+| P4 | IN_PROGRESS | Webhook HMAC/dedupe, consent, outbox/retry/quota/dead-letter monitoring and maintenance producer; invitation producer deliberately ineligible under v1 purpose; real dispatch approval/UAT remains |
+| P5 | IN_PROGRESS | Bulk billing, maintenance lifecycle, reports, exports, deposit/meter evidence and anomaly review deployed; profile requests/review added to candidate; attachments/SLA/contract/complete retention remain |
+| P6 | IN_PROGRESS | Responsive owner/staff/tenant workflows at desktop/390/320; new profile UI and Manager action guard in candidate; complete accessibility/workflow/operator/design acceptance remains |
+| P7 | IN_PROGRESS | Genuine all-file PostgreSQL API coverage >=80%, domain100%, lint/types/security/concurrency, CI, backup/recovery and public smoke verified for deployed release; candidate full gates and real provider UAT tracked separately |
 
-## 3. Features implemented in this pass
+## 3. Features implemented
 
-- Same-VPS age-encrypted archival backup, authenticated recovery, SHA-256 checks, root-only storage, flock, retention, freshness and disk checks.
-- Daily backup archives through existing systemd service; independent archive catch-up timer; hourly health checks; weekly isolated encrypted restore timer; local OnFailure journal alerts.
-- Recovery drill now selects a verified pre-0017 backup rather than attempting to reapply migration 0017 to an already upgraded backup.
-- All-source native V8/c8 HTTP coverage across disposable PostgreSQL and actual spawned API servers; >=80% enforced in the new local runner and proposed CI job.
-- Real backend browser tests for owner organization/property/room/lease creation, expiry, logout and STAFF server denial.
-- Frontend integer satang parser using BigInt; rejects excessive decimals, exponent notation, negatives and overflow. Fourteen regression cases pass.
-- Owner membership refresh after organization creation; browser verifies owner label immediately.
+Deployed release includes integer-satang frontend parsing, scoped owner/staff/tenant APIs, immutable invoicing, concurrent bulk billing, private sanitized meter photos, persisted owner anomaly assessments, immutable manual deposit receipts, distinct active OWNER review/deductions, consent-bound generic repair notifications and fail-closed invitation notification purpose.
+
+Candidate adds own profile request/cancellation, trusted platform-admin review and explicit profile-only acknowledgement; default-disabled server policy gate; synthetic guarded profile anonymization preserving financial records; serialized account disable vs tenant approval; active OWNER/account/organization recheck on approval; Manager UI restriction; actual backend maintenance/payment/profile browser scenarios. Actual profile erasure is not enabled or executed on DEV.
 
 ## 4. Files changed
 
-Committed backup unit: infra/backup-apartment-postgres.sh, infra/local-archive-apartment-postgres.sh, infra/tests/local-backup-config.test.sh, infra/tests/local-archive-integration.test.sh, eight Apartment systemd service/timer/drop-in files, docs/LOCAL_BACKUP.md.
-
-Committed money unit: apps/web/src/money.ts, the parser import/call in apps/web/src/main.tsx, apps/api/tests/web-money.test.ts.
-
-Additional shared-tree work: infra/test-api-postgres-coverage.sh, playwright.postgres.config.ts, tests/e2e-postgres/workflows.spec.ts, package.json, pnpm-lock.yaml, .github/workflows/ci.yml, owner membership refresh in main.tsx, isolated recovery rehearsal and phase/status/runbook documents. These depend on existing uncommitted feature code and remain uncommitted. Other sessions' files are preserved.
+Deployed integration dbf889a changed 132 files; ce49565 fixes production React build environment in CI. Candidate files: API config/schema/index, routes/privacy-requests.ts and routes/tenant.ts, services/privacy-policy.ts and privacy-requests.ts, privacy policy/config tests and invitation HTTP fixtures, migration0020 + metadata, two disposable privacy smoke scripts, PrivacyCenter/TenantPortal/OwnerInvitations/main frontend files, backend Playwright workflows, disposable QA runner, .env.example and status/runbook/evidence documents. `.serena/` is unrelated and preserved.
 
 ## 5. Tests and coverage
 
-| Command / scope | Actual result |
-|---|---|
-| corepack pnpm test | API 214/214; Domain 15/15 PASS |
-| corepack pnpm coverage:domain | 100% lines, 69/69; 96.42% branches |
-| unit-only API V8 | 40.38% lines, 2161/5351 before adding frontend parser tests |
-| bash infra/test-api-postgres-coverage.sh | all 13 isolated smoke scripts + schema compatibility PASS; c8 lines 85.84%, 5069/5905; >=80% gate PASS |
-| c8 source inclusion | all 60 API source files included, zero omitted |
-| APARTMENT_POSTGRES_BROWSER=only bash infra/test-api-postgres-coverage.sh | 12/12 real backend browser cases PASS, 4 per viewport |
-| corepack pnpm test:e2e | latest current-tree mock suite 33/33 PASS following production Web build |
-| corepack pnpm typecheck | PASS |
-| corepack pnpm lint | PASS, zero warnings |
-| corepack pnpm audit --audit-level high | PASS at requested severity; 6 Moderate advisories remain |
+Deployed ce49565 evidence: API unit244/244, domain15/15; domain lines100%; API unit-only lines40.49% (2325/5741), retained >=39 regression floor; genuine HTTP/PostgreSQL c8 lines87.03% (5500/6319), all65 API files; mocked browser33/33; real-backend browser12/12; public guest browser3/3. GitHub Actions41948158755 both jobs SUCCESS.
 
-Vitest and c8 report different source-line denominators; their numbers are not merged or represented as identical metrics. The c8 measurement covers real HTTP servers and DB workflows; source files were not excluded to raise coverage. Machine-readable evidence: docs/verification/api-postgres-coverage-2026-11-05.json. Coverage and browser evidence apply to the current shared working tree, not only committed HEAD. The expanded GitHub workflow has not been pushed or remotely verified.
-
-Transient command logs: /tmp/apartment-current-tests.log, /tmp/apartment-current-domain.log, /tmp/apartment-current-coverage.log, /tmp/apartment-postgres-coverage.log, /tmp/apartment-current-e2e.log, /tmp/apartment-postgres-browser-only.log, /tmp/apartment-current-audit.log. Reproduce using the commands above; local logs are not durable audit storage.
+Candidate full release gates PASS: unit262/262 (49 files); domain15/15/100%; API unit-only40.08% (2374/5923), above the 39% regression floor; genuine PostgreSQL HTTP c8 coverage87.41% (5691/6510) across all68 API files; mocked browser33/33; real-backend browser24/24 (8 workflows × desktop/390/320), including maintenance, payment evidence/owner approval, privacy submit/cancel and Manager restrictions. TypeScript, ESLint zero warnings, dependency audit with zero critical/high (6 moderate advisories documented), migration check, financial/concurrency/privacy smoke suites, secret scan and isolated migration rollback rehearsal PASS. Full run log: .qa-output/release-current.log; focused Manager viewport log: .qa-output/manager-browser.log.
 
 ## 6. Security findings
 
-- No High/Critical dependency advisory was reported; 6 Moderate remain untriaged.
-- CSRF correctly rejected browser tests when their origin differed from WEB_ORIGIN; test configuration was corrected. CSRF and rate limits remain enabled.
-- Fresh API processes per viewport isolate browser rate budgets; no rate-limit bypass was added.
-- STAFF browser fixture receives 200 on granted rooms and 403 on direct financial invoice access.
-- No administrator is created through a client-supplied LINE identity. Test sessions exist only in the disposable PostgreSQL runner.
-- Production evidence scanning is not accepted: deployed DEV uses local private evidence and malware scanner disabled (NOT SCANNED).
-- No external LINE messages, bank transfers, production deployment or live database restore occurred.
+Fixed stale tenant identity linking during concurrent account disable, and required active OWNER/account/organization inside the approval transaction. Profile actions are subject-scoped or platform-admin-only, no-store, strict request schema, idempotent and audited. Protected accounts, active owner roles, unended leases, pending claims and policy retention block execution. No immutable invoice, payment ledger, evidence or backup is erased by profile execution.
+
+Audit: 0 critical, 0 high, 6 moderate; see verification/dependency-audit-2026-11-05.md. Moderate advisories remain open. Real scanner and storage/provider security acceptance remain separate. No secrets/private recovery key are committed.
 
 ## 7. PostgreSQL migrations
 
-Clean disposable PostgreSQL migrations through current 0017 and read-only Drizzle compatibility checks pass. The pre-0017 upgrade rehearsal passes five selected table-content fingerprints, then restores the original disposable backup. The source DEV DB is only read by pg_dump/metadata checks; no migration was applied to the live DB by this pass. This is backup-based recovery, not a lossless in-place downgrade after new writes.
+Live deployed schema:20 migrations through0019,36 public tables. Candidate0020 creates privacy_requests and indexes/FKs; migration check and isolated full upgrade/rollback rehearsal PASS, restoring all36 original table fingerprints. It is not yet applied to live DEV; isolated upgrade/rollback and fingerprint restoration passed. Runtime deployment remains pending commit/push, CI and deploy.
 
 ## 8. Backup and restore
 
-All approved local gates passed: LOCAL_BACKUP_PASS (actual BACKUP_OK), BACKUP_CHECKSUM_PASS, BACKUP_ENCRYPTION_PASS, BACKUP_RESTORE_DRILL_PASS, MIGRATION_ROLLBACK_DRILL_PASS (actual RECOVERY_DRILL_PASS), BACKUP_RETENTION_PASS and BACKUP_MONITORING_PASS.
+Approved same-VPS source /root/backups/apartment-postgres and age-encrypted archive /root/backups/apartment-local-archive. Root-only directories0700, private recovery key0600 outside Git. Daily backup03:30 BKK, archive03:45, hourly health and weekly isolated restore timers enabled. SHA-256, authenticated decrypt, locking, freshness/disk checks and safe retention are implemented. Local journal alerts are enabled; external paging is not enabled.
 
-Encrypted-only recovery restored 32 public tables without dependence on the source plaintext dump. Corrupt ciphertext, invalid configuration, disk threshold and concurrent lock were tested. Retention removed only an owned expired fixture and preserved the current verified archive. Systemd backup and restore services report Result=success, ExecMainStatus=0. No failed systemd units were observed at the final check.
-
-Schedules, Bangkok: daily backup 03:30, archive catch-up 03:45, health hourly, restore Sunday 05:00. Alerts are local journal/syslog only. All copies reside on /dev/sda1, so host/disk loss is not covered. Private identity is root-only outside Git at /etc/apartment/backup-age.key; operator export/custody remains unconfirmed. See LOCAL_BACKUP.md.
+Latest deployed post-migration encrypted-only restore verified36 public tables from apartment-20261105T012829Z-57795.dump. Latest recorded manual health check08:56 UTC+7 returned BACKUP_CHECKSUM_PASS and BACKUP_MONITORING_PASS (disk57%, age1651s). Refer to journal for exact later checks. Same-disk archives do not provide independent host-loss recovery. All restore/rollback drills use disposable containers, never overwrite live PostgreSQL.
 
 ## 9. LINE integration
 
-DEV API has LINE channel/bot/secret/token variables configured, but this does not prove provider validity or acceptance. Actual settings remain LINE_OUTBOUND_MODE=disabled, LINE_WORKER_MODE=observe, LINE_WORKER_APPROVED=false. Signed webhook/consent/deduplication/quotas/retry/revocation tests use mocks. Real LIFF/browser callback, approved test identities and bounded provider dispatch are unverified.
+Real read-only Messaging API bot identity preflight returned200 for deployed runtime; LIFF ID build/runtime presence/match verified. Automated webhook/consent/outbox/provider tests use mocks. Actual operator LINE Login/LIFF callbacks remain unverified. Runtime outbound disabled, observer observe-only, approvalfalse; no live messages sent. Existing v1 consent does not authorize invitation notifications.
 
 ## 10. Payment integration
 
-Integer satang financial rules, manual-ledger authorization, partial/full payment, replay/concurrency and financial adjustment smoke tests pass. Slip upload does not imply bank-confirmed funds. S3 tests are mocks; deployed S3 endpoint/access credentials are missing. Local private evidence remains active. Real bank recipient/QR confirmation, real scanner, actual refund/reconciliation and legal document acceptance remain open.
+Manual owner ledger approvals are not bank-confirmed transactions. Uploaded evidence remains pending until authorized financial review. Genuine backend browser test verifies this transition using synthetic invoices/bank details/evidence in disposable PostgreSQL. No real payment/refund or bank transfer is performed. Recipient/bank/scanner/real private object-storage UAT remains open.
 
-## 11. Dokploy
+## 11. Dokploy deployment
 
-Existing Apartment DEV API/Web/observe-only worker/PostgreSQL were observed healthy. No application image redeployment was performed in this pass: shared source/CI integration and remaining mandatory workflow gates must be completed first. Local backup infrastructure was installed and exercised. No unrelated service was restarted.
+Existing Apartment DEV Compose project apartment-dokploy-dev-ajcnbm, docker-compose.dokploy.yml. ce49565 immutable labelled images built from clean Git archive and deployed to API/Web/observe-only worker. All three healthy; PostgreSQL start timestamp unchanged. Shared proxy and unrelated services untouched. Rollback image tags retained20261105T012646Z. Deployment uses the existing managed Compose configuration; no Dokploy API dashboard history update is claimed.
 
 ## 12. Public DEV smoke
 
-https://apartme.makemarket.space/ : HTTP 200.
-HTTPS /healthz and /readyz : HTTP 200.
-Unsigned POST /v1/line/oa/webhook : HTTP 401.
-Certificate verification enabled. Smoke rerun after backup changes passes.
+https://apartme.makemarket.space — deployed release /, /healthz, /readyz200; unsigned webhook401; protected deposit/meter/export/batch paths401 without authentication. Guest browser1280/390/320 passed, no protected navigation or horizontal overflow. New privacy candidate not yet exposed publicly.
 
-## 13. Git
+## 13. Git commits and push
 
-- ec08eb4 — feat(infra): verify encrypted same-VPS PostgreSQL recovery — pushed to origin/main.
-- b234065 — fix(web): parse currency into exact integer satang — pushed to origin/main.
-- Subsequent configuration/report changes are committed separately when recorded in Git log.
-- Previous shared work, .serena data and mixed feature/QA changes remain preserved. No reset, stash, hook bypass or unrelated staging was used.
+main: ec08eb4 local backup; b234065 exact satang;153fad1 recovery evidence; dbf889a integrated verified implementation; ce49565 CI build fix. All pushed. Candidate full local gates passed and is ready for explicit-path staging. Commit, push, CI and DEV deployment are pending; unrelated .serena files remain unstaged.
 
 ## 14. External blockers
 
-BLOCKED TASK: Real LINE Login/LIFF and bounded external dispatch acceptance.
-WHY: Configured secrets alone do not establish consented sandbox accounts or approval to dispatch.
-WHAT IS REQUIRED: Operator-approved test identities/channel setup and explicit bounded-send approval.
-WHAT WAS ALREADY IMPLEMENTED: Signature/consent/outbox/retry/rate/revocation tests; disabled observer runtime.
-SAFE NEXT ACTION: Finish remaining code and prepare a bounded sandbox acceptance script; keep outbound disabled.
+BLOCKED TASK: Real LINE account/LIFF and external dispatch UAT.
+WHY: Read-only bot identity and mocks do not prove account callback, consented delivery or provider behavior.
+WHAT IS REQUIRED: Operator-approved LINE test accounts/console callback configuration, bounded delivery approval and UAT evidence.
+WHAT WAS ALREADY IMPLEMENTED: Backend token/session verification, callback UI, webhook/consent/outbox/retry/quota/monitoring and mock acceptance.
+SAFE NEXT ACTION: Keep outbound disabled and run authorized real account UAT once access/approval is available.
 
-BLOCKED TASK: Real S3/bank/scanner/legal provider acceptance.
-WHY: S3 endpoint/credentials absent; bank-recipient/legal acceptance and live scanner drill not verified.
-WHAT IS REQUIRED: Approved test storage credentials, bank-app recipient confirmation, scanner operational verification and relevant policy signoff.
-WHAT WAS ALREADY IMPLEMENTED: Private local evidence, mock S3 sanitation/replay/IDOR tests, fail-closed scanner adapter and manual financial controls.
-SAFE NEXT ACTION: Continue provider-independent code and isolate real-provider tests; never accept uploaded slips as bank verification.
+BLOCKED TASK: Bank/scanner/private object-storage and legal retention acceptance.
+WHY: Mock/synthetic acceptance does not prove real recipient/IAM/scanner/legal policy.
+WHAT IS REQUIRED: Confirmed bank recipient, actual scanner/storage test environment where required, approved retention and financial/receipt policies.
+WHAT WAS ALREADY IMPLEMENTED: Private sanitized evidence, PromptPay builder, manual ledger, fail-closed scanner/provider adapters and guarded default-disabled profile workflow.
+SAFE NEXT ACTION: Continue provider-independent implementation; enable no profile erasure, real refund or provider send without applicable approval.
 
-BLOCKED TASK: Operator recovery-key custody.
-WHY: Encrypted local recovery passes, but operator-held recovery-key copy has not been confirmed.
-WHAT IS REQUIRED: Secure operator export using SSH/SFTP to protected custody, never through chat or Git.
-WHAT WAS ALREADY IMPLEMENTED: Root-only key and documented secure export/recovery process.
-SAFE NEXT ACTION: Operator follows LOCAL_BACKUP.md; retain existing key and backups.
+BLOCKED TASK: Operator recovery-key custody evidence.
+WHY: Key exists protected on current VPS, but secure operator export/custody has not been confirmed.
+WHAT IS REQUIRED: Operator securely exports and verifies custody following LOCAL_BACKUP.md, without posting private key in chat or Git.
+WHAT WAS ALREADY IMPLEMENTED: age key0600, encrypted archive verification and isolated restore; same-VPS backup is complete independently of host-loss DR.
+SAFE NEXT ACTION: Retain current protected key and backups; operator performs documented secure custody process.
 
-## 15. Remaining implementation work
+## 15. Remaining code and acceptance
 
-This is not an external-dependencies-only finish. Coding remains: persisted deposit ledger/deduction/refund review API and UI; meter photo evidence and persisted anomaly review; remaining invitation/repair notification producers; privacy deletion/retention and contract workflows; broader billing/payment evidence/maintenance/invitation browser integration; full manager/super-admin/accessibility acceptance and remaining load/operational gates. Reconcile each canonical checkbox and commit reviewed coherent shared feature units before deploying new images.
+Manual refund reconciliation and approved reservation resolution; maintenance private attachments and configurable SLA/report acceptance; contract and complete data-retention workflows; full browser/operator/accessibility/design acceptance; candidate commit/CI/DEV deploy; moderate dependency updates. The candidate local full release gates and migration rehearsal now pass. These are not all external blockers. Canonical PHASES.md and P5 runbooks carry task evidence.
 
-## 16. Readiness classification
+## 16. Final readiness classification
 
-| Classification | State |
-|---|---|
-| IMPLEMENTATION COMPLETE | NO |
-| DEV DEPLOYED | Existing application YES; new backup infrastructure YES; expanded shared application work NOT deployed |
-| DEV UAT VERIFIED | NO |
-| PRODUCTION APPROVED | NO |
-
-Do not declare 100% DEV READY from this report.
+IMPLEMENTATION COMPLETE: NO; remaining code and UAT items are listed in section 15.
+DEV DEPLOYED: YES, ce49565 only; this candidate is not yet deployed.
+DEV UAT VERIFIED: PARTIAL; automated workflows pass, real LINE operator callback/UAT is not verified.
+PRODUCTION APPROVED: NO.

@@ -5,7 +5,7 @@ type Api={api:<T>(path:string,options?:RequestInit)=>Promise<T>;post:<T>(path:st
 type Lease={id:string;roomId:string;tenantName:string;tenantLineSubject:string|null;status:string};
 type Invite={id:string;expiresAt:string;claimedAt:string|null;approvedAt:string|null;revokedAt:string|null;claimantName:string|null;createdAt:string};
 type NewInvite={id:string;token:string;expiresAt:string};
-export function OwnerInvitations({propertyId,api,post}:Api&{propertyId:string}){
+export function OwnerInvitations({propertyId,canApprove=false,api,post}:Api&{propertyId:string;canApprove?:boolean}){
  const [leases,setLeases]=useState<Lease[]>([]),[selected,setSelected]=useState(""),[invites,setInvites]=useState<Invite[]>([]);
  const [code,setCode]=useState(""),[busy,setBusy]=useState(false),[error,setError]=useState(""),[message,setMessage]=useState("");
  async function loadLeases(){
@@ -40,7 +40,7 @@ export function OwnerInvitations({propertyId,api,post}:Api&{propertyId:string}){
      <div><strong>{i.claimantName||"รอผู้เช่ารับรหัส"}</strong><small>{i.approvedAt?"อนุมัติและผูก LINE แล้ว":i.revokedAt?"ถูกยกเลิก":i.claimedAt?"รอเจ้าของยืนยันบัญชี":"รอผู้เช่ากรอกรหัส"}</small>
        <small>วันหมดอายุ {new Date(i.expiresAt).toLocaleString("th-TH")}</small></div>
      <div className="actions">
-      {i.claimedAt&&!i.approvedAt&&!i.revokedAt&&<button type="button" className="btn primary" disabled={busy}
+      {canApprove&&i.claimedAt&&!i.approvedAt&&!i.revokedAt&&<button type="button" className="btn primary" disabled={busy}
         onClick={()=>void perform(async()=>{if(!window.confirm("ตรวจสอบตัวตนผู้เช่าชื่อ "+i.claimantName+" แล้วใช่หรือไม่?"))return;
          await post(path(i.id)+"/approve",{});await loadInvites(selected);await loadLeases();setMessage("อนุมัติ LINE ของผู้เช่าแล้ว");})}><ShieldCheck size={16}/> อนุมัติ</button>}
       {!i.approvedAt&&!i.revokedAt&&<button type="button" className="btn outline" disabled={busy} onClick={()=>void perform(async()=>{

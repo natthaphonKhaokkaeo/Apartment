@@ -3,7 +3,7 @@ import type {FastifyInstance} from "fastify";
 import {and,eq,desc,isNull} from "drizzle-orm";
 import {z} from "zod";
 import {db} from "../db/client.js";
-import {auditLogs,invoiceLines,invoices,leaseInvitations,leases,organizations,properties,rooms,users} from "../db/schema.js";
+import {auditLogs,invoiceLines,invoices,leaseInvitations,leases,memberships,organizations,properties,rooms,users} from "../db/schema.js";
 import {AppError,requireActor,requireProperty} from "../security.js";
 import {generateLeaseInvite,hashLeaseInvite,inviteExpiry} from "../services/invitations.js";
 
@@ -117,13 +117,22 @@ export async function registerTenantRoutes(app:FastifyInstance):Promise<void>{
   const {propertyId,leaseId,inviteId}=approvalParams.parse(req.params);
   const actor=await requireActor(req),property=await requireProperty(actor,propertyId,true);
   return db.transaction(async tx=>{
+   const [ownerUser]=await tx.select({id:users.id}).from(users).where(and(eq(users.id,actor.id),eq(users.status,"ACTIVE"))).for("share");
+   const [org]=await tx.select({id:organizations.id}).from(organizations).where(and(eq(organizations.id,property.organizationId),eq(organizations.status,"ACTIVE"))).for("share");
+   const [owner]=await tx.select({id:memberships.id}).from(memberships).where(and(eq(memberships.userId,actor.id),eq(memberships.organizationId,property.organizationId),eq(memberships.role,"OWNER"),eq(memberships.status,"ACTIVE"))).for("share");
+   if(!owner||!ownerUser||!org)throw new AppError(403,"TENANT_APPROVAL_ACTIVE_OWNER_REQUIRED");
+   // Lock the claimant before lease/invitation, matching profile anonymization.
+   // Recheck the invitation under its write lock below before linking anything.
+   const [candidate]=await tx.select({claimedBy:leaseInvitations.claimedBy}).from(leaseInvitations).where(and(eq(leaseInvitations.id,inviteId),eq(leaseInvitations.leaseId,leaseId),eq(leaseInvitations.organizationId,property.organizationId)));
+   if(!candidate?.claimedBy)throw new AppError(409,"INVITATION_NOT_APPROVABLE");
+   const [tenant]=await tx.select().from(users).where(and(eq(users.id,candidate.claimedBy),eq(users.status,"ACTIVE"))).for("share");
+   if(!tenant)throw new AppError(409,"TENANT_ACCOUNT_DISABLED");
    const [lease]=await tx.select().from(leases).where(and(eq(leases.id,leaseId),eq(leases.propertyId,property.id),eq(leases.organizationId,property.organizationId))).for("update");
    if(!lease)throw new AppError(404,"LEASE_NOT_FOUND");
    if(lease.status!=="ACTIVE"||lease.tenantLineSubject)throw new AppError(409,"LEASE_ALREADY_LINKED");
    const [invite]=await tx.select().from(leaseInvitations).where(and(eq(leaseInvitations.id,inviteId),eq(leaseInvitations.leaseId,leaseId),eq(leaseInvitations.organizationId,property.organizationId))).for("update");
    if(!invite||invite.revokedAt||invite.approvedAt||!invite.claimedAt||!invite.claimedBy)throw new AppError(409,"INVITATION_NOT_APPROVABLE");
-   const [tenant]=await tx.select().from(users).where(and(eq(users.id,invite.claimedBy),eq(users.status,"ACTIVE")));
-   if(!tenant)throw new AppError(409,"TENANT_ACCOUNT_DISABLED");
+   if(invite.claimedBy!==tenant.id)throw new AppError(409,"INVITATION_NOT_APPROVABLE");
    const [updated]=await tx.update(leases).set({tenantLineSubject:tenant.lineSubject})
     .where(and(eq(leases.id,lease.id),isNull(leases.tenantLineSubject),eq(leases.status,"ACTIVE"))).returning({id:leases.id});
    if(!updated)throw new AppError(409,"LEASE_ALREADY_LINKED");

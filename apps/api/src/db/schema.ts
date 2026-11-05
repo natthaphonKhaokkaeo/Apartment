@@ -611,3 +611,24 @@ export const meterAnomalyReviews=pgTable("meter_anomaly_reviews",{
  check("meter_review_action",sql`${t.action} IN ('ACKNOWLEDGED','REQUIRES_CORRECTION')`),
  check("meter_review_threshold",sql`${t.maxDailyMilli} > 0 AND ${t.maxDailyMilli} <= 99999999999999`)
 ]);
+
+/** Profile-only privacy workflow: immutable financial records are never erased here. */
+export const privacyRequests=pgTable("privacy_requests",{
+ id:uuid("id").primaryKey().defaultRandom(),
+ userId:uuid("user_id").notNull().references(()=>users.id),
+ reason:text("reason").notNull(),
+ status:varchar("status",{length:32}).notNull().default("REQUESTED"),
+ idempotencyKey:varchar("idempotency_key",{length:128}).notNull(),
+ requestHash:varchar("request_hash",{length:64}).notNull(),
+ reviewedBy:uuid("reviewed_by").references(()=>users.id),
+ reviewReason:text("review_reason"),
+ policyEvidenceRef:varchar("policy_evidence_ref",{length:200}),
+ policyRetentionDays:integer("policy_retention_days"),
+ createdAt:timestamp("created_at",{withTimezone:true}).notNull().defaultNow(),
+ reviewedAt:timestamp("reviewed_at",{withTimezone:true}),
+ executedAt:timestamp("executed_at",{withTimezone:true})
+},t=>[
+ uniqueIndex("uq_privacy_request_user_key").on(t.userId,t.idempotencyKey),
+ index("idx_privacy_request_status").on(t.status,t.createdAt),
+ check("privacy_request_status",sql`${t.status} IN ('REQUESTED','APPROVED','REJECTED','CANCELLED','PROFILE_ANONYMIZED')`)
+]);

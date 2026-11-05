@@ -1,3 +1,4 @@
+import {PrivacyCenter} from "./PrivacyCenter.js";
 import {useEffect,useState} from "react";
 import {DoorOpen,ReceiptText,KeyRound,ShieldCheck,Clock3,FileText} from "lucide-react";
 import {TenantPayments} from "./TenantPayments.js";
@@ -76,6 +77,7 @@ export function TenantPortal({api,post}:Api){
    <TenantPayments invoiceId={detail.id} api={api}/></>}
    {detail.historical&&<p className="notice">บิลจากสัญญาที่สิ้นสุดแล้วเปิดให้ดูย้อนหลังเท่านั้น หากต้องการหลักฐานการชำระเงินให้ติดต่อเจ้าของหอพัก</p>}
   </section>}
+  <PrivacyCenter api={api} post={post}/>
   <section className="panel"><div className="panel-head"><div><h2>ข้อมูลส่วนบุคคลของฉัน</h2><p>ส่งออกข้อมูลสัญญาและใบแจ้งหนี้ของบัญชีที่ยืนยันแล้วในรูปแบบ JSON เพื่อเก็บสำเนา</p></div><FileText size={20}/></div>
    <a className="btn outline" href="/v1/tenant/privacy/export" download="tenant-data-export.json">ดาวน์โหลดข้อมูลของฉัน</a>
    <p className="notice">ไฟล์นี้อาจมีชื่อผู้เช่าและข้อมูลทางการเงิน โปรดจัดเก็บในพื้นที่ส่วนตัว การส่งออกนี้ไม่ใช่คำขอลบข้อมูล</p>

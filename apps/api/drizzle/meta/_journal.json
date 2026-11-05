@@ -141,6 +141,13 @@
       "when": 1793839406114,
       "tag": "0019_meter_evidence_reviews",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1793842448086,
+      "tag": "0020_privacy_profile_requests",
+      "breakpoints": true
     }
   ]
 }

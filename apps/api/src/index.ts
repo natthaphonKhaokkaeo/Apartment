@@ -1,3 +1,4 @@
+import {registerPrivacyRequestRoutes} from "./routes/privacy-requests.js";
 import {registerMeterRecordRoutes} from "./routes/meter-records.js";
 import {registerDepositRoutes} from "./routes/deposits.js";
 import Fastify from "fastify";
@@ -419,4 +420,5 @@ await registerMaintenanceTicketRoutes(app);
 await registerBillingBatchRoutes(app);
 await registerDepositRoutes(app);
 await registerMeterRecordRoutes(app);
+await registerPrivacyRequestRoutes(app);
 await app.listen({host:config.HOST,port:config.PORT});

@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Finite DEV quality gate. PostgreSQL mutations are confined to the disposable runner.
 set -Eeuo pipefail
+unset APARTMENT_BROWSER_FOCUS APARTMENT_FOCUSED_SMOKE APARTMENT_POSTGRES_BROWSER
 cd "$(dirname "$0")/.."
 corepack pnpm test
 corepack pnpm lint

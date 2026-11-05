@@ -104,3 +104,7 @@ No new key required. Optional future worker controls: LINE_WORKER_MODE=observe, 
 
 ## P4-03d LINE Outbox quota controls (nonsecret)
 LINE_GLOBAL_PER_MINUTE=20 and LINE_ORG_PER_MINUTE=5; positive integers <=60, per-org no greater than global. These are **internal conservative attempt limits, not verified LINE provider quotas**. The DEV observer Compose sets them explicitly but remains observe-only/LINE_OUTBOUND_MODE=disabled. Do not enable live based on these values without actual Messaging API quota, sandbox and security signoff. Internal incident alerts need no external endpoint or secret; there is NO operator paging currently.
+
+## Optional profile-only privacy execution (2026-11-05)
+
+Request/review endpoints do not require enabling profile anonymization. Keep `PRIVACY_PROFILE_ANONYMIZATION_APPROVED=false` in DEV until an operator has approved the actual policy. If explicitly enabled later, `PRIVACY_PROFILE_RETENTION_DAYS` (integer 1–36500) and `PRIVACY_POLICY_EVIDENCE_REF` (12–200 characters identifying actual approval) are mandatory. No legal retention duration is supplied by the implementation. These are runtime settings outside Git. Synthetic test approval is never an operational approval. See docs/P5_PRIVACY_PROFILE_WORKFLOW.md.

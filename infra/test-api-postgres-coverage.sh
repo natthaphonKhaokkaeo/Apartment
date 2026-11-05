@@ -25,6 +25,7 @@ export LINE_CHANNEL_ID=isolated-coverage-no-provider LINE_OUTBOUND_MODE=disabled
 export LINE_MESSAGING_CHANNEL_SECRET=00000000000000000000000000000000 LINE_MESSAGING_CHANNEL_ACCESS_TOKEN=synthetic-no-provider
 export LINE_OA_BOT_USER_ID=U8e742f61d673b39c7fff3cecb7536ef0 SUPER_ADMIN_LINE_USER_ID=coverage-bootstrap-never-a-real-user
 export EVIDENCE_STORAGE_DRIVER=local EVIDENCE_MALWARE_SCANNER=disabled PAYMENT_EVIDENCE_DIR="$scratch/evidence"
+export PRIVACY_PROFILE_ANONYMIZATION_APPROVED=false
 export LINE_GLOBAL_PER_MINUTE=20 LINE_ORG_PER_MINUTE=5
 corepack pnpm --filter @apartment/api db:migrate
 # Server test harnesses terminate child servers with SIGTERM. Flush V8 before exit.
@@ -34,14 +35,14 @@ cat > "$scratch/run.sh" <<'RUN'
 set -euo pipefail
 cd "$APARTMENT_COVERAGE_ROOT/apps/api"
 node --import tsx scripts/check-db-schema-compatibility.ts
-for script in smoke smoke-staff smoke-independent-security smoke-load-gates smoke-http smoke-payment-concurrency smoke-financial-adjustments smoke-maintenance smoke-billing-batch smoke-deposits smoke-meter-evidence smoke-operation-notifications smoke-line-oa smoke-line-consent smoke-storage-s3 smoke-evidence-cleanup; do
+for script in smoke smoke-staff smoke-independent-security smoke-load-gates smoke-http smoke-payment-concurrency smoke-financial-adjustments smoke-maintenance smoke-billing-batch smoke-deposits smoke-meter-evidence smoke-operation-notifications smoke-privacy smoke-privacy-link-race smoke-line-oa smoke-line-consent smoke-storage-s3 smoke-evidence-cleanup; do
  echo "RUNNING_IN_ISOLATED_DB $script"
  node --import tsx "scripts/$script.ts"
 done
 RUN
 export APARTMENT_COVERAGE_ROOT="$ROOT"
 if [[ -n "${APARTMENT_FOCUSED_SMOKE:-}" ]]; then
- case "$APARTMENT_FOCUSED_SMOKE" in smoke-billing-batch|smoke-deposits|smoke-meter-evidence|smoke-operation-notifications);; *) echo INVALID_FOCUSED_SMOKE >&2; exit 2;; esac
+ case "$APARTMENT_FOCUSED_SMOKE" in smoke-billing-batch|smoke-deposits|smoke-meter-evidence|smoke-operation-notifications|smoke-privacy|smoke-privacy-link-race);; *) echo INVALID_FOCUSED_SMOKE >&2; exit 2;; esac
  (cd apps/api && node --import tsx "scripts/$APARTMENT_FOCUSED_SMOKE.ts")
  echo FOCUSED_POSTGRES_SMOKE_PASS
  exit 0
@@ -54,9 +55,27 @@ fi
 if [[ "${APARTMENT_POSTGRES_BROWSER:-0}" == 1 || "${APARTMENT_POSTGRES_BROWSER:-0}" == only ]]; then
  export WEB_ORIGIN=http://127.0.0.1:4174
  export VITE_LIFF_ID=''
- # Fresh API per viewport isolates rate-limit budgets; production limits stay enabled.
+ # Discover every case, then give each workflow its own API rate-limit window.
+ # A focused grep is only for a local regression check; release runs execute all discovered cases.
+ browser_focus=()
+ if [[ -n "${APARTMENT_BROWSER_FOCUS:-}" ]]; then browser_focus=(--grep "$APARTMENT_BROWSER_FOCUS"); fi
+ corepack pnpm exec playwright test --config playwright.postgres.config.ts --project postgres-desktop --list --reporter=json "${browser_focus[@]}" > "$scratch/browser-list.json"
+ python3 - "$scratch/browser-list.json" > "$scratch/browser-cases.txt" <<'PYCASES'
+import json,re,sys
+raw=open(sys.argv[1]).read(); start=re.search(r'(?m)^\{\s*$',raw); assert start, 'BROWSER_JSON_REPORT_MISSING'
+report=json.loads(raw[start.start():]); titles=[]
+def walk(suite):
+ for spec in suite.get('specs',[]): titles.append(spec['title'])
+ for child in suite.get('suites',[]): walk(child)
+walk(report)
+assert titles and len(titles)==len(set(titles)), 'BROWSER_CASE_DISCOVERY_INVALID'
+for title in titles: print(re.escape(title))
+PYCASES
+ mapfile -t browser_cases < "$scratch/browser-cases.txt"
  for project in postgres-desktop postgres-mobile-390 postgres-mobile-320; do
-  corepack pnpm exec playwright test --config playwright.postgres.config.ts --project "$project"
+  for scenario in "${browser_cases[@]}"; do
+   corepack pnpm exec playwright test --config playwright.postgres.config.ts --project "$project" --grep "$scenario" "${browser_focus[@]}"
+  done
  done
- echo POSTGRES_BROWSER_WORKFLOWS_PASS
+ if [[ -n "${APARTMENT_BROWSER_FOCUS:-}" ]]; then echo FOCUSED_POSTGRES_BROWSER_PASS; else echo POSTGRES_BROWSER_WORKFLOWS_PASS; fi
 fi

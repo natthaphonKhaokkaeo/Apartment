@@ -1,10 +1,11 @@
 import Fastify from "fastify";
-import {getTableName} from "drizzle-orm";
+import {getTableName,type SQL} from "drizzle-orm";
+import {PgDialect} from "drizzle-orm/pg-core";
 import {beforeEach,describe,expect,it,vi} from "vitest";
 
 const state=vi.hoisted(()=>({
  hasCandidate:true,hasLease:true,hasInvite:true,hasOrg:true,hasProperty:true,
- userActive:true,leaseStatus:"ACTIVE",tenantAlreadyLinked:false,
+ ownerActive:true,ownerAllowed:true,userActive:true,leaseStatus:"ACTIVE",tenantAlreadyLinked:false,
  revoked:false,claimed:false,approved:false,expired:false,raceLost:false,
  updates:0,inserts:0,
 }));
@@ -35,9 +36,10 @@ vi.mock("../src/db/client.js",()=>({
  },
 }));
 function query(_shape?:Record<string,unknown>){
- let table="";
+ let table="",actorQuery=false;
  function values(){
-  if(table==="users")return state.userActive?[{id:"actor-claimant",lineSubject:"U:claimed"}]:[];
+  if(table==="memberships")return state.ownerAllowed?[{id:"owner-membership"}]:[];
+  if(table==="users")return (actorQuery?state.ownerActive:state.userActive)?[{id:actorQuery?"actor-a":"actor-claimant",lineSubject:"U:claimed"}]:[];
   if(table==="lease_invitations"){
    return (state.hasCandidate&&state.hasInvite)?[{
     id:id.invite,leaseId:id.lease,organizationId:id.org,propertyId:id.property,
@@ -58,7 +60,7 @@ function query(_shape?:Record<string,unknown>){
  }
  return {
   from(t:unknown){table=getTableName(t as Parameters<typeof getTableName>[0]);return this;},
-  where(){return this;},innerJoin(){return this;},orderBy(){return this;},
+  where(condition:SQL){actorQuery=new PgDialect().sqlToQuery(condition).params.includes("actor-a");return this;},innerJoin(){return this;},orderBy(){return this;},
   limit:async()=>values(),for:async()=>values(),
   then(resolve:(v:unknown)=>unknown,reject:(e:unknown)=>unknown){
    return Promise.resolve(values()).then(resolve,reject);
@@ -92,7 +94,7 @@ async function approve(){
 }
 beforeEach(()=>Object.assign(state,{
  hasCandidate:true,hasLease:true,hasInvite:true,hasOrg:true,hasProperty:true,
- userActive:true,leaseStatus:"ACTIVE",tenantAlreadyLinked:false,
+ ownerActive:true,ownerAllowed:true,userActive:true,leaseStatus:"ACTIVE",tenantAlreadyLinked:false,
  revoked:false,claimed:false,approved:false,expired:false,raceLost:false,
  updates:0,inserts:0,
 }));
@@ -141,6 +143,13 @@ describe("P2 invite claim HTTP security without LINE credentials",()=>{
  it("fails closed if simultaneous claimant won the update race",async()=>{
   state.raceLost=true;
   expect((await claim()).statusCode).toBe(404);
+ });
+ it("requires current active owner membership, account and organization before approval writes",async()=>{
+  state.claimed=true;
+  for(const flag of ["ownerAllowed","ownerActive","hasOrg"] as const){
+   state[flag]=false;expect((await approve()).statusCode).toBe(403);
+   expect(state.updates).toBe(0);state[flag]=true;
+  }
  });
  it("owner approval links a claimed tenant only after explicit review",async()=>{
   state.claimed=true;

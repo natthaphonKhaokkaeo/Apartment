@@ -10,6 +10,9 @@ const schema = z.object({
  COOKIE_SECURE: z.enum(["true","false"]).default("true"),
  WEB_ORIGIN: z.string().url(),
  SUPER_ADMIN_LINE_USER_ID: z.string().optional(),
+ PRIVACY_PROFILE_ANONYMIZATION_APPROVED:z.enum(["true","false"]).default("false"),
+ PRIVACY_PROFILE_RETENTION_DAYS:z.preprocess(v=>v===""?undefined:v,z.coerce.number().int().min(1).max(36500).optional()),
+ PRIVACY_POLICY_EVIDENCE_REF:z.preprocess(v=>v===""?undefined:v,z.string().trim().min(12).max(200).optional()),
  PAYMENT_EVIDENCE_DIR: z.string().optional(),
  EVIDENCE_STORAGE_DRIVER: z.enum(["local","s3"]).default("local"),
  EVIDENCE_S3_BUCKET: z.string().optional(),
@@ -50,3 +53,7 @@ if(config.EVIDENCE_S3_ENDPOINT && config.EVIDENCE_S3_ENDPOINT.startsWith("http:/
 if(config.NODE_ENV === "production" && config.COOKIE_SECURE !== "true") throw new Error("COOKIE_SECURE is required in production");
 
 if(config.NODE_ENV === "production") throw new Error("PAYMENT_EVIDENCE_STORAGE_NOT_PRODUCTION_READY: configure private object storage and security review before production");
+
+if(config.PRIVACY_PROFILE_ANONYMIZATION_APPROVED==="true"&&(
+ !config.PRIVACY_PROFILE_RETENTION_DAYS||!config.PRIVACY_POLICY_EVIDENCE_REF
+))throw Error("PRIVACY_APPROVED_POLICY_CONFIGURATION_REQUIRED");

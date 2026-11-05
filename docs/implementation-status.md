@@ -1,5 +1,24 @@
 # Apartment implementation status — 2026-11-03
 
+## 2026-11-05 privacy release candidate — QA PASS, deploy pending
+
+- P5-PRIVACY-01 / P6-PRIVACY-01: request, cancel, trusted platform-admin review, and responsive own-profile UI implemented. Additive migration 0020 and metadata validated on isolated PostgreSQL; not yet applied to DEV.
+- P5-PRIVACY-02 / P2-PRIVACY-RACE-01: profile-only guard and anonymization pass synthetic isolated smoke; invitation approval serializes with account disable and requires active OWNER. Actual profile execution remains disabled by default. No live account was erased.
+- Final DEV automated gates PASS: unit262/262 across49 files; domain15/15 with100% lines; API unit-only V8 40.08% (2374/5923), >=39 regression floor; PostgreSQL HTTP c8 87.41% (5691/6510) across all68 API files; mocked browser33/33; real PostgreSQL/browser workflows24/24 across Desktop,390px,320px; Manager owner-action visibility regression PASS; migration0020 rehearsal preserved/restored36 original table fingerprints.
+- Lint and TypeScript PASS, Drizzle check PASS, high/critical audit gate PASS (six moderate advisories documented), disposable backup/restore/predeploy checks are current. Candidate public deployment and GitHub run are pending commit/push; deployed revision remains ce49565.
+- External policy approval is required only before enabling real profile anonymization. See docs/P5_PRIVACY_PROFILE_WORKFLOW.md and docs/APARTMENT_IMPLEMENTATION_REPORT_2026-11-05.md. Remaining P0–P7 code/provider/UAT tasks remain open; this is not 100% DEV READY.
+
+## 2026-11-05 deployed DEV checkpoint (ce49565)
+
+- Integrated implementation dbf889a and CI build-environment fix ce49565 pushed. GitHub Actions run 41948158755 completed SUCCESS for both quality and PostgreSQL >=80% / backend browser jobs.
+- Clean-archive images labelled ce495657c2b77b9d2cf9043c865a4e1450d58438 built and deployed through the existing Apartment Dokploy Compose configuration/project (Apartment API, Web and observe-only worker only). All healthy; PostgreSQL start timestamp unchanged, no shared proxy change.
+- Applied migration 0018 and 0019; protected migration journal verification PASS. Fresh encrypted post-migration backup restored 36 public tables in a networkless disposable DB. Local backup timers remain enabled.
+- Public HTTPS /, /healthz, /readyz 200; unsigned webhook 401. New deposit, meter records, privacy export and batch routes return 401 to unauthenticated public requests. Actual public guest browser checks at 1280/390/320 PASS with no navigation leak or horizontal overflow.
+- Runtime stays LINE disabled / worker observe / approval false. Read-only LINE bot/info 200 with matching configured bot identity; zero external messages. Real LINE-account and bank UAT remain unverified.
+- Latest local API tests 244/244; domain 15/15; domain lines 100%; actual HTTP/PostgreSQL API lines 87.03% over all 65 files, unit-only lines 40.49%; mocked browser 33/33, real-backend browser 12/12, public guest 3/3. Lint/types/audit High/Critical=0 pass (6 Moderate remain).
+- Core increment DEPLOYED, NOT 100% overall. Continue remaining privacy/retention/contract, manual-refund reconciliation/reservation resolution, maintenance attachment/SLA, full financial browser and operator UAT work. No real erasure, refund, provider dispatch or Production release approval is inferred.
+
+
 ## 2026-11-05 release integration checkpoint — fresh automated evidence
 
 - Current integrated source passes all finite DEV automated gates. API unit **244/244**, Domain **15/15**; Domain lines **100%**. Unit-only API V8 lines **40.49% (2325/5741)**, retaining the existing >=39% regression floor. The separate actual HTTP/PostgreSQL/native-V8 gate is **87.03% (5500/6319)** over **all 65 API source files**, zero omitted, enforced >=80%.
