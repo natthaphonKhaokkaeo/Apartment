@@ -154,15 +154,17 @@ function App(){
    const id=import.meta.env.VITE_LIFF_ID as string|undefined;
    if(!id)throw new Error("ยังไม่ได้ตั้งค่า VITE_LIFF_ID บนเว็บ");
    await liff.init({liffId:id});
-   if(!liff.isLoggedIn()){liff.login({redirectUri:window.location.href});return;}
+   const inLiffBrowser=liff.isInClient();
+   if(!liff.isLoggedIn()){
+    if(inLiffBrowser)throw new Error("LINE ยังไม่ส่ง session ให้ LIFF กรุณาปิดหน้านี้แล้วเปิดจาก Rich Menu ใน LINE อีกครั้ง");
+    liff.login({redirectUri:window.location.href});return;
+   }
    const refreshExpiredLineToken=()=>{
     const key="apartment.liff.expired-token-refresh";
     if(sessionStorage.getItem(key)==="1"){sessionStorage.removeItem(key);return false;}
     sessionStorage.setItem(key,"1");
-    const inLiffBrowser=liff.isInClient();
-    liff.logout();
     if(inLiffBrowser)window.location.reload();
-    else liff.login({redirectUri:window.location.href});
+    else{liff.logout();liff.login({redirectUri:window.location.href});}
     return true;
    };
    const decoded=liff.getDecodedIDToken();

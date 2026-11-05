@@ -2,6 +2,13 @@
 
 
 
+
+## 2026-11-05 iOS LIFF session redirect fix (QA PASS; DEV deploy pending)
+
+- P2-LIFF-IOS: after `liff.init()`, do not call `liff.login()` when `liff.isInClient()` is true. LIFF browser login is handled automatically during initialization; explicit login is only used for external browsers. If an in-client session is unexpectedly unavailable, show a recovery message instead of redirecting to LINE's hosted login page.
+- Expired-token recovery reloads LIFF in-client so the SDK can reacquire its session; it calls logout/login only in external browsers.
+- Evidence: workspace typecheck, ESLint, and Playwright 36/36 pass. Real iOS LINE client behavior still needs a device retest after deploy.
+
 ## 2026-11-05 room-level default/override rates (QA PASS; DEV deployed)
 
 - P1/P6-ROOM-RATES: the new-room form now displays the property's rent, water and electricity rates as selected defaults with disabled amount inputs. Clearing an individual default checkbox enables that room's amount field. Mixed default/override values are supported.

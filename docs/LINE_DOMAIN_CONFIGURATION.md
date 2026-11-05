@@ -23,3 +23,8 @@
 - Webhook path must be HTTPS-reachable. Do **not** test by directly GETting webhook as if it were a browser page: it is signed LINE POST-only and unsigned requests must fail verification.
 - Restart/redeploy API only after env review; rebuild/redeploy web with build-time `VITE_LIFF_ID` after LIFF app exists.
 - Never put LINE channel secret or Messaging API access token into frontend `VITE_*` variables.
+
+
+## iOS LIFF session handling
+
+The web app distinguishes the LIFF browser from external browsers using `liff.isInClient()`. After `liff.init()`, LIFF-browser sessions are consumed directly; do not call `liff.login()` or `liff.logout()` there. External browsers may use the explicit LINE login redirect. Test the app from an OA Rich Menu LIFF URL on real iOS LINE after each authentication-flow release.
