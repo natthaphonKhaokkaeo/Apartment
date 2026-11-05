@@ -233,3 +233,5 @@ Commit `57706b1` (test selector only) is pushed. Its DEV deploy attempt was roll
 ## Latest recovery and deployment — 2026-11-05
 
 Started the existing Dokploy Traefik container after verifying its persistent ACME JSON was valid and mounted read-write; Apartment public HTTPS returned. Commit `41e9a7b` deployed successfully after encrypted backup/isolated restore and migration/observer safety checks. Public smoke: Web/API health/readiness 200, unsigned LINE webhook 401. Runtime API/Web/observer healthy; PostgreSQL not restarted. Runtime LINE secrets are protected; Bot Info and webhook URL checks passed. No active DEV organization/OA binding exists, so outbound remains disabled and LINE tenant messaging is not yet ready for UAT.
+
+A synthetic HMAC-signed empty LINE webhook passed through public HTTPS/signature parsing but returned `LINE_OA_BINDING_NOT_ENABLED`, confirming no enabled organization binding is present. No message was sent.

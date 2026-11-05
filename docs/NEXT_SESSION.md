@@ -433,3 +433,5 @@ Branch `main` is pushed through `57706b1`; only a Playwright locator changed and
 ### 2026-11-05 latest recovery
 
 The Dokploy Traefik container had exited after reboot with a missing network reference. Verified ACME JSON was valid, protected (`0600`) and read-write persistent, then started the existing proxy container; Apartment HTTPS ingress recovered. Built/deployed `41e9a7b`; backup/restore, migration/observer safety, public Web/API health/readiness and unsigned webhook denial all pass. API/Web/observer healthy; PostgreSQL not restarted. Traefik still logs invalid PEMs for unrelated configured hostnames; do not alter those project certs here. LINE token/webhook are configured and validated, but DEV has no active organization or OA binding; keep outbound disabled/observe until owner onboarding and consent gates are completed.
+
+A signed synthetic empty LINE webhook now reaches the deployed HTTPS route and passes signature parsing, then returns `LINE_OA_BINDING_NOT_ENABLED`; provider credentials and endpoint are valid, but tenant OA delivery remains blocked until an active organization is bound through the authenticated admin flow.
