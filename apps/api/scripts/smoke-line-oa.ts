@@ -1,11 +1,10 @@
-import {createHmac,randomUUID} from "node:crypto";
+import {createHmac,randomUUID,randomBytes} from "node:crypto";
 import {spawn} from "node:child_process";
 import {strict as assert} from "node:assert";
 import {eq} from "drizzle-orm";
 import {db,sqlClient} from "../src/db/client.js";
-import {users,sessions,organizations,properties,rooms,leases,invoiceLines,
- lineOaBindings,lineWebhookEvents,lineNotificationConsents,lineOutbox,lineOutboxDeadReviews,lineDispatchReservations,lineOpsAlerts,
- memberships,financeAdjustmentRequests,auditLogs} from "../src/db/schema.js";
+import {users,sessions,organizations,properties,rooms,leases,lineOaBindings,lineWebhookEvents,lineNotificationConsents,lineOutbox,lineOutboxDeadReviews,lineDispatchReservations,lineOpsAlerts,
+ auditLogs} from "../src/db/schema.js";
 import {enqueueLineNotification,runLineOutboxBatch} from "../src/services/line-outbox.js";
 import {reconcileLineOpsAlerts} from "../src/services/line-alerts.js";
 import {cleanupLineReservations} from "../src/services/line-retention.js";
@@ -13,7 +12,7 @@ import {newSessionToken,tokenHash} from "../src/security.js";
 const tag=randomUUID().slice(0,8),base="http://127.0.0.1:8088";
 const bot="U8e742f61d673b39c7fff3cecb7536ef0";
 const tenantLineId="U"+"a".repeat(32);
-const secret="test-line-webhook-"+tag;
+const secret=randomBytes(16).toString("hex");
 const child=spawn("node",["--import","tsx","src/index.ts"],{
  cwd:process.cwd(),stdio:"ignore",
  env:{...process.env,LINE_OA_BOT_USER_ID:bot,LINE_MESSAGING_CHANNEL_SECRET:secret,
@@ -199,7 +198,7 @@ try{
  assert.equal(quotaA.attempted+quotaB.attempted,1,JSON.stringify([quotaA,quotaB]));
  assert.equal(quotaA.quotaLimited||quotaB.quotaLimited,true);
  assert.equal(quotaSends,1);
- let quotaJobs=await db.select().from(lineOutbox).where(eq(lineOutbox.organizationId,o.id));
+ const quotaJobs=await db.select().from(lineOutbox).where(eq(lineOutbox.organizationId,o.id));
  assert.equal(quotaJobs.filter(x=>[qa.entry.id,qb.entry.id].includes(x.id)&&x.status==="QUEUED").length,1);
  const following=await runLineOutboxBatch({
   mode:"live",limit:1,now:new Date(mockedNow.getTime()+61000),

@@ -1,5 +1,5 @@
 import {and,eq,gt,lte,asc} from "drizzle-orm";
-import {parseDay,periodsForMonth,rollingPeriods,effectiveRate,rentForPeriod,readingToMilli,utilitySatang} from "@apartment/domain";
+import {parseDay,periodsForMonth,effectiveRate,rentForPeriod,readingToMilli,utilitySatang} from "@apartment/domain";
 import {db} from "../db/client.js";
 import {leases,meterReadings,meterReplacements,properties,rooms} from "../db/schema.js";
 import {AppError} from "../security.js";

@@ -8,3 +8,7 @@ coverage/
 .DS_Store
 
 .private-payment-evidence/
+
+test-results/
+playwright-report/
+.qa-output/

@@ -47,53 +47,54 @@ jobs:
         run: corepack pnpm audit --audit-level high
       - name: Whitespace validation
         run: git diff --check HEAD^ HEAD
+      - name: Offline backup script syntax safety
+        run: |
+          bash -n infra/deploy-apartment-dev.sh
+          bash -n infra/build-apartment-dev.sh
+          bash -n infra/verify-apartment-dev.sh
+          bash -n infra/local-archive-apartment-postgres.sh
+          bash -n infra/test-api-postgres-coverage.sh
+          bash -n infra/tests/local-backup-config.test.sh
+          bash -n infra/tests/local-archive-integration.test.sh
+          bash -n infra/backup-apartment-postgres.sh
+          bash -n infra/rehearse-apartment-migration-rollback.sh
+          bash -n infra/offsite-apartment-postgres.sh
+          bash -n infra/retrieve-offsite-apartment-postgres.sh
+          bash -n infra/tests/offsite-apartment-postgres.test.sh
+          bash -n infra/tests/offsite-upload-mock.test.sh
+      - name: LINE observer cannot send live (static guard)
+        run: |
+          grep -q 'LINE_WORKER_MODE=observe LINE_WORKER_APPROVED=false LINE_OUTBOUND_MODE=disabled' infra/systemd/apartment-line-outbox-observer.service
+          grep -q 'ConditionPathExists=/etc/apartment/line-worker.env' infra/systemd/apartment-line-outbox-observer.service
       - name: Drizzle migration snapshot consistency
         run: corepack pnpm --filter @apartment/api exec drizzle-kit check
       - name: Unit tests
         run: corepack pnpm test
-      - name: TypeScript lint (warnings reported, existing P5 WIP untouched)
+      - name: TypeScript lint (zero warnings enforced)
         run: corepack pnpm lint
-      - name: Coverage visibility (threshold not yet met)
+      - name: Coverage regression gate (API baseline; domain >=80%)
         run: |
-          corepack pnpm coverage:domain
-          corepack pnpm coverage:api
+          # API line coverage is currently ~29.34%, NOT the target >=80%.
+          # Block decreases while the suite is expanded to meaningful >=80%.
+          corepack pnpm --filter @apartment/domain exec vitest run --coverage --coverage.include='src/**/*.ts' --coverage.reporter=text-summary --coverage.thresholds.lines=80
+          corepack pnpm --filter @apartment/api exec vitest run --coverage --coverage.include='src/**/*.ts' --coverage.reporter=text-summary --coverage.thresholds.lines=39
       - name: TypeScript
         run: corepack pnpm typecheck
       - name: Web production build (no live LIFF key)
         run: corepack pnpm --filter @apartment/web build
         env:
           VITE_LIFF_ID: ''
+      - name: Install isolated Playwright Chromium
+        run: corepack pnpm exec playwright install --with-deps chromium
+      - name: Browser E2E (mocked API, desktop + mobile; no real LINE sends)
+        run: corepack pnpm exec playwright test
+        env:
+          VITE_LIFF_ID: ''
 
   postgres-security:
-    name: PostgreSQL migration and isolated HTTP security smoke
+    name: PostgreSQL migration, HTTP security and API coverage >=80%
     runs-on: ubuntu-latest
     timeout-minutes: 25
-    services:
-      postgres:
-        image: postgres:16-alpine
-        env:
-          POSTGRES_USER: apartment
-          POSTGRES_PASSWORD: apartment_ci_only
-          POSTGRES_DB: apartment
-        ports: ['5432:5432']
-        options: >-
-          --health-cmd "pg_isready -U apartment -d apartment"
-          --health-interval 5s --health-timeout 3s --health-retries 12
-    env:
-      NODE_ENV: development # Required for loopback HTTP S3 mock; CI is an isolated disposable DEV-only DB.
-      DATABASE_URL: postgresql://apartment:apartment_ci_only@127.0.0.1:5432/apartment
-      HOST: 127.0.0.1
-      PORT: '8088'
-      LINE_CHANNEL_ID: ci-placeholder-no-real-provider
-      COOKIE_SECURE: 'false'
-      WEB_ORIGIN: http://localhost:5173
-      EVIDENCE_STORAGE_DRIVER: local
-      EVIDENCE_MALWARE_SCANNER: disabled
-      LINE_OUTBOUND_MODE: disabled
-      LINE_WORKER_MODE: observe
-      LINE_WORKER_APPROVED: 'false'
-      LINE_GLOBAL_PER_MINUTE: '20'
-      LINE_ORG_PER_MINUTE: '5'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -105,23 +106,16 @@ jobs:
           corepack enable
       - name: Install exact lockfile
         run: corepack pnpm install --frozen-lockfile
-      - name: Migrate clean disposable PostgreSQL
-        run: corepack pnpm --filter @apartment/api db:migrate
-      - name: Verify tenant, staff and finance isolation
-        run: |
-          corepack pnpm --filter @apartment/api smoke
-          corepack pnpm --filter @apartment/api smoke:staff
-          corepack pnpm --filter @apartment/api exec tsx scripts/smoke-independent-security.ts
-          corepack pnpm --filter @apartment/api smoke:load-gates
-      - name: Regression HTTP
-        run: |
-          corepack pnpm --filter @apartment/api smoke:http
-          corepack pnpm --filter @apartment/api smoke:payments
-          corepack pnpm --filter @apartment/api smoke:finance
-          corepack pnpm --filter @apartment/api smoke:maintenance
-      - name: LINE/Evidence mocks (no external delivery)
-        run: |
-          corepack pnpm --filter @apartment/api smoke:line
-          corepack pnpm --filter @apartment/api smoke:consent
-          corepack pnpm --filter @apartment/api smoke:s3
-          corepack pnpm --filter @apartment/api smoke:cleanup
+      - name: Install browser for backend-connected workflows
+        run: corepack pnpm exec playwright install --with-deps chromium
+      - name: Disposable migration, HTTP security, >=80% coverage and real backend browser workflows
+        run: corepack pnpm coverage:api:postgres
+        env:
+          APARTMENT_POSTGRES_BROWSER: '1'
+      - name: Preserve API PostgreSQL coverage evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-postgres-coverage
+          path: coverage/postgres/coverage-summary.json
+          if-no-files-found: warn

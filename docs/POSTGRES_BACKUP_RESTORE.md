@@ -1,5 +1,8 @@
 # Apartment DEV — PostgreSQL Backup and Restore Runbook
 
+> Current approved DEV design: encrypted same-VPS archive, not offsite. See [LOCAL_BACKUP.md](LOCAL_BACKUP.md). Independent offsite setup below is optional future host-loss protection and is not required for approved DEV local backup acceptance.
+
+
 Status: 2026-11-03 — Docker volume persistence verified; the first two live logical backups succeeded, with SHA-256, pg_restore metadata validation, and a full restore into an isolated disposable PostgreSQL 16 server. Daily systemd timer is enabled.
 
 ## Actual source and location
@@ -32,6 +35,17 @@ Manual commands (run as root from repository):
     ./infra/backup-apartment-postgres.sh restore-test
 
 The restore-test creates an ephemeral PostgreSQL container with no network, host ports, persistent storage, or access to the real apartment database. It restores the latest archive there, verifies public tables, and destroys the container afterward. It must never run pg_restore against apartment-dev-postgres-1.
+
+## Encrypted offsite shipping and safe retrieval (code-only 2026-11-04)
+The new root-only encrypted offsite uploader, retrieval script and opt-in systemd schedule are documented at `docs/OFFSITE_BACKUP.md`. Upload uses age public-recipient encryption, an immutable rclone destination and ciphertext hash readback. Retrieval requires a separate protected age private identity and **does not restore directly to the live DB**. Local fail-closed checks PASS; real offsite upload, recovery and RPO/RTO acceptance have not been performed because age/rclone and the remote are not configured. The offsite timer is repository-only and disabled.
+
+## Backup-based migration recovery rehearsal (2026-11-04)
+
+Run `./infra/rehearse-apartment-migration-rollback.sh` on the Apartment VPS. The script verifies the latest existing root-only backup with SHA-256, restores it to a disposable PostgreSQL 16 container (`--network none`, tmpfs), applies the current 0017 migration there, verifies the new batch table/invoice column, drops **only** the disposable rehearsal database, restores the same archive and verifies five full-row table content fingerprints and removal of the added schema objects. The Docker container is deleted using an EXIT trap. Result: `RECOVERY_DRILL_PASS network=none checksum=verified upgraded=0017 content_fingerprints=5 restored_schema=original disposable=true`.
+
+2026-11-04 strengthening: the rehearsal now inserts one isolated synthetic organization sentinel into the temporary restored database **before** upgrade, checks all five full-row content fingerprints remain identical immediately after applying 0017, then verifies that restore returns precisely to original backup fingerprints and removes the post-backup sentinel. PASS. This fixture is never written to the real DEV database.
+
+This validates point-in-time recovery from a verified backup and data-content preservation for five selected tables in the isolated rehearsal. It is **not** an in-place downgrade, a zero-data-loss rollback for writes after backup, an offsite disaster recovery test or permission to run 0017 on the live DEV PostgreSQL. No live database changes are made. If 0017 changes, rerun this drill. Do not commit any backup archives or credentials.
 
 ## Recovery procedure / limitations
 

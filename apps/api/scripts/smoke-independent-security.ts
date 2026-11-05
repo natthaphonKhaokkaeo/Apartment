@@ -10,7 +10,7 @@ import {createServer} from "node:net";
 import {strict as assert} from "node:assert";
 import {and,eq,inArray} from "drizzle-orm";
 import {db,sqlClient} from "../src/db/client.js";
-import {auditLogs,memberships,meterReadings,organizations,properties,
+import {auditLogs,invoices,leases,memberships,meterReadings,organizations,properties,
  propertyStaffGrants,rooms,sessions,users} from "../src/db/schema.js";
 import {newSessionToken,tokenHash} from "../src/security.js";
 
@@ -29,7 +29,7 @@ const port=await freeLoopbackPort();
 const base="http://127.0.0.1:"+port;
 const tag=randomUUID().slice(0,8);
 const tracked={users:[] as string[],sessions:[] as string[],
- orgs:[] as string[],properties:[] as string[],rooms:[] as string[]};
+ orgs:[] as string[],properties:[] as string[],rooms:[] as string[],leases:[] as string[],invoices:[] as string[]};
 const child=spawn("node",["--import","tsx","src/index.ts"],{
  cwd:process.cwd(),stdio:"ignore",env:{...process.env,HOST:"127.0.0.1",PORT:String(port)}
 });
@@ -140,6 +140,36 @@ async function test(){
   const want=paths[i]===roomsPath?200:403;
   assert.equal(burst[i].status,want,"mixed tenant scope burst #"+i);
  }
+ // Preserve the original 48-way P1-05 burst while respecting the real 90/minute
+ // global limiter: run P7-03 negative cases in the next clean rate-limit window.
+ await new Promise(resolve=>setTimeout(resolve,61_000));
+ // P7-03: deny independently at every boundary, then restore the synthetic record.
+ // A property grant must not override disabled membership, organization or user.
+ await db.update(propertyStaffGrants).set({status:"DISABLED"}).where(and(
+  eq(propertyStaffGrants.organizationId,orgA.id),eq(propertyStaffGrants.userId,staff.id)));
+ assert.equal((await req(roomsPath,staff.token)).status,403,"disabled property grant must deny read");
+ assert.equal((await req(meterPath,staff.token,"POST",{...duplicateBody,readAt:"2026-10-20",value:"11.000"})).status,403,
+  "disabled property grant must deny meter write");
+ await db.update(propertyStaffGrants).set({status:"ACTIVE"}).where(and(
+  eq(propertyStaffGrants.organizationId,orgA.id),eq(propertyStaffGrants.userId,staff.id)));
+ assert.equal((await req(roomsPath,staff.token)).status,200,"restored property grant should allow read");
+ await db.update(memberships).set({status:"DISABLED"}).where(and(
+  eq(memberships.organizationId,orgA.id),eq(memberships.userId,staff.id)));
+ assert.equal((await req(roomsPath,staff.token)).status,403,"disabled org membership must deny read");
+ assert.equal((await req(meterPath,staff.token,"POST",{...duplicateBody,readAt:"2026-10-21",value:"11.000"})).status,403,
+  "disabled org membership must deny write");
+ await db.update(memberships).set({status:"ACTIVE"}).where(and(
+  eq(memberships.organizationId,orgA.id),eq(memberships.userId,staff.id)));
+ assert.equal((await req(roomsPath,staff.token)).status,200,"restored membership should allow read");
+ await db.update(organizations).set({status:"DISABLED"}).where(eq(organizations.id,orgA.id));
+ assert.equal((await req(roomsPath,staff.token)).status,404,"disabled org must deny property read");
+ assert.equal((await req(roomsPath,owner.token)).status,404,"owner must not bypass disabled org");
+ await db.update(organizations).set({status:"ACTIVE"}).where(eq(organizations.id,orgA.id));
+ assert.equal((await req(roomsPath,staff.token)).status,200,"restored org should allow read");
+ await db.update(users).set({status:"DISABLED"}).where(eq(users.id,staff.id));
+ assert.equal((await req(roomsPath,staff.token)).status,401,"disabled staff account must invalidate session");
+ await db.update(users).set({status:"ACTIVE"}).where(eq(users.id,staff.id));
+ assert.equal((await req(roomsPath,staff.token)).status,200,"restored staff account should allow read");
  const after=await req(revokePath,owner.token,"POST",{propertyId:a.id});
  assert.equal(after.status,200,JSON.stringify(after.body));
  const afterRevoke=await Promise.all(Array.from({length:5},
@@ -147,6 +177,63 @@ async function test(){
    readAt:"2026-10-"+String(i+3).padStart(2,"0"),value:"11.000"})));
  assert.ok(afterRevoke.every(r=>r.status===403),"revoke must deny new writes");
  assert.equal((await req(roomsPath,staff.token)).status,403);
+ // P7-03: tenant subject + active lease + immutable invoice must all match.
+ // Foreign invoice identifiers must not leak through list or detail endpoints.
+ const tenantA=await actor("tenant-a"),tenantB=await actor("tenant-b");
+ const [foreignRoom]=await db.insert(rooms).values({organizationId:orgB.id,
+  propertyId:b.id,number:"QA02"}).returning({id:rooms.id});
+ tracked.rooms.push(foreignRoom.id);
+ const [leaseA,leaseB]=await db.insert(leases).values([
+  {organizationId:orgA.id,propertyId:a.id,roomId:room.id,tenantName:"QA Tenant A",
+   tenantLineSubject:"independent-p105-tenant-a-"+tag,startDate:"2026-10-01"},
+  {organizationId:orgB.id,propertyId:b.id,roomId:foreignRoom.id,tenantName:"QA Tenant B",
+   tenantLineSubject:"independent-p105-tenant-b-"+tag,startDate:"2026-10-01"}
+ ]).returning({id:leases.id});
+ tracked.leases.push(leaseA.id,leaseB.id);
+ // Use the migration-0016 column subset for synthetic fixture inserts.
+ // Concurrent uncommitted Drizzle 0017 includes billing_batch_run_id, absent in DEV DB.
+ const [invoiceA]=await sqlClient`INSERT INTO invoices
+  (organization_id, property_id, room_id, lease_id, period_start, period_end,
+   due_date, amount_satang, idempotency_key, issued_by)
+  VALUES (${orgA.id},${a.id},${room.id},${leaseA.id},'2026-10-01',
+   '2026-11-01','2026-11-07',10000,${'QA-P703-A-'+tag},${owner.id}) RETURNING id`;
+ const [invoiceB]=await sqlClient`INSERT INTO invoices
+  (organization_id, property_id, room_id, lease_id, period_start, period_end,
+   due_date, amount_satang, idempotency_key, issued_by)
+  VALUES (${orgB.id},${b.id},${foreignRoom.id},${leaseB.id},'2026-10-01',
+   '2026-11-01','2026-11-07',10000,${'QA-P703-B-'+tag},${owner.id}) RETURNING id`;
+ tracked.invoices.push(invoiceA.id,invoiceB.id);
+ const ownList=await req("/v1/tenant/invoices",tenantA.token);
+ assert.equal(ownList.status,200,"linked tenant should list invoices");
+ assert.equal(ownList.body.length,1,"only own active lease invoice visible");
+ assert.equal(ownList.body[0].id,invoiceA.id);
+ assert.equal((await req("/v1/tenant/invoices/"+invoiceA.id,tenantA.token)).status,200);
+ assert.equal((await req("/v1/tenant/invoices/"+invoiceB.id,tenantA.token)).status,404,
+  "foreign invoice IDOR must be hidden");
+ assert.equal((await req("/v1/tenant/invoices/"+invoiceA.id,tenantB.token)).status,404,
+  "reverse foreign invoice IDOR must be hidden");
+ assert.equal((await req("/v1/tenant/invoices/"+randomUUID(),tenantA.token)).status,404,
+  "missing invoice must not be disclosed");
+ assert.equal((await req("/v1/tenant/invoices",stranger.token)).body.length,0,
+  "unlinked actor must not see invoices");
+ const leaseList=await req("/v1/tenant/leases",tenantA.token);
+ assert.equal(leaseList.status,200);
+ assert.deepEqual(leaseList.body.map((entry:{leaseId:string})=>entry.leaseId),[leaseA.id]);
+ await db.update(leases).set({status:"CLOSED"}).where(eq(leases.id,leaseA.id));
+ assert.equal((await req("/v1/tenant/leases",tenantA.token)).body.length,0,
+  "closed lease must not appear in tenant portal");
+ assert.equal((await req("/v1/tenant/invoices",tenantA.token)).body.length,0,
+  "closed lease must not expose invoice list");
+ assert.equal((await req("/v1/tenant/invoices/"+invoiceA.id,tenantA.token)).status,404,
+  "closed lease invoice detail denied");
+ await db.update(leases).set({status:"ACTIVE"}).where(eq(leases.id,leaseA.id));
+ await db.update(organizations).set({status:"DISABLED"}).where(eq(organizations.id,orgA.id));
+ assert.equal((await req("/v1/tenant/invoices",tenantA.token)).body.length,0,
+  "disabled organization must hide tenant invoices");
+ assert.equal((await req("/v1/tenant/invoices/"+invoiceA.id,tenantA.token)).status,404);
+ await db.update(organizations).set({status:"ACTIVE"}).where(eq(organizations.id,orgA.id));
+ assert.equal((await req("/v1/tenant/invoices/"+invoiceA.id,tenantA.token)).status,200,
+  "restored active lease should allow own invoice detail");
  await db.update(sessions).set({revokedAt:new Date()}).where(eq(sessions.id,stranger.sessionId));
  assert.equal((await req("/v1/me",stranger.token)).status,401,"revoked session reused");
  await db.update(users).set({status:"DISABLED"}).where(eq(users.id,owner.id));
@@ -165,6 +252,8 @@ async function cleanup(){
   await db.delete(propertyStaffGrants).where(inArray(propertyStaffGrants.organizationId,tracked.orgs));
   await db.delete(auditLogs).where(inArray(auditLogs.organizationId,tracked.orgs));
  }
+ if(tracked.invoices.length)await db.delete(invoices).where(inArray(invoices.id,tracked.invoices));
+ if(tracked.leases.length)await db.delete(leases).where(inArray(leases.id,tracked.leases));
  if(tracked.rooms.length)await db.delete(meterReadings).where(inArray(meterReadings.roomId,tracked.rooms));
  if(tracked.rooms.length)await db.delete(rooms).where(inArray(rooms.id,tracked.rooms));
  if(tracked.properties.length)await db.delete(properties).where(inArray(properties.id,tracked.properties));

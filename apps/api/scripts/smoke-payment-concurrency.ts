@@ -5,7 +5,7 @@ import {eq} from "drizzle-orm";
 import sharp from "sharp";
 import {db,sqlClient} from "../src/db/client.js";
 import {users,sessions,organizations,memberships,properties,rooms,leases,invoices,
- invoiceLines,meterReadings,paymentInstructions,paymentClaims,paymentLedger,auditLogs} from "../src/db/schema.js";
+ invoiceLines,paymentInstructions,paymentClaims,paymentLedger,auditLogs} from "../src/db/schema.js";
 import {newSessionToken,tokenHash} from "../src/security.js";
 import {deletePrivateEvidence} from "../src/services/evidence.js";
 

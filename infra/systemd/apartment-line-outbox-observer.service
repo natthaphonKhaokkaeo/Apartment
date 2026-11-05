@@ -1,0 +1,30 @@
+[Unit]
+Description=Apartment LINE outbox observer (NO provider sends)
+After=network-online.target
+Wants=network-online.target
+ConditionPathExists=/etc/apartment/line-worker.env
+
+[Service]
+Type=simple
+User=root
+Group=root
+WorkingDirectory=/root/Projects/Apartment
+EnvironmentFile=/etc/apartment/line-worker.env
+# This unit is hard-pinned to observe-only even if operator ENV enables LIVE.
+# For controlled live delivery create a SEPARATE, reviewed deployment.
+ExecStart=/usr/bin/env LINE_WORKER_MODE=observe LINE_WORKER_APPROVED=false LINE_OUTBOUND_MODE=disabled /usr/bin/corepack pnpm --filter @apartment/api line:worker
+Restart=on-failure
+RestartSec=20s
+TimeoutStopSec=35s
+UMask=0077
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+ReadWritePaths=/tmp
+MemoryMax=512M
+
+[Install]
+WantedBy=multi-user.target

@@ -1,5 +1,6 @@
+import {queueLeaseNotificationTx} from "../services/line-notifications.js";
 import type {FastifyInstance} from "fastify";
-import {and,eq,desc,isNull,gt} from "drizzle-orm";
+import {and,eq,desc,isNull} from "drizzle-orm";
 import {z} from "zod";
 import {db} from "../db/client.js";
 import {auditLogs,invoiceLines,invoices,leaseInvitations,leases,organizations,properties,rooms,users} from "../db/schema.js";
@@ -87,7 +88,7 @@ export async function registerTenantRoutes(app:FastifyInstance):Promise<void>{
   const actor=await requireActor(req);
   const {token}=z.object({token:z.string().regex(/^[A-Za-z0-9_-]{43}$/)}).parse(req.body);
   const hash=hashLeaseInvite(token);
-  const subject=await subjectFor(actor.id);
+  const _subject=await subjectFor(actor.id);
   const result=await db.transaction(async tx=>{
    // Read hash lookup, then lock lease first and invitation second.
    // The same lock order is used by owner approval, revoke, and invite regeneration.
@@ -129,6 +130,10 @@ export async function registerTenantRoutes(app:FastifyInstance):Promise<void>{
    const now=new Date();
    await tx.update(leaseInvitations).set({approvedAt:now,approvedBy:actor.id}).where(eq(leaseInvitations.id,invite.id));
    await tx.update(leaseInvitations).set({revokedAt:now}).where(and(eq(leaseInvitations.leaseId,lease.id),isNull(leaseInvitations.approvedAt),isNull(leaseInvitations.revokedAt)));
+   // v1 consent explicitly excludes invitations: producer records eligibility only;
+   // no invitation token, recipient address or message is sent automatically.
+   await queueLeaseNotificationTx(tx,{id:invite.id,leaseId:lease.id,
+    organizationId:property.organizationId,propertyId:property.id},"TENANT_LINK_APPROVED");
    await tx.insert(auditLogs).values({actorId:actor.id,organizationId:property.organizationId,action:"TENANT_LINK_APPROVED",targetId:lease.id,
     metadata:{tenantId:tenant.id,invitationId:invite.id}});
    return {linked:true,leaseId:lease.id};

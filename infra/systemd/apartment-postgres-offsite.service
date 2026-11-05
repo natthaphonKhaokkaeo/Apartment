@@ -1,0 +1,25 @@
+[Unit]
+Description=Apartment-only encrypted PostgreSQL offsite backup
+After=network-online.target
+Wants=network-online.target
+ConditionPathExists=/etc/apartment/offsite.env
+RequiresMountsFor=/root/backups/apartment-postgres
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+EnvironmentFile=/etc/apartment/offsite.env
+WorkingDirectory=/root/Projects/Apartment
+ExecStartPre=/root/Projects/Apartment/infra/offsite-apartment-postgres.sh check
+ExecStart=/root/Projects/Apartment/infra/offsite-apartment-postgres.sh upload
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectControlGroups=true
+ProtectKernelTunables=true
+ReadWritePaths=/root/backups/apartment-postgres /run/lock
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+TimeoutStartSec=30min

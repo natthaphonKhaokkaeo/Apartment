@@ -52,7 +52,7 @@ try{
  do{
   try{
    await oneTick();
-  }catch(error){
+  }catch{
    // Do not print the error object: may contain connection secrets.
    console.error("LINE_OBSERVER_TICK_FAILED");
    if(once){process.exitCode=1;break;}

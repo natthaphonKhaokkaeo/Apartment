@@ -138,7 +138,7 @@ function headerFirst(d:PDFKit.PDFDocument,b:BillingNoticeInput){
  }
  return b.snapshotSource==="CURRENT_RECORD_LEGACY"?y2+94:y2+64;
 }
-function continuation(d:PDFKit.PDFDocument,b:BillingNoticeInput,index:number){
+function continuation(d:PDFKit.PDFDocument,b:BillingNoticeInput,_index:number){
  background(d);
  d.font("NotoThaiBold").fontSize(14).fillColor(TEAL)
   .text("ใบแจ้งหนี้ - รายการต่อเนื่อง",LEFT,32,{lineBreak:false});

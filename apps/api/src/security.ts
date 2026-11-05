@@ -21,7 +21,7 @@ export async function requireActor(req:FastifyRequest):Promise<Actor> {
   if(!result[0]) throw new AppError(401,"UNAUTHENTICATED");
   return result[0];
 }
-export async function requireOrg(actor:Actor, orgId:string, write=false) {
+export async function requireOrg(actor:Actor, orgId:string, _write=false) {
   const [org] = await db.select().from(organizations).where(and(eq(organizations.id,orgId),eq(organizations.status,"ACTIVE"))).limit(1);
   if(!org) throw new AppError(404,"ORGANIZATION_NOT_FOUND");
   if(actor.role === "SUPER_ADMIN") return org;

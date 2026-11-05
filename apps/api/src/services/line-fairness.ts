@@ -8,7 +8,8 @@ export function rankOrgQueues(
  if(!Number.isInteger(perOrgLimit)||perOrgLimit<1)throw Error("INVALID_ORG_QUOTA");
  return groups.filter(g=>(used[g.organizationId]??0)<perOrgLimit)
   .sort((a,b)=>(used[a.organizationId]??0)-(used[b.organizationId]??0)||
-   (a.oldest?.getTime()??0)-(b.oldest?.getTime()??0)||
+   (a.oldest?.getTime()??Number.POSITIVE_INFINITY)-
+   (b.oldest?.getTime()??Number.POSITIVE_INFINITY)||
    a.organizationId.localeCompare(b.organizationId))
   .map(g=>g.organizationId);
 }

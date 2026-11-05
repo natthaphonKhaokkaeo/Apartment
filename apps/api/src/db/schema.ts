@@ -1,5 +1,5 @@
-import {isNull} from "drizzle-orm";
-import {pgTable, pgEnum, uuid, text, timestamp, varchar, date, integer, numeric, boolean, jsonb, uniqueIndex, index} from "drizzle-orm/pg-core";
+import {isNull,sql} from "drizzle-orm";
+import {pgTable, pgEnum, uuid, text, timestamp, varchar, date, integer, numeric, boolean, jsonb, uniqueIndex, index, check} from "drizzle-orm/pg-core";
 
 export const roles = pgEnum("membership_role", ["OWNER","MANAGER","STAFF"]);
 export const staffGrantLevel = pgEnum("property_staff_level", ["VIEWER","METER_READER"]);
@@ -17,6 +17,7 @@ export const maintenanceTicketCategory = pgEnum("maintenance_ticket_category", [
 export const maintenanceTicketPriority = pgEnum("maintenance_ticket_priority", [
  "LOW","NORMAL","HIGH","URGENT"
 ]);
+export const billingBatchStatus = pgEnum("billing_batch_status", ["PREVIEWED","COMPLETED","STALE"]);
 
 export const users = pgTable("users", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -176,6 +177,34 @@ export const leaseInvitations = pgTable("lease_invitations", {
  createdAt: timestamp("created_at", {withTimezone:true}).notNull().defaultNow()
 }, t=>[index("idx_lease_invite_lease").on(t.leaseId),index("idx_lease_invite_expiry").on(t.expiresAt)]);
 
+export type BillingBatchSnapshot = {
+ version:1; start:string; endExclusive:string;
+ rooms:Array<{roomId:string;roomNumber:string;leaseId:string|null;status:"READY"|"SKIPPED";
+  amountSatang:number|null;fingerprint:string|null;
+  lines:Array<{type:string;description:string;amountSatang:number}>;reason:string|null}>;
+};
+export const billingBatchRuns = pgTable("billing_batch_runs",{
+ id:uuid("id").primaryKey().defaultRandom(),
+ organizationId:uuid("organization_id").notNull().references(()=>organizations.id),
+ propertyId:uuid("property_id").notNull().references(()=>properties.id),
+ periodStart:date("period_start").notNull(),
+ periodEnd:date("period_end").notNull(),
+ idempotencyKey:varchar("idempotency_key",{length:128}).notNull(),
+ requestHash:varchar("request_hash",{length:64}).notNull(),
+ previewHash:varchar("preview_hash",{length:64}).notNull(),
+ previewSnapshot:jsonb("preview_snapshot").$type<BillingBatchSnapshot>().notNull(),
+ status:billingBatchStatus("status").notNull().default("PREVIEWED"),
+ createdBy:uuid("created_by").notNull().references(()=>users.id),
+ approvedBy:uuid("approved_by").references(()=>users.id),
+ approvedAt:timestamp("approved_at",{withTimezone:true}),
+ completedAt:timestamp("completed_at",{withTimezone:true}),
+ issuedCount:integer("issued_count").notNull().default(0),
+ createdAt:timestamp("created_at",{withTimezone:true}).notNull().defaultNow()
+},t=>[
+ uniqueIndex("uq_billing_batch_property_idem").on(t.propertyId,t.idempotencyKey),
+ index("idx_billing_batch_property_created").on(t.propertyId,t.createdAt)
+]);
+
 export const meterReadings = pgTable("meter_readings", {
   id: uuid("id").primaryKey().defaultRandom(),
   organizationId: uuid("organization_id").notNull().references(() => organizations.id),
@@ -229,6 +258,7 @@ export const invoices = pgTable("invoices", {
   dueDate: date("due_date").notNull(),
   amountSatang: integer("amount_satang").notNull(),
   documentSnapshot: jsonb("document_snapshot").$type<InvoiceDocumentSnapshot|null>(),
+  billingBatchRunId:uuid("billing_batch_run_id").references(()=>billingBatchRuns.id),
   status: invoiceStatus("status").notNull().default("ISSUED"),
   idempotencyKey: varchar("idempotency_key", {length:128}).notNull(),
   issuedBy: uuid("issued_by").notNull().references(() => users.id),
@@ -493,3 +523,91 @@ export const auditLogs = pgTable("audit_logs", {
   metadata: jsonb("metadata").notNull().default({}),
   createdAt: timestamp("created_at", {withTimezone:true}).notNull().defaultNow()
 });
+
+/** Deposit money is recorded manually, never inferred to be bank-confirmed. */
+export const depositReviewKind=pgEnum("deposit_review_kind",["DEDUCTION","REFUND_REVIEW","DISPUTE_REVIEW"]);
+export const depositReviewStatus=pgEnum("deposit_review_status",["PENDING","APPROVED","REJECTED"]);
+export const depositEntryKind=pgEnum("deposit_entry_kind",["RECEIVED","DEDUCTION"]);
+export const depositReviews=pgTable("deposit_reviews",{
+ id:uuid("id").primaryKey().defaultRandom(),
+ organizationId:uuid("organization_id").notNull().references(()=>organizations.id),
+ propertyId:uuid("property_id").notNull().references(()=>properties.id),
+ leaseId:uuid("lease_id").notNull().references(()=>leases.id),
+ kind:depositReviewKind("kind").notNull(),
+ amountSatang:integer("amount_satang").notNull(),
+ reason:text("reason").notNull(),
+ idempotencyKey:varchar("idempotency_key",{length:128}).notNull(),
+ requestHash:varchar("request_hash",{length:64}).notNull(),
+ requestedBy:uuid("requested_by").notNull().references(()=>users.id),
+ status:depositReviewStatus("status").notNull().default("PENDING"),
+ reviewedBy:uuid("reviewed_by").references(()=>users.id),
+ reviewReason:text("review_reason"),
+ decidedAt:timestamp("decided_at",{withTimezone:true}),
+ createdAt:timestamp("created_at",{withTimezone:true}).notNull().defaultNow()
+},t=>[
+ uniqueIndex("uq_deposit_review_lease_key").on(t.leaseId,t.idempotencyKey),
+ index("idx_deposit_review_scope").on(t.organizationId,t.propertyId,t.leaseId),
+ check("deposit_review_positive",sql`${t.amountSatang} > 0`),
+ check("deposit_review_distinct_owner",sql`${t.reviewedBy} IS NULL OR ${t.reviewedBy} <> ${t.requestedBy}`)
+]);
+export const depositEntries=pgTable("deposit_entries",{
+ id:uuid("id").primaryKey().defaultRandom(),
+ organizationId:uuid("organization_id").notNull().references(()=>organizations.id),
+ propertyId:uuid("property_id").notNull().references(()=>properties.id),
+ leaseId:uuid("lease_id").notNull().references(()=>leases.id),
+ kind:depositEntryKind("kind").notNull(),
+ amountSatang:integer("amount_satang").notNull(),
+ reference:varchar("reference",{length:128}),
+ reason:text("reason").notNull(),
+ idempotencyKey:varchar("idempotency_key",{length:128}).notNull(),
+ requestHash:varchar("request_hash",{length:64}).notNull(),
+ reviewId:uuid("review_id").unique().references(()=>depositReviews.id),
+ createdBy:uuid("created_by").notNull().references(()=>users.id),
+ createdAt:timestamp("created_at",{withTimezone:true}).notNull().defaultNow()
+},t=>[
+ uniqueIndex("uq_deposit_entry_lease_key").on(t.leaseId,t.idempotencyKey),
+ uniqueIndex("uq_deposit_receipt_reference").on(t.leaseId,t.reference),
+ index("idx_deposit_entry_scope").on(t.organizationId,t.propertyId,t.leaseId),
+ check("deposit_entry_positive",sql`${t.amountSatang} > 0`),
+ check("deposit_entry_source",sql`(${t.kind} = 'RECEIVED' AND ${t.reference} IS NOT NULL AND ${t.reviewId} IS NULL) OR (${t.kind} = 'DEDUCTION' AND ${t.reference} IS NULL AND ${t.reviewId} IS NOT NULL)`)
+]);
+
+export const meterReadingEvidence=pgTable("meter_reading_evidence",{
+ id:uuid("id").primaryKey().defaultRandom(),
+ organizationId:uuid("organization_id").notNull().references(()=>organizations.id),
+ propertyId:uuid("property_id").notNull().references(()=>properties.id),
+ roomId:uuid("room_id").notNull().references(()=>rooms.id),
+ readingId:uuid("reading_id").notNull().references(()=>meterReadings.id),
+ evidenceKey:uuid("evidence_key").notNull().unique(),
+ sha256:varchar("sha256",{length:64}).notNull(),
+ sizeBytes:integer("size_bytes").notNull(),
+ scanVerdict:varchar("scan_verdict",{length:24}).notNull(),
+ idempotencyKey:varchar("idempotency_key",{length:128}).notNull(),
+ createdBy:uuid("created_by").notNull().references(()=>users.id),
+ createdAt:timestamp("created_at",{withTimezone:true}).notNull().defaultNow()
+},t=>[
+ uniqueIndex("uq_meter_evidence_reading_key").on(t.readingId,t.idempotencyKey),
+ index("idx_meter_evidence_scope").on(t.organizationId,t.propertyId,t.roomId,t.readingId),
+ check("meter_evidence_size",sql`${t.sizeBytes} > 0 AND ${t.sizeBytes} <= 4194304`),
+ check("meter_evidence_scan_verdict",sql`${t.scanVerdict} IN ('CLEAN','NOT_SCANNED_DEV')`)
+]);
+export const meterAnomalyReviews=pgTable("meter_anomaly_reviews",{
+ id:uuid("id").primaryKey().defaultRandom(),
+ organizationId:uuid("organization_id").notNull().references(()=>organizations.id),
+ propertyId:uuid("property_id").notNull().references(()=>properties.id),
+ roomId:uuid("room_id").notNull().references(()=>rooms.id),
+ readingId:uuid("reading_id").notNull().references(()=>meterReadings.id),
+ action:varchar("action",{length:32}).notNull(),
+ reason:text("reason").notNull(),
+ assessment:jsonb("assessment").notNull(),
+ maxDailyMilli:numeric("max_daily_milli",{precision:14,scale:0}).notNull(),
+ idempotencyKey:varchar("idempotency_key",{length:128}).notNull(),
+ requestHash:varchar("request_hash",{length:64}).notNull(),
+ createdBy:uuid("created_by").notNull().references(()=>users.id),
+ createdAt:timestamp("created_at",{withTimezone:true}).notNull().defaultNow()
+},t=>[
+ uniqueIndex("uq_meter_review_reading_key").on(t.readingId,t.idempotencyKey),
+ index("idx_meter_review_scope").on(t.organizationId,t.propertyId,t.roomId,t.readingId),
+ check("meter_review_action",sql`${t.action} IN ('ACKNOWLEDGED','REQUIRES_CORRECTION')`),
+ check("meter_review_threshold",sql`${t.maxDailyMilli} > 0 AND ${t.maxDailyMilli} <= 99999999999999`)
+]);

@@ -1,3 +1,4 @@
+import {queueLeaseNotificationTx} from "./line-notifications.js";
 import {and,desc,eq,notInArray} from "drizzle-orm";
 import {z} from "zod";
 import {db} from "../db/client.js";
@@ -58,7 +59,7 @@ export async function createOwnerMaintenanceTicket(
   const [property]=await tx.select().from(properties).where(eq(properties.id,propertyId))
    .for("share").limit(1);
   if(!property)throw new AppError(404,"PROPERTY_NOT_FOUND");
-  let roomId=body.roomId??null;
+  const roomId=body.roomId??null;
   if(roomId){
    const [room]=await tx.select({id:rooms.id}).from(rooms).where(and(
     eq(rooms.id,roomId),eq(rooms.propertyId,property.id),
@@ -153,6 +154,14 @@ export async function updateMaintenanceTicket(
 ){
  const {status}=updateInput.parse(raw);
  return db.transaction(async tx=>{
+  const [candidate]=await tx.select().from(maintenanceTickets).where(and(
+   eq(maintenanceTickets.id,ticketId),eq(maintenanceTickets.propertyId,propertyId)
+  )).limit(1);
+  if(!candidate)throw new AppError(404,"MAINTENANCE_TICKET_NOT_FOUND");
+  // Outbox foreign keys acquire lease locks: keep property -> lease -> ticket order
+  // consistent with move-out rather than holding a ticket while waiting for its lease.
+  await tx.select({id:properties.id}).from(properties).where(eq(properties.id,propertyId)).for("share");
+  if(candidate.leaseId)await tx.select({id:leases.id}).from(leases).where(eq(leases.id,candidate.leaseId)).for("share");
   const [ticket]=await tx.select().from(maintenanceTickets).where(and(
    eq(maintenanceTickets.id,ticketId),eq(maintenanceTickets.propertyId,propertyId)
   )).for("update").limit(1);
@@ -167,6 +176,10 @@ export async function updateMaintenanceTicket(
    closedAt:status==="CLOSED"?now:null
   }).where(and(eq(maintenanceTickets.id,ticket.id),
    eq(maintenanceTickets.organizationId,ticket.organizationId))).returning();
+  if(ticket.leaseId)await queueLeaseNotificationTx(tx,{
+   id:ticket.id+":"+now.toISOString(),leaseId:ticket.leaseId,
+   organizationId:ticket.organizationId,propertyId:ticket.propertyId
+  },"MAINTENANCE_UPDATED");
   await tx.insert(auditLogs).values({
    actorId:actor.id,organizationId:ticket.organizationId,
    action:"MAINTENANCE_TICKET_STATUS_CHANGED",targetId:ticket.id,

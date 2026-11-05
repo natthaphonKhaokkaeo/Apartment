@@ -6,7 +6,7 @@ import {config} from "../config.js";
 import {db} from "../db/client.js";
 import {
  auditLogs,evidenceUploads,invoices,leases,organizations,paymentClaims,paymentInstructions,
- paymentLedger,properties,users
+ properties,users
 } from "../db/schema.js";
 import {AppError,requireActor} from "../security.js";
 import {tenantBill,approvedSum} from "./payments.js";
@@ -36,7 +36,7 @@ function requireS3(){
  if(config.EVIDENCE_STORAGE_DRIVER!=="s3")throw new AppError(409,"SIGNED_UPLOAD_NOT_AVAILABLE");
 }
 function safeClaim(row:typeof paymentClaims.$inferSelect){
- const {evidenceKey,evidenceSha256,...publicClaim}=row;
+ const {evidenceKey: _evidenceKey,evidenceSha256: _evidenceSha256,...publicClaim}=row;
  return publicClaim;
 }
 export async function registerEvidenceUploadRoutes(app:FastifyInstance){
@@ -101,7 +101,7 @@ export async function registerEvidenceUploadRoutes(app:FastifyInstance){
    if(!ready)throw new AppError(409,"UPLOAD_NOT_FINALIZABLE");
    // Deleting the untrusted raw object is best effort; provider lifecycle must also expire quarantine/v1.
    try{await deleteQuarantineObject(ticket.organizationId,ticket.id);}
-   catch(reqError){req.log.warn({uploadId:ticket.id},"quarantine cleanup deferred to storage lifecycle");}
+   catch{req.log.warn({uploadId:ticket.id},"quarantine cleanup deferred to storage lifecycle");}
    reply.header("cache-control","no-store");
    return {uploadId:ticket.id,status:"READY",expiresAt:ticket.expiresAt};
   }catch(error){

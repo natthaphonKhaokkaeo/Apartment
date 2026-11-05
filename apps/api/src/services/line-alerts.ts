@@ -1,4 +1,4 @@
-import {and,asc,desc,eq,inArray,isNull,sql} from "drizzle-orm";
+import {and,desc,eq,isNull,sql} from "drizzle-orm";
 import {db} from "../db/client.js";
 import {auditLogs,lineOpsAlerts,lineOutbox} from "../db/schema.js";
 import {AppError} from "../security.js";

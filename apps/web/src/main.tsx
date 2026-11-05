@@ -1,10 +1,13 @@
+import {MeterEvidenceCenter} from "./components/MeterEvidenceCenter.js";
+import {DepositCenter} from "./components/DepositCenter.js";
 import {parseSatang} from "./money.js";
 import React,{useEffect,useState,useCallback} from "react";
 import {createRoot} from "react-dom/client";
 import liff from "@line/liff";
-import {Building2,LayoutDashboard,DoorOpen,ReceiptText,Gauge,Settings,ShieldCheck,LogOut,Plus,ChevronDown,CheckCircle2,AlertTriangle,Wallet,Users,Menu,Wrench} from "lucide-react";
+import {Building2,LayoutDashboard,DoorOpen,ReceiptText,Gauge,Settings,ShieldCheck,LogOut,ChevronDown,CheckCircle2,AlertTriangle,Wallet,Users,Menu,Wrench} from "lucide-react";
 import {OwnerInvitations} from "./components/OwnerInvitations.js";
 import {TenantPortal} from "./components/TenantPortal.js";
+import {PropertyOperationsReports} from "./components/PropertyOperationsReports.js";
 import {LineOperationsAdmin} from "./components/LineOperationsAdmin.js";
 import {PropertyRateSettings} from "./components/PropertyRateSettings.js";
 import {RoomRateHistory} from "./components/RoomRateHistory.js";
@@ -12,6 +15,7 @@ import {MeterReplacementHistory} from "./components/MeterReplacementHistory.js";
 import {PaymentCenter} from "./components/PaymentCenter.js";
 import {StaffManagement,StaffInviteClaim,StaffMeterReadings} from "./components/StaffManagement.js";
 import {MaintenanceCenter} from "./components/MaintenanceCenter.js";
+import {BulkBillingCenter} from "./components/BulkBillingCenter.js";
 import "./styles.css";
 type Organization={id:string;name:string;status:string};
 type Property={id:string;name:string;organizationId:string;address:string;rentSatang:number;waterSatangPerUnit:number;electricSatangPerUnit:number;cadence:string;rollingAnchor:string|null;complianceReviewedAt:string|null};
@@ -90,13 +94,14 @@ const labels:Record<string,string>={
  ORG_ACCESS_DENIED:"ไม่มีสิทธิ์เข้าถึงหอพักนี้", INVITATION_NOT_FOUND:"รหัสเชิญไม่ถูกต้อง หมดอายุ หรือถูกใช้แล้ว",
  INVITATION_NOT_APPROVABLE:"คำขอเชิญนี้ยังไม่พร้อมอนุมัติ", LEASE_ALREADY_LINKED:"สัญญานี้ผูกบัญชีแล้ว", LEASE_NOT_INVITABLE:"สัญญานี้ยังเชิญผู้เช่าไม่ได้"};
 async function api<T>(path:string, options:RequestInit={}):Promise<T>{
- const response=await fetch("/v1"+path,{...options,credentials:"include",headers:{"content-type":"application/json",...options.headers}});
+ const headers=new Headers(options.headers);
+ if(!(options.body instanceof FormData)&&!headers.has("content-type"))headers.set("content-type","application/json");
+ const response=await fetch("/v1"+path,{...options,credentials:"include",headers});
  let data:unknown;try{data=await response.json();}catch{data={error:"NETWORK_ERROR"};}
  if(!response.ok){const code=(data as {error?:string})?.error||"REQUEST_FAILED";throw new Error(labels[code]||code);}
  return data as T;
 }
 async function post<T>(url:string,body:unknown,headers?:HeadersInit){return api<T>(url,{method:"POST",body:JSON.stringify(body),headers});}
-function IconButton({children,onClick,className=""}:{children:React.ReactNode;onClick:()=>void;className?:string}){return <button onClick={onClick} className={"btn "+className}>{children}</button>;}
 function Field({label,children}:{label:string;children:React.ReactNode}){return <label className="field"><span>{label}</span>{children}</label>;}
 function Panel({title,subtitle,children,action}:{title:string;subtitle?:string;children:React.ReactNode;action?:React.ReactNode}){return <section className="panel"><div className="panel-head"><div><h2>{title}</h2>{subtitle&&<p>{subtitle}</p>}</div>{action}</div>{children}</section>;}
 function App(){
@@ -108,7 +113,7 @@ function App(){
  const [admin,setAdmin]=useState<{organizationCount:number;propertyCount:number;roomCount:number;invoiceCount:number}|null>(null);
  const [error,setError]=useState(""),[success,setSuccess]=useState(""),[busy,setBusy]=useState(false),[menu,setMenu]=useState(false);
  const [lineBusy,setLineBusy]=useState(false);
- const org=orgs.find(o=>o.id===orgId),property=props.find(p=>p.id===propertyId);
+ const property=props.find(p=>p.id===propertyId);
  const orgRole=me?.memberships?.find(m=>m.organizationId===orgId)?.role;
  const isStaff=orgRole==="STAFF";
  const staffGrantLevel=me?.propertyGrants?.find(g=>g.propertyId===propertyId)?.level;
@@ -151,7 +156,7 @@ function App(){
    const user=await loadMe();if(user)await loadOrgs();
   }catch(e){setError((e as Error).message);}finally{setLineBusy(false);}
  }
- async function createOrg(form:FormData){await run(async()=>{await post("/organizations",{name:String(form.get("name"))});await loadOrgs();notify("เพิ่มบัญชีเจ้าของหอพักเรียบร้อย");});}
+ async function createOrg(form:FormData){await run(async()=>{await post("/organizations",{name:String(form.get("name"))});await loadMe();await loadOrgs();notify("เพิ่มบัญชีเจ้าของหอพักเรียบร้อย");});}
  async function createProperty(form:FormData){if(!orgId)return;await run(async()=>{
   await post("/organizations/"+orgId+"/properties",{name:String(form.get("name")),address:String(form.get("address")),
    rentSatang:satang(String(form.get("rent"))),waterSatangPerUnit:satang(String(form.get("water"))),
@@ -271,6 +276,7 @@ function App(){
       <Panel title="ภาพรวมยอดเรียกเก็บและรับชำระ" subtitle="ยอดอนุมัติเป็นการตรวจสอบด้วยมือของเจ้าของหอพัก ไม่ใช่หลักฐานจาก Bank API"><div className="payment-figures"><div><small>อนุมัติรับชำระสะสม</small><strong>{money(overview?.manuallyApprovedSatang)}</strong></div><div><small>ยอดบิลคงเหลือทั้งหมด</small><strong>{money(overview?.outstandingSatang)}</strong></div><div><small>ยอดเลยกำหนด ({overview?.overdueInvoiceCount??0} ใบ)</small><strong>{money(overview?.overdueSatang)}</strong></div></div></Panel>
       <div className="two-col"><Panel title="ค่าบริการเริ่มต้น" subtitle="ห้องพักสามารถกำหนดราคาเฉพาะของตัวเอง"><div className="rate-row"><span>ค่าเช่ารายเดือน</span><b>{money(property.rentSatang)}</b></div><div className="rate-row"><span>ค่าน้ำ / หน่วย</span><b>{money(property.waterSatangPerUnit)}</b></div><div className="rate-row"><span>ค่าไฟ / หน่วย</span><b>{money(property.electricSatangPerUnit)}</b></div></Panel>
       <Panel title="สถานะออกบิล" subtitle="ความพร้อมก่อนส่งใบแจ้งหนี้"><div className="rate-row"><span>รอบบิล</span><b>{property.cadence}</b></div><div className="rate-row"><span>การยืนยันอัตราค่าน้ำไฟ</span><span className={"pill "+(property.complianceReviewedAt?"vacant":"occupied")}>{property.complianceReviewedAt?"ตรวจแล้ว":"รออนุมัติ"}</span></div><div className="rate-row"><span>ใบแจ้งหนี้ที่ออก</span><b>{overview?.issuedInvoices??0} ใบ</b></div></Panel></div>
+      {!isStaff&&<PropertyOperationsReports api={api} propertyId={property.id}/>}
     </>}
     {property&&section==="rooms"&&isStaff&&<Panel title="ห้องพักที่ได้รับสิทธิ์" subtitle="แสดงเฉพาะหอพักที่เจ้าของอนุญาต ไม่มีข้อมูลค่าเช่าหรือข้อมูลส่วนตัวผู้เช่า">
       <div className="room-grid">{rooms.map(r=><div className="room-tile" key={r.id}>
@@ -330,10 +336,11 @@ function App(){
          maxLength={500}/></Field>
        </div>)}
       </Panel>}
+      <MeterEvidenceCenter key={property.id} propertyId={property.id} rooms={rooms} canUpload={!isStaff||staffGrantLevel==="METER_READER"} canReview={orgRole==="OWNER"} api={api} post={post}/>
       {!isStaff&&<MeterReplacementHistory propertyId={property.id} rooms={rooms} api={api}/>}
       {isStaff&&<StaffMeterReadings key={property.id} propertyId={property.id} rooms={rooms} api={api}/>}
       {!isStaff&&<div className="hint"><Gauge size={19}/> ระบบบันทึกค่าเริ่มใหม่ในวันที่เปลี่ยนโดยอัตโนมัติ และรวมหน่วยการใช้งานข้ามมิเตอร์ก่อนออกบิล ต้องมีค่าที่ต้นและปลายรอบบิลด้วย</div>}</>}
-    {property&&section==="billing"&&<><Panel title="ออกใบแจ้งหนี้รายห้อง" subtitle="ทดลองคำนวณก่อน แล้วจึงกดออกบิลจริงภายหลังตรวจความถูกต้อง"><form className="form" onSubmit={e=>{e.preventDefault();void preview(new FormData(e.currentTarget),false);}}><div className="cols3"><Field label="ห้องพัก"><select name="roomId">{rooms.filter(r=>r.status==="OCCUPIED").map(r=><option key={r.id} value={r.id}>{r.number}</option>)}</select></Field><Field label="วันเริ่มรอบ"><input name="start" required type="date"/></Field><Field label="วันสิ้นสุด (ไม่รวมวันนี้)"><input name="end" required type="date"/></Field></div><Field label="ประเภทการออกบิล">
+    {property&&section==="billing"&&<><BulkBillingCenter propertyId={property.id} cadence={property.cadence} api={api} post={post} onIssued={()=>loadProperty(property.id)}/><Panel title="ออกใบแจ้งหนี้รายห้อง" subtitle="ทดลองคำนวณก่อน แล้วจึงกดออกบิลจริงภายหลังตรวจความถูกต้อง"><form className="form" onSubmit={e=>{e.preventDefault();void preview(new FormData(e.currentTarget),false);}}><div className="cols3"><Field label="ห้องพัก"><select name="roomId">{rooms.filter(r=>r.status==="OCCUPIED").map(r=><option key={r.id} value={r.id}>{r.number}</option>)}</select></Field><Field label="วันเริ่มรอบ"><input name="start" required type="date"/></Field><Field label="วันสิ้นสุด (ไม่รวมวันนี้)"><input name="end" required type="date"/></Field></div><Field label="ประเภทการออกบิล">
        <select name="partialMode" defaultValue="">
         <option value="">รอบบิลเต็มตามปกติ</option>
         <option value="MOVE_IN">ย้ายเข้ากลางรอบ (เริ่มตรงวันเริ่มสัญญาเท่านั้น)</option>
@@ -343,7 +350,7 @@ function App(){
        ระบบจะคิดค่าเช่าตามจำนวนวันที่พักจริง รวมหน่วยมิเตอร์ก่อนและหลังการเปลี่ยนมิเตอร์ และไม่อนุญาตให้ออกบิลซ้อนช่วงที่เรียกเก็บแล้ว</p>
       <div className="actions"><button className="btn outline" disabled={busy} type="submit">คำนวณยอดก่อนออกบิล</button><button className="btn primary" disabled={busy} type="button" onClick={e=>{const f=e.currentTarget.closest("form");if(f&&window.confirm("ยืนยันออกบิลจริงสำหรับห้องและรอบวันที่เลือก?"))void preview(new FormData(f),true);}}>ยืนยันออกบิล</button></div></form></Panel>
       <Panel title="ใบแจ้งหนี้ที่ออกแล้ว" subtitle="ยอดเป็นหนี้ตั้งต้น; การรับชำระตรวจโดยเจ้าของจากหลักฐาน และยังไม่เชื่อม Bank API"><div className="table-scroll"><table><thead><tr><th>หมายเลขห้อง</th><th>รอบบิล</th><th>ครบกำหนด</th><th>ยอดเงิน</th><th>สถานะ</th><th>PDF</th></tr></thead><tbody>{invoices.map(i=><tr key={i.id}><td><b>{rooms.find(r=>r.id===i.roomId)?.number??"-"}</b></td><td>{i.periodStart} → {i.periodEnd}</td><td>{i.dueDate}</td><td>{money(i.amountSatang)}</td><td><span className="pill occupied">{i.status}</span></td><td><a className="btn outline" href={"/v1/properties/"+property.id+"/invoices/"+i.id+"/billing-notice.pdf"} target="_blank" rel="noopener noreferrer">ดาวน์โหลด PDF</a></td></tr>)}</tbody></table>{invoices.length===0&&<p className="empty">ยังไม่มีบิล</p>}</div></Panel></>}
-    {property&&section==="payments"&&<PaymentCenter key={property.id} propertyId={property.id} api={api} post={post}/>}
+    {property&&section==="payments"&&<><PaymentCenter key={property.id} propertyId={property.id} api={api} post={post}/>{orgRole==="OWNER"&&<DepositCenter key={"deposit-"+property.id} propertyId={property.id} leases={leases} actorId={me.id} api={api} post={post}/>}</>}
     {property&&section==="maintenance"&&!isStaff&&<MaintenanceCenter key={property.id} propertyId={property.id} rooms={rooms} api={api} post={post} onRoomChanged={()=>loadProperty(property.id,isStaff)}/>}
     {property&&section==="invites"&&<OwnerInvitations key={property.id} propertyId={property.id} api={api} post={post}/>}
     {section==="staff"&&orgRole==="OWNER"&&<StaffManagement key={orgId} orgId={orgId} properties={props} api={api} post={post}/>}

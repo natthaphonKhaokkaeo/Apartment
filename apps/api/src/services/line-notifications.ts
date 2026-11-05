@@ -9,23 +9,30 @@ export function isActiveTenantConsent(consent:Consent|undefined,scope:Scope):boo
   consent.bindingId===scope.bindingId&&consent.organizationId===scope.organizationId&&
   consent.leaseId===scope.leaseId&&consent.recipientLineUserId===scope.recipientLineUserId;
 }
-export type NotificationKind="BILL_ISSUED"|"PAYMENT_DUE";
+export type NotificationKind="BILL_ISSUED"|"PAYMENT_DUE"|"MAINTENANCE_UPDATED"|"TENANT_LINK_APPROVED";
 export function notificationEventKey(kind:NotificationKind,invoiceId:string):string{
  return kind+":"+invoiceId;
 }
 export function notificationText(kind:NotificationKind):string{
- return kind==="BILL_ISSUED"
-  ?"คุณมีใบแจ้งหนี้ใหม่จากหอพัก กรุณาเข้าสู่ระบบผู้เช่าเพื่อดูรายละเอียดและตรวจสอบยอดชำระ"
-  :"ใบแจ้งหนี้ของคุณใกล้ครบกำหนดชำระ กรุณาตรวจสอบยอดคงเหลือและข้อมูลการชำระในระบบผู้เช่า";
+ const text:Record<NotificationKind,string>={
+  BILL_ISSUED:"คุณมีใบแจ้งหนี้ใหม่จากหอพัก กรุณาเข้าสู่ระบบผู้เช่าเพื่อดูรายละเอียดและตรวจสอบยอดชำระ",
+  PAYMENT_DUE:"ใบแจ้งหนี้ของคุณใกล้ครบกำหนดชำระ กรุณาตรวจสอบยอดคงเหลือและข้อมูลการชำระในระบบผู้เช่า",
+  MAINTENANCE_UPDATED:"สถานะคำขอแจ้งซ่อมของคุณมีการอัปเดต กรุณาเข้าสู่ระบบผู้เช่าเพื่อตรวจสอบรายละเอียด",
+  TENANT_LINK_APPROVED:"คำขอผูกสัญญาเช่าของคุณได้รับการอนุมัติ กรุณาเข้าสู่ระบบผู้เช่าเพื่อตรวจสอบรายละเอียด"
+ };
+ return text[kind];
 }
+/** v1 explicit consent covers bills, due dates and repairs, NOT account invitations. */
+export function notificationPurposeAllowed(kind:NotificationKind){return kind!=="TENANT_LINK_APPROVED";}
 /** Called *inside* the invoice issuance DB transaction. Sending is never done here.
  * Skip when no enabled channel and explicit unrevoked consent for this exact lease/recipient.
  * Under a replayed invoice do not enqueue a second event.
  */
-export async function queueInvoiceNotificationTx(tx:Pick<typeof db,"select"|"insert">,
+export async function queueLeaseNotificationTx(tx:Pick<typeof db,"select"|"insert">,
  invoice:Pick<typeof invoices.$inferSelect,"id"|"leaseId"|"organizationId"|"propertyId">,
  kind:NotificationKind):
  Promise<"QUEUED"|"INELIGIBLE"|"ALREADY_QUEUED">{
+ if(!notificationPurposeAllowed(kind))return "INELIGIBLE";
  const [[lease],[binding]]=await Promise.all([
   tx.select({id:leases.id,organizationId:leases.organizationId,
    tenantLineSubject:leases.tenantLineSubject}).from(leases).where(and(
@@ -55,6 +62,8 @@ export async function queueInvoiceNotificationTx(tx:Pick<typeof db,"select"|"ins
  }).onConflictDoNothing().returning({id:lineOutbox.id});
  return created?"QUEUED":"ALREADY_QUEUED";
 }
+
+export const queueInvoiceNotificationTx=queueLeaseNotificationTx;
 
 export async function queueInvoiceIssuedTx(tx:Pick<typeof db,"select"|"insert">,
  invoice:Pick<typeof invoices.$inferSelect,"id"|"leaseId"|"organizationId"|"propertyId">){

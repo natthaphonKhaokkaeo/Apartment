@@ -1,0 +1,11 @@
+[Unit]
+Description=Apartment encrypted offsite backup — schedule only after operator approval
+
+[Timer]
+OnCalendar=*-*-* 04:30:00 Asia/Bangkok
+Persistent=true
+RandomizedDelaySec=15min
+Unit=apartment-postgres-offsite.service
+
+[Install]
+WantedBy=timers.target

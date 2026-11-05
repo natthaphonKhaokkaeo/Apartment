@@ -30,7 +30,7 @@
 
 - P4-03d live send quotas: all reservations must be serialized through the transaction-level PostgreSQL advisory lock (global 72853019947) and counted even for failed provider sends, with least-used-org fairness. DEV must remain observe-only / outbound disabled. Incidents are internal DB/UI alerts only (not external paging); never auto-requeue acknowledged/DEAD jobs or expose recipient PII.
 
-- Apartment PostgreSQL backups are root-only via infra/backup-apartment-postgres.sh and systemd daily 03:30 Asia/Bangkok, retention 14 days, local only. Never modify/delete persistent apartment-dev_apartment_pg_data volume, never restore over the live database. Offsite copy is still pending. Runbook: docs/POSTGRES_BACKUP_RESTORE.md.
+- Apartment PostgreSQL backups are root-only via infra/backup-apartment-postgres.sh and systemd daily 03:30 Asia/Bangkok, retention 14 days, local only. Never modify/delete persistent apartment-dev_apartment_pg_data volume, never restore over the live database. Approved DEV backups are encrypted on this same VPS (user decision); independent host-loss recovery is not claimed. Runbooks: docs/LOCAL_BACKUP.md and docs/POSTGRES_BACKUP_RESTORE.md.
 - P4-03e: consent revocation and LIVE dispatch use matching lease->OA->consent read locks vs lease/consent write locks; do not remove this serialization without security re-review. Existing provider sends cannot be recalled. Reservation cleanup requires explicit org scope, minimum 30d, dry-run default and explicit apply confirmation.
 
 - P1-01a move-out requires an active OWNER membership (no MANAGER/SUPER_ADMIN shortcut), property→lease→room transaction locks, exclusive end boundary with both final utility readings, final issued settled invoice, no pending payment/finance. Never write off balances automatically; retain immutable finance history. Revoke lease invitations, LINE consents and pending Outbox after termination. Repair/deposit and partial-period support remain separate phases.
@@ -61,3 +61,5 @@
   handover, no overlapping ISSUED intervals. Closing the lease separately needs
   every final invoice settled and physical handover; never auto-refund deposits.
   EvidenceRef is not verified file evidence. See docs/P1_METER_REPLACEMENT_MOVE_OUT.md.
+
+- VPS has 4 GB RAM: run browser/build/coverage gates sequentially in finite QA jobs with resource limits; never restart unrelated services to free resources.

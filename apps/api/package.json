@@ -11,6 +11,7 @@
     "smoke:http": "tsx scripts/smoke-http.ts",
     "smoke:staff": "tsx scripts/smoke-staff.ts",
     "smoke:maintenance": "tsx scripts/smoke-maintenance.ts",
+    "smoke:billing-batch": "tsx scripts/smoke-billing-batch.ts",
     "smoke:load-gates": "tsx scripts/smoke-load-gates.ts",
     "smoke:payments": "tsx scripts/smoke-payment-concurrency.ts",
     "smoke:finance": "tsx scripts/smoke-financial-adjustments.ts",
@@ -25,7 +26,10 @@
     "smoke:cleanup": "tsx scripts/smoke-evidence-cleanup.ts",
     "preview:billing": "tsx scripts/preview-billing-pdf.ts",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit migrate"
+    "db:migrate": "drizzle-kit migrate",
+    "smoke:deposits": "tsx scripts/smoke-deposits.ts",
+    "smoke:meter-evidence": "tsx scripts/smoke-meter-evidence.ts",
+    "smoke:operation-notifications": "tsx scripts/smoke-operation-notifications.ts"
   },
   "dependencies": {
     "@apartment/domain": "workspace:*",

@@ -1,7 +1,7 @@
 import {randomUUID} from "node:crypto";
 import {spawn} from "node:child_process";
 import {strict as assert} from "node:assert";
-import {and,eq} from "drizzle-orm";
+import {eq} from "drizzle-orm";
 import {db,sqlClient} from "../src/db/client.js";
 import {
  users,sessions,organizations,memberships,properties,rooms,leases,

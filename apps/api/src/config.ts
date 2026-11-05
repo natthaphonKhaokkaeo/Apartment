@@ -22,7 +22,7 @@ const schema = z.object({
  CLAMAV_HOST: z.string().min(1).default("127.0.0.1"),
  CLAMAV_PORT: z.coerce.number().int().min(1).max(65535).default(3310),
  CLAMAV_TIMEOUT_MS: z.coerce.number().int().min(50).max(30000).default(5000),
- LINE_MESSAGING_CHANNEL_SECRET: z.string().optional(),
+ LINE_MESSAGING_CHANNEL_SECRET: z.string().regex(/^[0-9a-f]{32}$/i,"LINE_CHANNEL_SECRET_INVALID_FORMAT").optional(),
  LINE_MESSAGING_CHANNEL_ACCESS_TOKEN: z.string().optional(),
  LINE_OA_BOT_USER_ID: z.preprocess(v=>v===""?undefined:v,
   z.string().regex(/^U[0-9a-f]{32}$/i).optional()),

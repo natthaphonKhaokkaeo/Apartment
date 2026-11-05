@@ -1,6 +1,6 @@
-import type {FastifyInstance,FastifyRequest} from "fastify";
+import type {FastifyInstance} from "fastify";
 import multipart from "@fastify/multipart";
-import {and,eq,desc,sql} from "drizzle-orm";
+import {and,eq,desc} from "drizzle-orm";
 import {z} from "zod";
 import {db} from "../db/client.js";
 import {auditLogs,invoices,leases,organizations,paymentClaims,paymentInstructions,paymentLedger,properties,users,memberships} from "../db/schema.js";
@@ -10,7 +10,7 @@ import {assertApprovalAllowed,maskBankAccount,normalizePaymentReference,remainin
 import {isValidPromptPayId} from "../services/promptpay.js";
 import {savePrivateEvidence,loadPrivateEvidence,deletePrivateEvidence} from "../services/evidence.js";
 
-const uuid=z.uuid(),satang=z.number().int().positive().max(2147483647);
+const uuid=z.uuid();
 const propParam=z.object({propertyId:uuid});
 const claimParam=propParam.extend({claimId:uuid});
 const invoiceParam=z.object({invoiceId:uuid});
@@ -88,7 +88,7 @@ async function findOwnerClaim(propertyId:string,claimId:string){
  return claim;
 }
 function clientClaim(row:typeof paymentClaims.$inferSelect){
- const {evidenceKey,evidenceSha256,...safe}=row;return safe;
+ const {evidenceKey: _evidenceKey,evidenceSha256: _evidenceSha256,...safe}=row;return safe;
 }
 
 export async function registerPaymentRoutes(app:FastifyInstance){

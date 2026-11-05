@@ -12,6 +12,15 @@ describe("P4-03d LINE org quotas and fairness",()=>{
   expect(rankOrgQueues(entries,{A:5,B:0,C:0},5)).toEqual(["C","B"]);
   expect(rankOrgQueues(entries,{A:5,B:5,C:5},5)).toEqual([]);
  });
+ it("prioritizes measured old queued jobs over queues with unknown age",()=>{
+  const entries=[
+   {organizationId:"UNKNOWN",oldest:null},
+   {organizationId:"OLD",oldest:new Date("2026-11-03T08:00:00Z")},
+   {organizationId:"NEW",oldest:new Date("2026-11-03T08:01:00Z")},
+  ];
+  expect(rankOrgQueues(entries,{},5)).toEqual(["OLD","NEW","UNKNOWN"]);
+  expect(entries.map(x=>x.organizationId)).toEqual(["UNKNOWN","OLD","NEW"]);
+ });
  it("detects operator incidents without PII and never invents delivery status",()=>{
   expect(assessLineOpsAlerts({
    unreviewedDeadCount:2,expiredSendingLeaseCount:1,oldestActiveAgeSeconds:1800

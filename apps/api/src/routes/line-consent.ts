@@ -1,5 +1,5 @@
 import type {FastifyInstance} from "fastify";
-import {and,eq,inArray,isNull} from "drizzle-orm";
+import {and,eq,inArray} from "drizzle-orm";
 import {z} from "zod";
 import {config} from "../config.js";
 import {db} from "../db/client.js";

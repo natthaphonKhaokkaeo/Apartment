@@ -22,7 +22,7 @@ export async function prepareDueReminders(options:{
 }){
  const date=z.iso.date().parse(options.date);
  const organizationId=z.uuid().parse(options.organizationId);
- const limit=Math.max(1,Math.min(100,options.limit??50));
+ const limit=Math.max(1,Math.min(100,z.number().finite().int().parse(options.limit??50)));
  if(options.apply&&date!==bangkokDate(options.now??new Date()))
   throw new AppError(409,"DUE_REMINDER_MUST_RUN_ON_LOCAL_DUE_DATE");
  const candidates=await db.select().from(invoices).where(and(

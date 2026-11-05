@@ -6,18 +6,19 @@ import {TenantMaintenanceRequests} from "./TenantMaintenanceRequests.js";
 type Api={api:<T>(path:string,options?:RequestInit)=>Promise<T>;post:<T>(path:string,body:unknown)=>Promise<T>};
 type Lease={leaseId:string;tenantName:string;roomNumber:string;propertyName:string;propertyAddress:string;startDate:string;endDate:string|null};
 type Invoice={id:string;leaseId:string;propertyName:string;periodStart:string;periodEnd:string;dueDate:string;amountSatang:number;status:string};
-type Detail=Invoice&{lines:{type:string;description:string;unitsMilli:number|null;tariffSatang:number|null;amountSatang:number}[]};
+type Detail=Invoice&{historical?:boolean;lines:{type:string;description:string;unitsMilli:number|null;tariffSatang:number|null;amountSatang:number}[]};
 type Invitation={id:string;claimedAt:string;approvedAt:string|null;revokedAt:string|null;expiresAt:string};
 const baht=(n:number)=>"฿"+(n/100).toLocaleString("th-TH",{minimumFractionDigits:2,maximumFractionDigits:2});
 export function TenantPortal({api,post}:Api){
- const [leases,setLeases]=useState<Lease[]>([]),[bills,setBills]=useState<Invoice[]>([]);
+ const [leases,setLeases]=useState<Lease[]>([]),[bills,setBills]=useState<Invoice[]>([]),[history,setHistory]=useState<Invoice[]>([]);
  const [invites,setInvites]=useState<Invitation[]>([]),[detail,setDetail]=useState<Detail|null>(null);
  const [token,setToken]=useState(""),[loading,setLoading]=useState(false),[message,setMessage]=useState(""),[error,setError]=useState("");
  async function reload(){
-  const [newLeases,newBills,newInvites]=await Promise.all([
-   api<Lease[]>("/tenant/leases"),api<Invoice[]>("/tenant/invoices"),api<Invitation[]>("/tenant/invitations")
+  const [newLeases,newBills,newInvites,newHistory]=await Promise.all([
+   api<Lease[]>("/tenant/leases"),api<Invoice[]>("/tenant/invoices"),api<Invitation[]>("/tenant/invitations"),
+   api<Invoice[]>("/tenant/history/invoices").catch(()=>[] as Invoice[])
   ]);
-  setLeases(newLeases);setBills(newBills);setInvites(newInvites);
+  setLeases(newLeases);setBills(newBills);setInvites(newInvites);setHistory(newHistory);
  }
  useEffect(()=>{void reload().catch(e=>setError((e as Error).message));},[]);
  async function claim(e:React.FormEvent<HTMLFormElement>){
@@ -28,9 +29,10 @@ export function TenantPortal({api,post}:Api){
    await reload();
   }catch(e){setError((e as Error).message);}finally{setLoading(false);}
  }
- async function openInvoice(id:string){
+ async function openInvoice(id:string,historical=false){
   setError("");
-  try{setDetail(await api<Detail>("/tenant/invoices/"+id));}catch(e){setError((e as Error).message);}
+  const path=historical?"/tenant/history/invoices/":"/tenant/invoices/";
+  try{setDetail({...await api<Detail>(path+id),historical});}catch(e){setError((e as Error).message);}
  }
  return <div>
   <div className="hero"><div><span className="hero-kicker">TENANT SELF SERVICE</span><h2>สวัสดี ผู้พักอาศัย</h2><p>ตรวจสอบสัญญาและบิลของคุณด้วย LINE อย่างเป็นส่วนตัว</p></div><DoorOpen size={66}/></div>
@@ -60,12 +62,23 @@ export function TenantPortal({api,post}:Api){
     <span><strong>{baht(b.amountSatang)}</strong><small>ดูรายละเอียด</small></span></button>)}
    {!bills.length&&<p className="empty">ยังไม่มีใบแจ้งหนี้ที่เปิดให้ดู</p>}
   </section>
+  <section className="panel"><div className="panel-head"><div><h2>ใบแจ้งหนี้ย้อนหลังหลังย้ายออก</h2><p>แสดงเฉพาะบิลจากสัญญาที่สิ้นสุดแล้วและเคยผูกกับบัญชี LINE นี้ · อ่านอย่างเดียว</p></div><FileText size={20}/></div>
+   {history.map(b=><button type="button" className="tenant-bill" key={b.id} onClick={()=>void openInvoice(b.id,true)}>
+    <div><b>{b.propertyName}</b><small>{b.periodStart} ถึง {b.periodEnd} · ครบกำหนด {b.dueDate}</small></div>
+    <span><strong>{baht(b.amountSatang)}</strong><small>ดูรายละเอียด</small></span></button>)}
+   {!history.length&&<p className="empty">ไม่มีใบแจ้งหนี้ย้อนหลังที่เปิดให้ดู</p>}
+  </section>
   {detail&&<section className="panel"><div className="panel-head"><div><h2><FileText size={18}/> รายละเอียดใบแจ้งหนี้</h2><p>{detail.propertyName} · {detail.periodStart} – {detail.periodEnd}</p></div>
    <button className="btn outline" onClick={()=>setDetail(null)}>ปิด</button></div>
    {detail.lines.map((l,i)=><div key={i} className="rate-row"><span>{l.description}</span><b>{baht(l.amountSatang)}</b></div>)}
    <div className="rate-row"><strong>ยอดรวม</strong><strong>{baht(detail.amountSatang)}</strong></div>
-   <div className="actions" style={{marginTop:15,marginBottom:20}}><a className="btn primary" href={"/v1/tenant/invoices/"+detail.id+"/billing-notice.pdf"} target="_blank" rel="noopener noreferrer">ดาวน์โหลดใบแจ้งหนี้ PDF</a></div>
-   <TenantPayments invoiceId={detail.id} api={api}/>
+   {!detail.historical&&<><div className="actions" style={{marginTop:15,marginBottom:20}}><a className="btn primary" href={"/v1/tenant/invoices/"+detail.id+"/billing-notice.pdf"} target="_blank" rel="noopener noreferrer">ดาวน์โหลดใบแจ้งหนี้ PDF</a></div>
+   <TenantPayments invoiceId={detail.id} api={api}/></>}
+   {detail.historical&&<p className="notice">บิลจากสัญญาที่สิ้นสุดแล้วเปิดให้ดูย้อนหลังเท่านั้น หากต้องการหลักฐานการชำระเงินให้ติดต่อเจ้าของหอพัก</p>}
   </section>}
+  <section className="panel"><div className="panel-head"><div><h2>ข้อมูลส่วนบุคคลของฉัน</h2><p>ส่งออกข้อมูลสัญญาและใบแจ้งหนี้ของบัญชีที่ยืนยันแล้วในรูปแบบ JSON เพื่อเก็บสำเนา</p></div><FileText size={20}/></div>
+   <a className="btn outline" href="/v1/tenant/privacy/export" download="tenant-data-export.json">ดาวน์โหลดข้อมูลของฉัน</a>
+   <p className="notice">ไฟล์นี้อาจมีชื่อผู้เช่าและข้อมูลทางการเงิน โปรดจัดเก็บในพื้นที่ส่วนตัว การส่งออกนี้ไม่ใช่คำขอลบข้อมูล</p>
+  </section>
  </div>;
 }

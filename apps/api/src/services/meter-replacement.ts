@@ -1,4 +1,4 @@
-import {and,desc,eq,gt,gte,lt} from "drizzle-orm";
+import {and,desc,eq,gt} from "drizzle-orm";
 import {z} from "zod";
 import {db} from "../db/client.js";
 import {
@@ -71,7 +71,7 @@ export async function replacePhysicalMeter(
  if(value.replacedAt>bangkokToday(now))
   throw new AppError(422,"METER_REPLACEMENT_FUTURE_DATE");
  const oldClose=readingToMilli(value.oldClosingValue);
- const newOpen=readingToMilli(value.newOpeningValue);
+ const _newOpen=readingToMilli(value.newOpeningValue);
  return db.transaction(async tx=>{
   const [property]=await tx.select().from(properties)
    .where(eq(properties.id,propertyId)).for("update").limit(1);
