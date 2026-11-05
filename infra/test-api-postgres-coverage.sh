@@ -42,7 +42,7 @@ done
 RUN
 export APARTMENT_COVERAGE_ROOT="$ROOT"
 if [[ -n "${APARTMENT_FOCUSED_SMOKE:-}" ]]; then
- case "$APARTMENT_FOCUSED_SMOKE" in smoke-billing-batch|smoke-deposits|smoke-meter-evidence|smoke-operation-notifications|smoke-privacy|smoke-privacy-link-race);; *) echo INVALID_FOCUSED_SMOKE >&2; exit 2;; esac
+ case "$APARTMENT_FOCUSED_SMOKE" in smoke-billing-batch|smoke-deposits|smoke-meter-evidence|smoke-operation-notifications|smoke-privacy|smoke-privacy-link-race|smoke-http);; *) echo INVALID_FOCUSED_SMOKE >&2; exit 2;; esac
  (cd apps/api && node --import tsx "scripts/$APARTMENT_FOCUSED_SMOKE.ts")
  echo FOCUSED_POSTGRES_SMOKE_PASS
  exit 0

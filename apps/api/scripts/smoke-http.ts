@@ -51,6 +51,11 @@ async function main(){
  const idempotencyKey="http-smoke-"+randomUUID();
  const issue=await request("/v1/properties/"+pa.id+"/bills/issue",token,{method:"POST",body:payload,headers:{"idempotency-key":idempotencyKey}});
  assert.equal(issue.status,201,JSON.stringify(issue.body));ids.invoices.push(issue.body.invoice.id);
+ const financial=await request("/v1/properties/"+pa.id+"/financial-report?from=2026-11-01&to=2026-11-30",token);
+ assert.equal(financial.status,200,JSON.stringify(financial.body));
+ assert.equal(financial.body.totals.totalBilledSatang,413000);
+ assert.equal(financial.body.totals.outstandingSatang,413000);
+ assert.equal(financial.body.bankVerified,false);
  const replay=await request("/v1/properties/"+pa.id+"/bills/issue",token,{method:"POST",body:payload,headers:{"idempotency-key":idempotencyKey}});
  assert.equal(replay.status,200);assert.equal(replay.body.invoice.id,issue.body.invoice.id);
  const duplicate=await request("/v1/properties/"+pa.id+"/bills/issue",token,{method:"POST",body:payload,headers:{"idempotency-key":"other-"+randomUUID()}});

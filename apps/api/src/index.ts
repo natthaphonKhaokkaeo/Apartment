@@ -20,6 +20,7 @@ import {registerMeterAnomalyPreviewRoutes} from "./routes/meter-anomaly-preview.
 import {registerLeaseBillingSegmentsRoutes} from "./routes/lease-billing-segments.js";
 import {registerTenantPrivacyExportRoutes} from "./routes/tenant-privacy-export.js";
 import {registerOccupancyReportRoutes} from "./routes/occupancy-report.js";
+import {registerPropertyFinancialReportRoutes} from "./routes/property-financial-report.js";
 import {registerPaymentRoutes} from "./routes/payments.js";
 import {registerEvidenceUploadRoutes} from "./routes/evidence-uploads.js";
 import {registerBillingDocumentRoutes} from "./routes/billing-documents.js";
@@ -81,7 +82,15 @@ app.post("/v1/auth/line/exchange",async(req,reply)=>{
   method:"POST",headers:{"content-type":"application/x-www-form-urlencoded"},
   body:new URLSearchParams({id_token:b.idToken,client_id:config.LINE_CHANNEL_ID}),signal:AbortSignal.timeout(8000)
  });
- if(!r.ok)throw new AppError(401,"INVALID_LINE_TOKEN");
+ if(!r.ok){
+  let providerError: string|undefined;
+  try{const payload=await r.json() as {error?:unknown};
+   if(typeof payload.error==="string")providerError=payload.error;
+  }catch{/* Provider returned a non-JSON response. */}
+  req.log.warn({providerStatus:r.status,providerError},
+   "LINE ID token verification rejected the login token");
+  throw new AppError(401,"INVALID_LINE_TOKEN");
+ }
  const data=await r.json() as {sub?:string;name?:string;aud?:string;iss?:string;exp?:number};
  if(!data.sub||data.aud!==config.LINE_CHANNEL_ID||data.iss!=="https://access.line.me"||!data.exp||data.exp*1000<Date.now())throw new AppError(401,"INVALID_LINE_CLAIMS");
  const root=!!config.SUPER_ADMIN_LINE_USER_ID&&data.sub===config.SUPER_ADMIN_LINE_USER_ID;
@@ -403,6 +412,7 @@ await registerMeterAnomalyPreviewRoutes(app);
 await registerLeaseBillingSegmentsRoutes(app);
 await registerTenantPrivacyExportRoutes(app);
 await registerOccupancyReportRoutes(app);
+await registerPropertyFinancialReportRoutes(app);
 await registerPaymentRoutes(app);
 await registerEvidenceUploadRoutes(app);
 await registerBillingDocumentRoutes(app);

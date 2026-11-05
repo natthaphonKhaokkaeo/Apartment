@@ -7,6 +7,10 @@ type OccupancyReport={
  activeLeaseCount:number;occupiedWithoutActiveLease:number;
  activeLeaseInNonOccupiedRoom:number;roomsWithMultipleActiveLeases:number;
 };
+type FinancialReport={
+ totals:{invoiceCount:number;totalBilledSatang:number;grossManualApprovedSatang:number;
+  netManualApprovedSatang:number;internalCreditSatang:number;outstandingSatang:number};
+};
 type Props={
  propertyId:string;
  api:<T>(path:string,options?:RequestInit)=>Promise<T>;
@@ -14,13 +18,16 @@ type Props={
 /** Read-only owner overview for occupancy and receivables reporting. */
 export function PropertyOperationsReports({propertyId,api}:Props){
  const [data,setData]=useState<OccupancyReport|null>(null);
+ const [financial,setFinancial]=useState<FinancialReport|null>(null);
  const [error,setError]=useState("");
  const [loading,setLoading]=useState(false);
  useEffect(()=>{
   let cancelled=false;
-  setLoading(true);setError("");setData(null);
-  void api<OccupancyReport>(`/properties/${propertyId}/occupancy-report`)
-   .then(report=>{if(!cancelled)setData(report);})
+  setLoading(true);setError("");setData(null);setFinancial(null);
+  void Promise.all([
+   api<OccupancyReport>(`/properties/${propertyId}/occupancy-report`),
+   api<FinancialReport>(`/properties/${propertyId}/financial-report`),
+  ]).then(([report,finance])=>{if(!cancelled){setData(report);setFinancial(finance);}})
    .catch(err=>{if(!cancelled)setError((err as Error).message);})
    .finally(()=>{if(!cancelled)setLoading(false);});
   return()=>{cancelled=true;};
@@ -48,6 +55,11 @@ export function PropertyOperationsReports({propertyId,api}:Props){
    <span>อัตราการเข้าพัก</span>
    <b>{data.occupancyPercent.toLocaleString("th-TH",{maximumFractionDigits:2})}%</b>
   </div>}
+  {financial&&<div className="rate-row">
+   <span>ยอดออกบิล {financial.totals.invoiceCount} ใบ</span>
+   <b>ยอดรวม {formatBaht(financial.totals.totalBilledSatang)} · คงค้าง {formatBaht(financial.totals.outstandingSatang)}</b>
+  </div>}
+  {financial&&<p className="muted">ยอดรับตาม ledger {formatBaht(financial.totals.netManualApprovedSatang)} · เครดิตภายใน {formatBaht(financial.totals.internalCreditSatang)} · ยอดนี้ยังไม่ใช่การยืนยันจากธนาคาร</p>}
   {data&&anomalyCount>0&&<p role="alert" className="notice danger">
    <AlertTriangle size={16}/> พบสถานะห้องและสัญญาไม่สอดคล้องกัน {anomalyCount} รายการ
    โปรดตรวจสอบก่อนเรียกเก็บเงินหรือเปิดห้องให้เช่า
@@ -57,3 +69,5 @@ export function PropertyOperationsReports({propertyId,api}:Props){
   </p>}
  </section>;
 }
+
+function formatBaht(satang:number){return new Intl.NumberFormat("th-TH",{style:"currency",currency:"THB"}).format(satang/100);}
