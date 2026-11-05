@@ -1,4 +1,5 @@
 import {registerPrivacyRequestRoutes} from "./routes/privacy-requests.js";
+import {registerPlatformAdminRoutes} from "./routes/platform-admins.js";
 import {registerMeterRecordRoutes} from "./routes/meter-records.js";
 import {registerDepositRoutes} from "./routes/deposits.js";
 import Fastify from "fastify";
@@ -116,7 +117,7 @@ app.post("/v1/auth/line/exchange",async(req,reply)=>{
     .where(and(eq(memberships.userId,u.id),eq(memberships.status,"ACTIVE"))).limit(1);
    const [tenantLease]=await db.select({id:leases.id}).from(leases)
     .where(and(eq(leases.tenantLineSubject,data.sub),eq(leases.status,"ACTIVE"))).limit(1);
-   const menuRole=classifyRichMenuRole(root,membership?.role,!!tenantLease);
+   const menuRole=classifyRichMenuRole(u.platformRole,membership?.role,!!tenantLease);
    const linked=await linkRichMenuToUser({channelAccessToken:config.LINE_MESSAGING_CHANNEL_ACCESS_TOKEN,lineUserId:data.sub,role:menuRole});
    if(linked)req.log.info({menuRole},"LINE rich menu assigned to authenticated user");
   }catch(error){
@@ -463,4 +464,5 @@ await registerBillingBatchRoutes(app);
 await registerDepositRoutes(app);
 await registerMeterRecordRoutes(app);
 await registerPrivacyRequestRoutes(app);
+await registerPlatformAdminRoutes(app);
 await app.listen({host:config.HOST,port:config.PORT});

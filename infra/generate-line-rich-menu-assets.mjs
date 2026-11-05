@@ -13,7 +13,9 @@ const templates={
  tenant:{title:'พื้นที่ของผู้เช่า',subtitle:'TENANT PORTAL · ข้อมูลสัญญาและค่าใช้จ่าย',accent:'#73e0bf',items:[
   ['หน้าหลัก','MY HOME','home'],['ใบแจ้งหนี้','MY INVOICES','receipt'],['การชำระเงิน','PAYMENTS','wallet'],['แจ้งซ่อม','MAINTENANCE','wrench'],['ประวัติบิล','BILL HISTORY','history'],['โปรไฟล์','MY PROFILE','profile']]},
  account:{title:'บัญชีของคุณ',subtitle:'จัดการข้อมูลและเริ่มใช้งาน Apartment',accent:'#c3a7ff',items:[
-  ['โปรไฟล์','MY PROFILE','profile'],['หน้าหลัก','HOME','home'],['เชิญเข้าพัก','TENANT INVITE','invite'],['แจ้งซ่อม','MAINTENANCE','wrench'],['คู่มือ','HELP CENTER','book'],['ติดต่อเรา','CONTACT','chat']]}
+  ['โปรไฟล์','MY PROFILE','profile'],['หน้าหลัก','HOME','home'],['เชิญเข้าพัก','TENANT INVITE','invite'],['แจ้งซ่อม','MAINTENANCE','wrench'],['คู่มือ','HELP CENTER','book'],['ติดต่อเรา','CONTACT','chat']]},
+ superadmin:{title:'ผู้ดูแลระบบสูงสุด',subtitle:'SUPER ADMIN · จัดการแพลตฟอร์มและสิทธิ์ผู้ดูแล',accent:'#ff8c9d',items:[
+  ['จัดการแอดมิน','ADMIN ACCESS','people'],['ภาพรวม','DASHBOARD','dashboard'],['หอพัก','PROPERTIES','building'],['ออกบิล','BILLING','receipt'],['งานซ่อม','OPERATIONS','wrench'],['โปรไฟล์','MY PROFILE','profile']]}
 };
 const iconPaths={
  login:'M4 13h12M11 8l5 5-5 5M19 5v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-3',

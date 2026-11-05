@@ -22,14 +22,18 @@ const staff={id:"staff-e2e",name:"พนักงานทดสอบ",role:"US
 function json(body:Json,status=200){
  return {status,contentType:"application/json; charset=utf-8",body:JSON.stringify(body)};
 }
-async function intercept(page:Page,actor:typeof owner|typeof staff|null){
+type Actor={id:string;name:string;role:string;memberships?:{organizationId:string;role:"OWNER"|"MANAGER"|"STAFF"}[];propertyGrants?:{propertyId:string;level:"VIEWER"|"METER_READER"}[]};
+async function intercept(page:Page,actor:Actor|null){
  const requests:string[]=[];
+ let managedRole="USER";
  await page.route("**/v1/**",async route=>{
   const {pathname}=new URL(route.request().url());
   const method=route.request().method();
   requests.push(`${method} ${pathname}`);
   const tables:Record<string,Json>={
    "/v1/me":actor??{error:"UNAUTHENTICATED"},
+   "/v1/admin/overview":{organizationCount:1,propertyCount:1,roomCount:1,invoiceCount:0},
+   "/v1/admin/platform-users":[{id:"account-e2e",displayName:"บัญชีทดสอบ",platformRole:managedRole,status:"ACTIVE",createdAt:"2026-11-01T00:00:00Z"}],
    "/v1/organizations":[{id:organizationId,name:"องค์กรทดสอบ"}],
    [`/v1/organizations/${organizationId}/properties`]:[property],
    [`/v1/properties/${propertyId}/rooms`]:
@@ -60,6 +64,10 @@ async function intercept(page:Page,actor:typeof owner|typeof staff|null){
   }
   if(method==="GET"&&pathname in tables){
    await route.fulfill(json(tables[pathname]));return;
+  }
+  if(method==="PATCH"&&pathname==="/v1/admin/platform-users/account-e2e/role"){
+   managedRole=(route.request().postDataJSON() as {role:string}).role;
+   await route.fulfill(json({id:"account-e2e",displayName:"บัญชีทดสอบ",platformRole:managedRole,changed:true}));return;
   }
   if(method==="POST"&&pathname==="/v1/auth/logout"){
    await route.fulfill(json({}));return;
@@ -100,6 +108,17 @@ test("authenticated owner loads scoped overview and logs out",async({page})=>{
  await expect(page.getByRole("button",{name:"เข้าสู่ระบบด้วย LINE"})).toBeVisible();
  await expect(page.getByRole("navigation",{name:"เมนูหลัก"})).toHaveCount(0);
  expect(requests).toContain("POST /v1/auth/logout");
+});
+
+test("SUPER_ADMIN can grant and remove platform administrator access from verified accounts",async({page})=>{
+ const requests=await intercept(page,{id:"root-e2e",name:"ผู้ดูแลระบบ",role:"SUPER_ADMIN",memberships:[]});
+ await page.goto("/?section=admin");
+ await expect(page.getByRole("heading",{name:"จัดการ Super Admin"})).toBeVisible();
+ await expect(page.getByText("บัญชีทดสอบ")).toBeVisible();
+ page.once("dialog",dialog=>dialog.accept());
+ await page.getByRole("button",{name:"เพิ่ม Super Admin"}).click();
+ await expect(page.getByRole("button",{name:"ถอดสิทธิ"})).toBeVisible();
+ expect(requests).toContain("PATCH /v1/admin/platform-users/account-e2e/role");
 });
 
 test("STAFF navigation cannot access billing, payments, settings or admin",async({page})=>{

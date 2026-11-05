@@ -1,6 +1,16 @@
 # Apartment SaaS — Master Phase Plan & Session Handoff
 
 
+
+## 2026-11-05 platform admin management + Super Admin LINE Rich Menu (implementation verified, deployment pending)
+
+- P0/P2/P6-PLATFORM-ADMIN: added authenticated platform-user search and role-change API plus responsive Super Admin UI. Role changes are audited, revoke active sessions, require active LINE-verified accounts, and serialize demotions to protect the last active Super Admin. Bootstrap admin and self-demotion are protected.
+- P2/P6-LINE-SUPERADMIN-MENU: role classification now reads the persisted server-side `platformRole`; Super Admin has a distinct admin Rich Menu with `/` `?section=admin` destination. Owner, tenant, public, and account templates remain separate.
+- Automated evidence: API 285/285 across 54 files; domain 15/15; Playwright E2E 36/36 (desktop, mobile 390px and 320px); workspace TypeScript and ESLint pass with zero warnings. API mocked-provider tests are not real second-account LINE UAT.
+- Live LINE evidence from the currently deployed release: public default menu is confirmed through `GET /v2/bot/user/all/richmenu`; four pre-existing templates are provisioned. The fifth Super Admin menu and current source are not deployed yet.
+- Login observation: the application implements LIFF login, not username/password credentials. When LINE opens its hosted account sign-in form for a second account, that page is LINE authentication. The reported second-account callback has not been observed in API logs and remains pending real-account UAT.
+- No external LINE outbound messaging is enabled.
+
 ## 2026-11-05 LINE login continuation + per-user Rich Menu (implementation verified, deployment pending)
 
 - P2-LINE-POSTLOGIN: successful LIFF ID-token exchange now requires `/v1/me` to load and presents an explicit error if session bootstrap fails; it routes verified workspace members to overview, active lease users to tenant self-service, and unassigned accounts to onboarding overview. Rich-menu deep links preserve the requested section.

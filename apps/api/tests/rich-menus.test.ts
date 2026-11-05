@@ -12,7 +12,7 @@ describe("LINE rich menu definitions",()=>{
   expect(menu.areas[0].action.uri).toContain("https://liff.line.me/"+liffId);
  });
  it("ships valid LINE-sized image assets for every menu role",async()=>{
-  for(const role of ["public","owner","tenant","account"] as const){
+  for(const role of ["public","owner","tenant","account","superadmin"] as const){
    const image=await readFile(new URL(`../assets/line-rich-menus/${role}.png`,import.meta.url));
    expect(image.subarray(0,8)).toEqual(Buffer.from([137,80,78,71,13,10,26,10]));
    expect(image.readUInt32BE(16)).toBe(2500);
@@ -29,16 +29,16 @@ describe("LINE rich menu definitions",()=>{
   expect(owner.areas.map(a=>a.action.uri)).not.toEqual(tenant.areas.map(a=>a.action.uri));
  });
  it("selects role menus only from verified server-side roles",()=>{
-  expect(classifyRichMenuRole(true,undefined,false)).toBe("owner");
-  expect(classifyRichMenuRole(false,"OWNER",false)).toBe("owner");
-  expect(classifyRichMenuRole(false,"STAFF",false)).toBe("owner");
-  expect(classifyRichMenuRole(false,undefined,true)).toBe("tenant");
-  expect(classifyRichMenuRole(false,undefined,false)).toBe("account");
+  expect(classifyRichMenuRole("SUPER_ADMIN",undefined,false)).toBe("superadmin");
+  expect(classifyRichMenuRole("USER","OWNER",false)).toBe("owner");
+  expect(classifyRichMenuRole("USER","STAFF",false)).toBe("owner");
+  expect(classifyRichMenuRole("USER",undefined,true)).toBe("tenant");
+  expect(classifyRichMenuRole("USER",undefined,false)).toBe("account");
  });
 });
 
 describe("LINE rich menu provider operations",()=>{
- it("provisions four idempotent templates, uploads PNGs, and sets the public default",async()=>{
+ it("provisions five idempotent templates, uploads PNGs, and sets the public default",async()=>{
   const calls:{url:string;init?:RequestInit}[]=[];
   const existing:{richMenuId:string;name:string}[]=[];
   let defaultRichMenuId:string|undefined;
@@ -59,9 +59,9 @@ describe("LINE rich menu provider operations",()=>{
   };
   const imageLoader=async()=>new Uint8Array([137,80,78,71]);
   const result=await provisionLineRichMenus({channelAccessToken:"test-token",liffId:"123456-abcdefgh",fetcher,imageLoader});
-  expect(Object.keys(result)).toHaveLength(4);
-  expect(calls.filter(x=>x.url.endsWith("/richmenu")&&x.init?.method==="POST")).toHaveLength(4);
-  expect(calls.filter(x=>x.url.includes("api-data.line.me"))).toHaveLength(4);
+  expect(Object.keys(result)).toHaveLength(5);
+  expect(calls.filter(x=>x.url.endsWith("/richmenu")&&x.init?.method==="POST")).toHaveLength(5);
+  expect(calls.filter(x=>x.url.includes("api-data.line.me"))).toHaveLength(5);
   expect(defaultRichMenuId).toBe(result.public);
   expect(calls.some(x=>x.url.endsWith("/user/all/richmenu")&&x.init?.method!=="POST")).toBe(true);
   calls.length=0;

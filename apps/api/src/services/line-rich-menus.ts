@@ -1,16 +1,17 @@
 import {readFile} from "node:fs/promises";
 
-export type RichMenuRole="public"|"owner"|"tenant"|"account";
+export type RichMenuRole="public"|"owner"|"tenant"|"account"|"superadmin";
 export type RichMenuArea={bounds:{x:number;y:number;width:number;height:number};action:{type:"uri";uri:string;label:string}};
 export type RichMenuDefinition={size:{width:2500;height:1686};selected:boolean;name:string;chatBarText:string;areas:RichMenuArea[]};
 const names:Record<RichMenuRole,string>={
- public:"apartment-public-v1",owner:"apartment-owner-v1",tenant:"apartment-tenant-v1",account:"apartment-account-v1"
+ public:"apartment-public-v1",owner:"apartment-owner-v1",tenant:"apartment-tenant-v1",account:"apartment-account-v1",superadmin:"apartment-superadmin-v1"
 };
 const sectionActions:Record<RichMenuRole,[string,string,string][]>={
  public:[["เข้าสู่ระบบ","overview",""],["บริการ","overview",""],["วิธีใช้งาน","overview",""],["จัดการหอพัก","overview",""],["ติดต่อเรา","profile",""],["เกี่ยวกับเรา","overview",""]],
  owner:[["ภาพรวม","overview",""],["ห้องพัก","rooms",""],["ออกบิล","billing",""],["ผู้เช่า","tenant",""],["งานซ่อม","maintenance",""],["โปรไฟล์","profile",""]],
  tenant:[["หน้าหลัก","tenant","tenant-home"],["ใบแจ้งหนี้","tenant","tenant-invoices"],["การชำระเงิน","tenant","tenant-invoices"],["แจ้งซ่อม","tenant","tenant-maintenance"],["ประวัติบิล","tenant","tenant-history"],["โปรไฟล์","profile",""]],
- account:[["โปรไฟล์","profile",""],["หน้าหลัก","overview",""],["เชิญเข้าพัก","tenant","tenant-home"],["แจ้งซ่อม","tenant","tenant-maintenance"],["คู่มือ","overview",""],["ติดต่อเรา","profile",""]]
+ account:[["โปรไฟล์","profile",""],["หน้าหลัก","overview",""],["เชิญเข้าพัก","tenant","tenant-home"],["แจ้งซ่อม","tenant","tenant-maintenance"],["คู่มือ","overview",""],["ติดต่อเรา","profile",""]],
+ superadmin:[["จัดการระบบ","admin",""],["ภาพรวม","overview",""],["หอพัก","rooms",""],["ออกบิล","billing",""],["งานซ่อม","maintenance",""],["โปรไฟล์","profile",""]]
 };
 const areaBounds=(index:number)=>({x:64+(index%3)*812,y:354+Math.floor(index/3)*650,width:748,height:596});
 const menuUrl=(liffId:string,section:string,anchor:string)=>{
@@ -23,8 +24,9 @@ export function buildRichMenuDefinition(role:RichMenuRole,liffId:string):RichMen
  return {size:{width:2500,height:1686},selected:true,name:names[role],chatBarText:"เมนูหลัก",
   areas:sectionActions[role].map(([label,section,anchor],i)=>({bounds:areaBounds(i),action:{type:"uri",uri:menuUrl(liffId,section,anchor),label}}))};
 }
-export function classifyRichMenuRole(isSuperAdmin:boolean,membershipRole:string|undefined,hasActiveTenantLease:boolean):RichMenuRole{
- if(isSuperAdmin||membershipRole==="OWNER"||membershipRole==="MANAGER"||membershipRole==="STAFF")return "owner";
+export function classifyRichMenuRole(platformRole:string|undefined,membershipRole:string|undefined,hasActiveTenantLease:boolean):RichMenuRole{
+ if(platformRole==="SUPER_ADMIN")return "superadmin";
+ if(membershipRole==="OWNER"||membershipRole==="MANAGER"||membershipRole==="STAFF")return "owner";
  return hasActiveTenantLease?"tenant":"account";
 }
 type ProviderMenu={richMenuId:string;name?:string};
