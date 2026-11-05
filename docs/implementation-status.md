@@ -229,3 +229,7 @@ Latest DEV commit: `003c335f330d63cdf851cf2f70f22c2f113efbb1` (maintenance priva
 ## Deployment and LINE configuration follow-up — 2026-11-05
 
 Commit `57706b1` (test selector only) is pushed. Its DEV deploy attempt was rolled back by the deployment script after public TCP/443 failed; runtime revision remains `003c335` and API/Web/observer are healthy. No local proxy or Nginx listener was running, so public HTTPS smoke remains blocked. LINE credentials are present and validated with a read-only Bot Info request; the LINE Console webhook is configured to the Apartment DEV callback. No active organization/OA binding exists; outbound LINE remains safely disabled.
+
+## Latest recovery and deployment — 2026-11-05
+
+Started the existing Dokploy Traefik container after verifying its persistent ACME JSON was valid and mounted read-write; Apartment public HTTPS returned. Commit `41e9a7b` deployed successfully after encrypted backup/isolated restore and migration/observer safety checks. Public smoke: Web/API health/readiness 200, unsigned LINE webhook 401. Runtime API/Web/observer healthy; PostgreSQL not restarted. Runtime LINE secrets are protected; Bot Info and webhook URL checks passed. No active DEV organization/OA binding exists, so outbound remains disabled and LINE tenant messaging is not yet ready for UAT.

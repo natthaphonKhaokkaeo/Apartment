@@ -429,3 +429,7 @@ Implementation verified: sanitized private image upload/list/download on mainten
 ### Latest VPS follow-up
 
 Branch `main` is pushed through `57706b1`; only a Playwright locator changed and PostgreSQL browser workflows passed 24/24. Rebuild succeeded, but the deploy script failed its public HTTPS check and safely rolled back app images to `003c335` (API/Web/observer healthy; DB untouched). DNS resolves but no host proxy/Nginx/80/443 listener was found. Diagnose/restore the authorized proxy/ACME route before retry; do not restart shared Traefik blindly. LINE access token is valid and current webhook URL matches DEV; no active org/OA binding exists, so keep outbound disabled/worker observe until an owner org is provisioned and admin binding/consent gates pass.
+
+### 2026-11-05 latest recovery
+
+The Dokploy Traefik container had exited after reboot with a missing network reference. Verified ACME JSON was valid, protected (`0600`) and read-write persistent, then started the existing proxy container; Apartment HTTPS ingress recovered. Built/deployed `41e9a7b`; backup/restore, migration/observer safety, public Web/API health/readiness and unsigned webhook denial all pass. API/Web/observer healthy; PostgreSQL not restarted. Traefik still logs invalid PEMs for unrelated configured hostnames; do not alter those project certs here. LINE token/webhook are configured and validated, but DEV has no active organization or OA binding; keep outbound disabled/observe until owner onboarding and consent gates are completed.
