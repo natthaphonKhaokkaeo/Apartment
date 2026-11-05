@@ -6,15 +6,15 @@ const fontRegular=(await readFile(new URL('./line-rich-menu-fonts/NotoSansThai-R
 const fontSemibold=(await readFile(new URL('./line-rich-menu-fonts/NotoSansThai-SemiBold.ttf',import.meta.url))).toString('base64');
 const fontBold=(await readFile(new URL('./line-rich-menu-fonts/NotoSansThai-Bold.ttf',import.meta.url))).toString('base64');
 const templates={
- public:{title:'ยินดีต้อนรับ',subtitle:'เริ่มต้นใช้งาน Apartment ได้ง่าย ๆ',accent:'#7dd3fc',items:[
+ public:{title:'ยินดีต้อนรับ',subtitle:'เริ่มต้นใช้งาน Apartment ได้ง่าย ๆ',accent:'#91a8c4',items:[
   ['เข้าสู่ระบบ','SIGN IN','login'],['บริการของเรา','OUR SERVICES','home'],['คู่มือการใช้งาน','HOW IT WORKS','book'],['จัดการหอพัก','PROPERTY CARE','building'],['แจ้งปัญหา','CONTACT SUPPORT','chat'],['เกี่ยวกับเรา','ABOUT APARTMENT','info']]},
- owner:{title:'จัดการหอพักของคุณ',subtitle:'OWNER WORKSPACE · ควบคุมทุกงานในที่เดียว',accent:'#f5ca7b',items:[
+ owner:{title:'จัดการหอพักของคุณ',subtitle:'OWNER WORKSPACE · ควบคุมทุกงานในที่เดียว',accent:'#c5b994',items:[
   ['ภาพรวม','DASHBOARD','dashboard'],['ห้องพัก','ROOMS','door'],['ออกบิล','BILLING','receipt'],['ผู้เช่า','TENANTS','people'],['งานซ่อมบำรุง','MAINTENANCE','wrench'],['โปรไฟล์','MY PROFILE','profile']]},
- tenant:{title:'พื้นที่ของผู้เช่า',subtitle:'TENANT PORTAL · ข้อมูลสัญญาและค่าใช้จ่าย',accent:'#73e0bf',items:[
+ tenant:{title:'พื้นที่ของผู้เช่า',subtitle:'TENANT PORTAL · ข้อมูลสัญญาและค่าใช้จ่าย',accent:'#91b4aa',items:[
   ['หน้าหลัก','MY HOME','home'],['ใบแจ้งหนี้','MY INVOICES','receipt'],['การชำระเงิน','PAYMENTS','wallet'],['แจ้งซ่อม','MAINTENANCE','wrench'],['ประวัติบิล','BILL HISTORY','history'],['โปรไฟล์','MY PROFILE','profile']]},
- account:{title:'บัญชีของคุณ',subtitle:'จัดการข้อมูลและเริ่มใช้งาน Apartment',accent:'#c3a7ff',items:[
+ account:{title:'บัญชีของคุณ',subtitle:'จัดการข้อมูลและเริ่มใช้งาน Apartment',accent:'#aaa9bd',items:[
   ['โปรไฟล์','MY PROFILE','profile'],['หน้าหลัก','HOME','home'],['เชิญเข้าพัก','TENANT INVITE','invite'],['แจ้งซ่อม','MAINTENANCE','wrench'],['คู่มือ','HELP CENTER','book'],['ติดต่อเรา','CONTACT','chat']]},
- superadmin:{title:'ผู้ดูแลระบบสูงสุด',subtitle:'SUPER ADMIN · จัดการแพลตฟอร์มและสิทธิ์ผู้ดูแล',accent:'#ff8c9d',items:[
+ superadmin:{title:'ผู้ดูแลระบบสูงสุด',subtitle:'SUPER ADMIN · จัดการแพลตฟอร์มและสิทธิ์ผู้ดูแล',accent:'#c29298',items:[
   ['จัดการแอดมิน','ADMIN ACCESS','people'],['ภาพรวม','DASHBOARD','dashboard'],['หอพัก','PROPERTIES','building'],['ออกบิล','BILLING','receipt'],['งานซ่อม','OPERATIONS','wrench'],['โปรไฟล์','MY PROFILE','profile']]}
 };
 const iconPaths={
@@ -36,7 +36,7 @@ const iconPaths={
 };
 const esc=s=>s.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;');
 function render(kind,t){
- const colors=['#6f8cff','#9a7cff','#48b9c8','#40b990','#ed9b60','#e27a9f'];
+ const colors=['#91a8c4','#a09db4','#8eaaa9','#93aa9a','#b0a48d','#ab9199'];
  const tiles=t.items.map(([label,caption,icon],i)=>{
   const col=i%3,row=Math.floor(i/3),x=64+col*812,y=354+row*650,w=748,h=596;
   const c=colors[i];

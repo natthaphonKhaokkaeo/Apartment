@@ -24,3 +24,7 @@ Artwork source is `infra/generate-line-rich-menu-assets.mjs`; Thai fonts and the
 LINE's per-user menu has display priority over the public default. The user must be a friend of the Official Account for per-user assignment to work. If a login succeeds but the menu link cannot be applied, the API logs a sanitized provider status and keeps the login session active; the public default remains visible. The next login retries assignment.
 
 Verify actual behavior with a consented DEV test account by opening the OA chat after login and checking that the assigned menu matches the account role. Automated tests use a mock provider and are not real LINE UAT evidence.
+
+## Visual and tap-area design
+
+Each tile is an independent LINE URI action area. The five role templates use a restrained navy/slate base with muted role accents; each button still navigates to its own role-appropriate LIFF section. Rebuild PNG/SVG assets with `node infra/generate-line-rich-menu-assets.mjs`.
