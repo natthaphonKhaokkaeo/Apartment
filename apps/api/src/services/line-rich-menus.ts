@@ -28,7 +28,7 @@ export function classifyRichMenuRole(isSuperAdmin:boolean,membershipRole:string|
  return hasActiveTenantLease?"tenant":"account";
 }
 type ProviderMenu={richMenuId:string;name?:string};
-type ProviderMenuList={richmenus?:ProviderMenu[];defaultRichMenuId?:string};
+type ProviderMenuList={richmenus?:ProviderMenu[]};
 type Fetcher=(input:RequestInfo|URL,init?:RequestInit)=>Promise<Response>;
 let cachedMenus:{expiresAt:number;ids:Partial<Record<RichMenuRole,string>>}|undefined;
 export function resetLineRichMenuCache():void{cachedMenus=undefined;}
@@ -80,7 +80,10 @@ export async function provisionLineRichMenus(options:{channelAccessToken:string|
  }
  const publicId=ids.public;
  if(!publicId)throw new Error("LINE_RICH_MENU_PUBLIC_ID_MISSING");
- if(menuList.defaultRichMenuId!==publicId){
+ const currentDefaultResponse=await request(token,"https://api.line.me/v2/bot/user/all/richmenu",{},fetcher);
+ const currentDefaultId=currentDefaultResponse.status===404?undefined:
+  (await providerJson<{richMenuId?:string}>(currentDefaultResponse)).richMenuId;
+ if(currentDefaultId!==publicId){
   const response=await request(token,`https://api.line.me/v2/bot/user/all/richmenu/${encodeURIComponent(publicId)}`,{method:"POST"},fetcher);
   if(!response.ok)throw new Error(`LINE_RICH_MENU_DEFAULT_HTTP_${response.status}`);
  }

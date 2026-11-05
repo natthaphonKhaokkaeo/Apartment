@@ -44,7 +44,10 @@ describe("LINE rich menu provider operations",()=>{
   let defaultRichMenuId:string|undefined;
   const fetcher=async(input:RequestInfo|URL,init?:RequestInit)=>{
    const url=String(input);calls.push({url,init});
-   if(url.endsWith("/richmenu/list"))return new Response(JSON.stringify({richmenus:existing,defaultRichMenuId}),{status:200});
+   if(url.endsWith("/richmenu/list"))return new Response(JSON.stringify({richmenus:existing}),{status:200});
+   if(url.endsWith("/user/all/richmenu")&&init?.method!=="POST"){
+    return defaultRichMenuId?new Response(JSON.stringify({richMenuId:defaultRichMenuId}),{status:200}):new Response("",{status:404});
+   }
    if(url.endsWith("/richmenu")&&init?.method==="POST"){
     const payload=JSON.parse(String(init.body)) as {name:string};
     const richMenuId=`menu-${existing.length+1}`;existing.push({richMenuId,name:payload.name});
@@ -60,6 +63,7 @@ describe("LINE rich menu provider operations",()=>{
   expect(calls.filter(x=>x.url.endsWith("/richmenu")&&x.init?.method==="POST")).toHaveLength(4);
   expect(calls.filter(x=>x.url.includes("api-data.line.me"))).toHaveLength(4);
   expect(defaultRichMenuId).toBe(result.public);
+  expect(calls.some(x=>x.url.endsWith("/user/all/richmenu")&&x.init?.method!=="POST")).toBe(true);
   calls.length=0;
   const second=await provisionLineRichMenus({channelAccessToken:"test-token",liffId:"123456-abcdefgh",fetcher,imageLoader});
   expect(second).toEqual(result);
