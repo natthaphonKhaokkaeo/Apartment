@@ -41,6 +41,15 @@ async function intercept(page:Page,actor:typeof owner|typeof staff|null){
     {rooms:1,occupied:0,available:1,totalBilledSatang:0,issuedInvoices:0,
      manuallyApprovedSatang:0,outstandingSatang:0,overdueSatang:0,
      overdueInvoiceCount:0},
+   [`/v1/properties/${propertyId}/occupancy-report`]:
+    {propertyId,totalRooms:1,occupiedRooms:0,availableRooms:1,maintenanceRooms:0,
+     occupancyPercent:0,activeLeaseCount:0,occupiedWithoutActiveLease:0,
+     activeLeaseInNonOccupiedRoom:0,roomsWithMultipleActiveLeases:0},
+   [`/v1/properties/${propertyId}/financial-report`]:
+    {propertyId,from:"2026-11-01",to:"2026-11-05",currency:"THB",unit:"SATANG",
+     bankVerified:false,totals:{invoiceCount:2,totalBilledSatang:150000,
+      grossManualApprovedSatang:60000,netManualApprovedSatang:60000,
+      internalCreditSatang:5000,outstandingSatang:95000},months:[]},
    "/v1/tenant/leases":[],
    "/v1/tenant/invoices":[],
    "/v1/tenant/invitations":[],
@@ -77,6 +86,9 @@ test("authenticated owner loads scoped overview and logs out",async({page})=>{
  await expect(page.getByRole("combobox",{name:"หอพัก"})).toHaveValue(propertyId);
  await expect(page.getByRole("button",{name:"รับชำระเงิน"})).toBeVisible();
  expect(requests).toContain(`GET /v1/properties/${propertyId}/overview`);
+ expect(requests).toContain(`GET /v1/properties/${propertyId}/financial-report`);
+ await expect(page.getByText(/ยอดออกบิล 2 ใบ/)).toBeVisible();
+ await expect(page.getByText(/ยอดนี้ยังไม่ใช่การยืนยันจากธนาคาร/)).toBeVisible();
  const menu=page.getByRole("button",{name:"เมนู"});
  if(await menu.isVisible())await menu.click();
  await page.getByRole("button",{name:/ออกจากระบบ/}).click();
