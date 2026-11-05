@@ -1,5 +1,6 @@
 import {useEffect,useState} from "react";
 import {ClipboardList,Wrench} from "lucide-react";
+import {MaintenanceAttachments} from "./MaintenanceAttachments.js";
 
 type Api={
  api:<T>(path:string,options?:RequestInit)=>Promise<T>;
@@ -58,6 +59,7 @@ export function TenantMaintenanceRequests({leases,api,post}:Api&{leases:Lease[]}
    <div className="claim-heading"><b>{row.title}</b>
     <span className="pill">{labels[row.status]||row.status}</span></div>
    <p>{row.description}</p><small>{row.category} · {new Date(row.createdAt).toLocaleDateString("th-TH")}</small>
+   <MaintenanceAttachments api={api} basePath={`/tenant/maintenance-tickets/${row.id}/attachments`} />
   </article>)}</div>
   {!rows.length&&<p className="empty">ยังไม่มีคำขอซ่อมบำรุง</p>}
  </section>;

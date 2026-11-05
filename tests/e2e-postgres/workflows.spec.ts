@@ -161,6 +161,11 @@ test("real tenant maintenance request progresses through owner review and closur
  const tenantPanel=tenantPage.locator("section.panel").filter({has:tenantPage.getByRole("heading",{name:"แจ้งซ่อมบำรุง",exact:true})});
  await tenantPanel.getByLabel("หัวข้อ",{exact:true}).fill("Browser plumbing repair");await tenantPanel.getByLabel("รายละเอียดอาการ",{exact:true}).fill("Synthetic isolated repair request");
  await tenantPanel.getByRole("button",{name:"ส่งคำขอ",exact:true}).click();await expect(tenantPanel.getByRole("status")).toContainText("ส่งคำขอซ่อมบำรุงให้เจ้าของแล้ว");
+ const tenantTicket=tenantPanel.locator("article.claim-item").filter({hasText:"Browser plumbing repair"});
+ await tenantTicket.getByLabel(/เพิ่มรูป/).setInputFiles({name:"repair.png",mimeType:"image/png",buffer:Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAACXBIWXMAAAPoAAAD6AG1e1JrAAAAE0lEQVQImWP4z8DwnwGM/zMwAAAf7gP9qS/A4gAAAABJRU5ErkJggg==","base64")});
+ const attachmentLink=tenantTicket.getByRole("link",{name:/ดาวน์โหลดรูป/});await expect(attachmentLink).toBeVisible();
+ const [attachmentDownload]=await Promise.all([tenantPage.waitForEvent("download"),attachmentLink.click()]);
+ expect(attachmentDownload.suggestedFilename()).toBe("maintenance-image.webp");
  await page.goto("/");await expect(page.getByRole("combobox",{name:"หอพัก",exact:true})).toHaveValue(f.property.id);await menu(page,"ซ่อมบำรุง");
  const ticket=page.locator("article.claim-item").filter({hasText:"Browser plumbing repair"});
  for(const label of ["รับเรื่องแล้ว","กำลังดำเนินการ","แก้ไขแล้ว","ปิดงาน"]){await ticket.getByRole("button",{name:label,exact:true}).click();await expect(ticket.locator(".pill")).toHaveText(label);}

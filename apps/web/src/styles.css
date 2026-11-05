@@ -41,3 +41,10 @@
     scroll-behavior:auto!important;
   }
 }
+
+.maintenance-attachments { margin-top: .75rem; padding-top: .65rem; border-top: 1px solid var(--border, #d7dee8); }
+.maintenance-attachments h4 { margin: 0 0 .45rem; font-size: .95rem; }
+.maintenance-attachment-upload { display: inline-flex; flex-direction: column; gap: .35rem; max-width: 100%; font-size: .875rem; }
+.maintenance-attachment-upload input { max-width: 100%; }
+.maintenance-attachments ul { margin: .5rem 0 0; padding-left: 1.2rem; }
+.maintenance-attachments a { overflow-wrap: anywhere; }

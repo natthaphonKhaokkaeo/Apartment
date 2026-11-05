@@ -145,6 +145,17 @@ export async function createTenantMaintenanceTicket(
  });
 }
 
+export async function getScopedMaintenanceTicket(ticketId:string,propertyId:string,organizationId:string){
+ const [ticket]=await db.select({id:maintenanceTickets.id,propertyId:maintenanceTickets.propertyId,organizationId:maintenanceTickets.organizationId})
+  .from(maintenanceTickets).where(and(eq(maintenanceTickets.id,ticketId),eq(maintenanceTickets.propertyId,propertyId),eq(maintenanceTickets.organizationId,organizationId))).limit(1);
+ return ticket??null;
+}
+export async function getTenantMaintenanceTicket(actorId:string,ticketId:string){
+ const [ticket]=await db.select({id:maintenanceTickets.id,propertyId:maintenanceTickets.propertyId,organizationId:maintenanceTickets.organizationId})
+  .from(maintenanceTickets).where(and(eq(maintenanceTickets.id,ticketId),eq(maintenanceTickets.reportedByUserId,actorId),eq(maintenanceTickets.reporterType,"TENANT"))).limit(1);
+ return ticket??null;
+}
+
 export async function listPropertyMaintenanceTickets(propertyId:string,organizationId:string){
  const rows=await db.select({
   ticket:maintenanceTickets,roomNumber:rooms.number

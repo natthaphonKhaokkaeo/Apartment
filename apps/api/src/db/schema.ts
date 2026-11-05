@@ -1,5 +1,5 @@
 import {isNull,sql} from "drizzle-orm";
-import {pgTable, pgEnum, uuid, text, timestamp, varchar, date, integer, numeric, boolean, jsonb, uniqueIndex, index, check} from "drizzle-orm/pg-core";
+import {pgTable, pgEnum, uuid, text, timestamp, varchar, date, integer, numeric, boolean, jsonb, uniqueIndex, index, check, customType, foreignKey} from "drizzle-orm/pg-core";
 
 export const roles = pgEnum("membership_role", ["OWNER","MANAGER","STAFF"]);
 export const staffGrantLevel = pgEnum("property_staff_level", ["VIEWER","METER_READER"]);
@@ -512,6 +512,28 @@ export const maintenanceTickets=pgTable("maintenance_tickets",{
  index("idx_maintenance_property_status").on(t.organizationId,t.propertyId,t.status,t.createdAt),
  index("idx_maintenance_reporter").on(t.reportedByUserId,t.createdAt),
  index("idx_maintenance_due").on(t.dueAt,t.status)
+]);
+
+const attachmentBytes=customType<{data:Buffer;driverData:Buffer}>({dataType:()=>"bytea"});
+export const maintenanceTicketAttachments=pgTable("maintenance_ticket_attachments",{
+ id:uuid("id").primaryKey().defaultRandom(),
+ ticketId:uuid("ticket_id").notNull(),
+ organizationId:uuid("organization_id").notNull(),
+ propertyId:uuid("property_id").notNull(),
+ uploadedBy:uuid("uploaded_by").notNull(),
+ contentType:text("content_type").notNull(),
+ contentLength:integer("content_length").notNull(),
+ sha256:text("sha256").notNull(),
+ content:attachmentBytes("content").notNull(),
+ createdAt:timestamp("created_at",{withTimezone:true}).notNull().defaultNow()
+},t=>[
+ index("idx_maintenance_ticket_attachments_ticket").on(t.ticketId,t.createdAt),
+ uniqueIndex("uq_maintenance_ticket_attachment_hash").on(t.ticketId,t.sha256),
+ foreignKey({name:"fk_maintenance_attachment_ticket",columns:[t.ticketId],foreignColumns:[maintenanceTickets.id]}).onDelete("cascade"),
+ foreignKey({name:"fk_maintenance_attachment_org",columns:[t.organizationId],foreignColumns:[organizations.id]}),
+ foreignKey({name:"fk_maintenance_attachment_property",columns:[t.propertyId],foreignColumns:[properties.id]}),
+ foreignKey({name:"fk_maintenance_attachment_uploader",columns:[t.uploadedBy],foreignColumns:[users.id]}),
+ check("maintenance_ticket_attachment_size_positive",sql`content_length > 0 AND content_length <= 2097152`)
 ]);
 
 export const auditLogs = pgTable("audit_logs", {

@@ -23,7 +23,7 @@ NOT 100% DEV READY. No defensible overall percentage is asserted while canonical
 
 Deployed release includes integer-satang frontend parsing, scoped owner/staff/tenant APIs, immutable invoicing, concurrent bulk billing, private sanitized meter photos, persisted owner anomaly assessments, immutable manual deposit receipts, distinct active OWNER review/deductions, consent-bound generic repair notifications and fail-closed invitation notification purpose.
 
-Candidate adds owner-scoped summary-only maintenance SLA reporting (overdue, due-soon, missing-deadline and status counts, without tenant description exposure), own profile request/cancellation, trusted platform-admin review and explicit profile-only acknowledgement; default-disabled server policy gate; synthetic guarded profile anonymization preserving financial records; serialized account disable vs tenant approval; active OWNER/account/organization recheck on approval; Manager UI restriction; actual backend maintenance/payment/profile browser scenarios. Actual profile erasure is not enabled or executed on DEV.
+Candidate adds owner-scoped summary-only maintenance SLA reporting (overdue, due-soon, missing-deadline and status counts, without tenant description exposure), sanitized private maintenance image attachments (malware scan, metadata strip, PostgreSQL storage, strict ticket/property authorization, audit and no-store download), own profile request/cancellation, trusted platform-admin review and explicit profile-only acknowledgement; default-disabled server policy gate; synthetic guarded profile anonymization preserving financial records; serialized account disable vs tenant approval; active OWNER/account/organization recheck on approval; Manager UI restriction; actual backend maintenance/payment/profile browser scenarios. Actual profile erasure is not enabled or executed on DEV.
 
 ## 4. Files changed
 
@@ -111,9 +111,14 @@ PRODUCTION APPROVED: NO.
 
 ## Continued code work — 2026-11-05
 
-Added `GET /v1/properties/:propertyId/maintenance-tickets/sla-report`. It reuses the property authorization gate, returns aggregate counts only, and sets `Cache-Control: private, no-store`. Red/green unit test passed; PostgreSQL smoke verifies owner access, cross-property403 and tenant403. Full current verification: API unit tests263 passed; PostgreSQL HTTP coverage87.45% (5715/6535); mocked browser33/33; real-backend browser24/24; TypeScript and ESLint pass. This delta was committed as `ab37dac` and deployed to DEV; API/Web/observer are healthy, public SLA route denies unauthenticated access with401, and PostgreSQL was not restarted. Maintenance private attachments and business-configured SLA policies remain open code tasks.
+Added `GET /v1/properties/:propertyId/maintenance-tickets/sla-report`. It reuses the property authorization gate, returns aggregate counts only, and sets `Cache-Control: private, no-store`. Red/green unit test passed; PostgreSQL smoke verifies owner access, cross-property403 and tenant403. Full current verification: API unit tests263 passed; PostgreSQL HTTP coverage87.45% (5715/6535); mocked browser33/33; real-backend browser24/24; TypeScript and ESLint pass. This delta was committed as `ab37dac` and deployed to DEV; API/Web/observer are healthy, public SLA route denies unauthenticated access with401, and PostgreSQL was not restarted. Business-configured SLA policy and legally approved retention remain open; maintenance attachment upload/download code is implemented and verified.
 
 
 ## Latest deployment checkpoint — 2026-11-05
 
 `ab37dac` is deployed to Dokploy DEV. SLA report route returns401 unauthenticated; API/Web/observer healthy. Deploy gate passed; PostgreSQL was not restarted. Pre-deploy local encrypted backup/restore drill restored37 public tables with network disabled. The just-finished gates: unit263/263, domain15/15, PostgreSQL API line coverage87.45%, mock browser33/33 and real-backend browser24/24. The code backlog remains open, including private maintenance attachments and other phase tasks; no 100% completion claim.
+
+
+## Maintenance attachment continuation — 2026-11-05
+
+Added migration `0021_misty_storm`, private image attachment persistence and scoped upload/list/download endpoints for tenant and property users. Uploads are malware-scanned, re-encoded to WebP, metadata-stripped, bounded at2MB and five per ticket, stored in PostgreSQL bytea and audited. Download is authenticated, `private, no-store` and `nosniff`; tenant access is tied to the reporting user, owner/staff access to authorized property + ticket. Real-browser upload/download passed at desktop,390px and320px. Latest gates: unit263/263 + domain15/15, PostgreSQL API line coverage87.6%, mock browser33/33, real-backend browser24/24, lint/typecheck, migration rollback and PostgreSQL smoke pass. Code is ready for commit/deploy; final retention policy remains a separate product/legal requirement.

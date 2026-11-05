@@ -216,3 +216,8 @@ Candidate `4bdc99157f9a93d8e019378de4355f5aecb8817f` is committed on `main` and 
 ## Continuation checkpoint — 2026-11-05
 
 Code delta in progress: property-scoped summary-only maintenance SLA endpoint added. Authorization reuses `requireProperty`; response is private/no-store and exposes counts only. Unit test, PostgreSQL smoke, lint and typecheck pass; full run: API263 tests, PostgreSQL c8 87.45%, mock browser33/33, real-backend browser24/24. Commit `ab37dac` pushed and deployed; post-deploy health, migration/observer safety and unauthenticated SLA route checks pass. Remaining maintenance attachments/configurable SLA policy and other phase backlog tasks are still open; no 100% claim.
+
+
+## Maintenance attachment code checkpoint — 2026-11-05
+
+Implementation verified: sanitized private image upload/list/download on maintenance tickets, malware scan + re-encode/metadata stripping, 2MB per file, max5 per ticket, PostgreSQL storage and audit. Tenant access is bound to the reporting user; property access uses property/ticket authorization. E2E file upload/download passed at desktop/390/320; PostgreSQL smoke, schema migration/rollback, typecheck/lint passed. Commit/deploy pending. Configurable SLA policy and legally approved retention remain open; this does not complete P5.

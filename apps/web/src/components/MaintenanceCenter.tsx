@@ -1,5 +1,6 @@
 import {useEffect,useState} from "react";
 import {ClipboardList,Wrench} from "lucide-react";
+import {MaintenanceAttachments} from "./MaintenanceAttachments.js";
 
 type Api={
  api:<T>(path:string,options?:RequestInit)=>Promise<T>;
@@ -90,6 +91,7 @@ export function MaintenanceCenter({propertyId,rooms,api,post,onRoomChanged}:Api&
      <small>{(t.roomNumber?"ห้อง "+t.roomNumber:"พื้นที่ส่วนกลาง")+" · "+t.category+" · "+t.priority+" · "+(t.reporterType==="TENANT"?"ผู้เช่าแจ้ง":"เจ้าของแจ้ง")}</small>
     </div><span className={"pill "+(t.overdue?"occupied":"")}>{statusNames[t.status]}{t.overdue?" · เกินกำหนด":""}</span></div>
     <p>{t.description}</p>
+    <MaintenanceAttachments api={api} basePath={`/properties/${propertyId}/maintenance-tickets/${t.id}/attachments`} />
     <div className="actions">
      {t.dueAt&&<span className="hint">ครบกำหนด {new Date(t.dueAt).toLocaleString("th-TH")}</span>}
      {transitions[t.status].map(next=><button key={next} type="button" className="btn outline"

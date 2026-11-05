@@ -91,6 +91,19 @@ async function main(){
  assert.equal(typeof sla.body.overdue,"number");
  assert.equal((await request("/v1/properties/"+foreignProperty.id+"/maintenance-tickets/sla-report",ownerToken)).status,403);
  assert.equal((await request("/v1/properties/"+property.id+"/maintenance-tickets/sla-report",tenantToken)).status,403);
+ const attachmentPath="/v1/tenant/maintenance-tickets/"+created.body.id+"/attachments";
+ const samplePng=await (await import("sharp")).default({create:{width:1,height:1,channels:3,background:"#f00"}}).png().toBuffer();
+ const upload=await request(attachmentPath,tenantToken,"POST",{contentType:"image/png",dataBase64:samplePng.toString("base64")});
+ assert.equal(upload.status,200);assert.equal(upload.body.contentType,"image/webp");
+ assert.equal((await request(attachmentPath,tenantToken)).body.length,1);
+ const ownerAttachmentPath="/v1/properties/"+property.id+"/maintenance-tickets/"+created.body.id+"/attachments";
+ assert.equal((await request(ownerAttachmentPath,ownerToken)).body.length,1);
+ assert.equal((await request("/v1/properties/"+foreignProperty.id+"/maintenance-tickets/"+created.body.id+"/attachments",ownerToken)).status,403);
+ assert.equal((await request(attachmentPath,outsiderToken)).status,404);
+ const download=await fetch(base+attachmentPath+"/"+upload.body.id,{headers:{cookie:"apartment_session="+tenantToken}});
+ assert.equal(download.status,200);assert.equal(download.headers.get("content-type"),"image/webp");
+ assert.equal(download.headers.get("x-content-type-options"),"nosniff");assert.equal(download.headers.get("cache-control"),"private, no-store");
+ const downloaded=Buffer.from(await download.arrayBuffer());assert.equal(downloaded.length,upload.body.contentLength);
  assert.equal((await request("/v1/properties/"+foreignProperty.id+"/maintenance-tickets",
   ownerToken)).status,403);
  console.log("PASS maintenance: owner/tenant scope, approved lease binding and tenant-only history");

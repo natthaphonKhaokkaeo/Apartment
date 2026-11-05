@@ -248,6 +248,7 @@ Recovery-key operator export/custody not yet confirmed. Real LINE dispatch is st
 - [ ] P5-01 Monthly and 15-day scheduled bulk invoices (preview → approval → batch process)
 - [ ] P5-02 Maintenance tickets and room status workflow; files, notifications, SLA (IN PROGRESS — partial DEV)
   - [x] Summary-only SLA report endpoint; property authorization, no-store response, overdue/due-soon/missing-deadline counts without tenant descriptions; PostgreSQL smoke + unit tests pass (2026-11-05)
+  - [x] Private maintenance image attachments: malware scan + re-encoding/metadata stripping, PostgreSQL bytea storage, 2 MB/file and 5/file-ticket limits, owner/tenant scope, audit, no-store download, IDOR smoke and real-browser upload/download at desktop/390/320 (2026-11-05)
   - [x] Tenant/owner tickets, workflow states, audit, due-time/overdue display, room MAINTENANCE entry and guarded return; migration 0016 and service tests. See docs/P5_MAINTENANCE_TICKETS.md.
   - [x] PostgreSQL authorization/lifecycle smoke and migration rollout verified; see `docs/DEPLOY_DOKPLOY_DEV.md`
   - [ ] Browser QA, private files/attachments, SLA policy/reports, consent-bound notifications and independent review
@@ -357,3 +358,8 @@ Candidate `4bdc99157f9a93d8e019378de4355f5aecb8817f` is committed on `main` and 
 ## Continuation checkpoint — 2026-11-05
 
 Code delta in progress: property-scoped summary-only maintenance SLA endpoint added. Authorization reuses `requireProperty`; response is private/no-store and exposes counts only. Unit test, PostgreSQL smoke, lint and typecheck pass; full run: API263 tests, PostgreSQL c8 87.45%, mock browser33/33, real-backend browser24/24. Commit `ab37dac` pushed and deployed; post-deploy health, migration/observer safety and unauthenticated SLA route checks pass. Remaining maintenance attachments/configurable SLA policy and other phase backlog tasks are still open; no 100% claim.
+
+
+## Maintenance attachment code checkpoint — 2026-11-05
+
+Implementation verified: sanitized private image upload/list/download on maintenance tickets, malware scan + re-encode/metadata stripping, 2MB per file, max5 per ticket, PostgreSQL storage and audit. Tenant access is bound to the reporting user; property access uses property/ticket authorization. E2E file upload/download passed at desktop/390/320; PostgreSQL smoke, schema migration/rollback, typecheck/lint passed. Commit/deploy pending. Configurable SLA policy and legally approved retention remain open; this does not complete P5.
