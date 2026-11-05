@@ -38,7 +38,7 @@ describe("LINE rich menu definitions",()=>{
 });
 
 describe("LINE rich menu provider operations",()=>{
- it("provisions five idempotent templates, uploads PNGs, and sets the public default",async()=>{
+ it("provisions five idempotent templates, refreshes PNGs, and sets the public default",async()=>{
   const calls:{url:string;init?:RequestInit}[]=[];
   const existing:{richMenuId:string;name:string}[]=[];
   let defaultRichMenuId:string|undefined;
@@ -67,7 +67,8 @@ describe("LINE rich menu provider operations",()=>{
   calls.length=0;
   const second=await provisionLineRichMenus({channelAccessToken:"test-token",liffId:"123456-abcdefgh",fetcher,imageLoader});
   expect(second).toEqual(result);
-  expect(calls.filter(x=>x.init?.method==="POST")).toHaveLength(0);
+  expect(calls.filter(x=>x.url.endsWith("/richmenu")&&x.init?.method==="POST")).toHaveLength(0);
+  expect(calls.filter(x=>x.url.includes("api-data.line.me")&&x.init?.method==="POST")).toHaveLength(5);
  });
  it("links the verified LINE user to their role menu without sending a message",async()=>{
   resetLineRichMenuCache();

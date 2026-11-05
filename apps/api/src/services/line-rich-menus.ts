@@ -64,19 +64,24 @@ export async function provisionLineRichMenus(options:{channelAccessToken:string|
  const imageLoader=options.imageLoader??(role=>readFile(new URL(`../../assets/line-rich-menus/${role}.png`,import.meta.url)));
  const menuList=await listMenus(token,fetcher),ids=menuIds(menuList);
  for(const role of Object.keys(names) as RichMenuRole[]){
-  if(ids[role])continue;
-  const created=await providerJson<{richMenuId:string}>(await request(token,"https://api.line.me/v2/bot/richmenu",{
-   method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(buildRichMenuDefinition(role,liffId))
-  },fetcher));
-  ids[role]=created.richMenuId;
+  let created=false;
+  if(!ids[role]){
+   const response=await request(token,"https://api.line.me/v2/bot/richmenu",{
+    method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(buildRichMenuDefinition(role,liffId))
+   },fetcher);
+   const menu=await providerJson<{richMenuId:string}>(response);
+   ids[role]=menu.richMenuId;created=true;
+  }
+  const richMenuId=ids[role];
+  if(!richMenuId)throw new Error(`LINE_RICH_MENU_${role.toUpperCase()}_ID_MISSING`);
   try{
    const image=await imageLoader(role);
-   const uploaded=await request(token,`https://api-data.line.me/v2/bot/richmenu/${encodeURIComponent(created.richMenuId)}/content`,{
+   const uploaded=await request(token,`https://api-data.line.me/v2/bot/richmenu/${encodeURIComponent(richMenuId)}/content`,{
     method:"POST",headers:{"Content-Type":"image/png"},body:Buffer.from(image)
    },fetcher);
    if(!uploaded.ok)throw new Error(`LINE_RICH_MENU_IMAGE_HTTP_${uploaded.status}`);
   }catch(error){
-   await request(token,`https://api.line.me/v2/bot/richmenu/${encodeURIComponent(created.richMenuId)}`,{method:"DELETE"},fetcher).catch(()=>undefined);
+   if(created)await request(token,`https://api.line.me/v2/bot/richmenu/${encodeURIComponent(richMenuId)}`,{method:"DELETE"},fetcher).catch(()=>undefined);
    throw error;
   }
  }
