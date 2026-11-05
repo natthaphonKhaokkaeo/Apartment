@@ -168,7 +168,7 @@ test("real tenant maintenance request progresses through owner review and closur
  expect(attachmentDownload.suggestedFilename()).toBe("maintenance-image.webp");
  await page.goto("/");await expect(page.getByRole("combobox",{name:"หอพัก",exact:true})).toHaveValue(f.property.id);await menu(page,"ซ่อมบำรุง");
  const ticket=page.locator("article.claim-item").filter({hasText:"Browser plumbing repair"});
- for(const label of ["รับเรื่องแล้ว","กำลังดำเนินการ","แก้ไขแล้ว","ปิดงาน"]){await ticket.getByRole("button",{name:label,exact:true}).click();await expect(ticket.locator(".pill")).toHaveText(label);}
+ for(const label of ["รับเรื่องแล้ว","กำลังดำเนินการ","แก้ไขแล้ว","ปิดงาน"]){await ticket.getByRole("button",{name:label,exact:true}).click();await expect(ticket.locator(".claim-heading > .pill")).toHaveText(label);}
  await tenantPage.reload();await expect(tenantPanel.locator("article.claim-item").filter({hasText:"Browser plumbing repair"})).toContainText("ปิดงานแล้ว");
  expect((await tenantContext.request.get("/v1/properties/"+f.property.id+"/maintenance-tickets")).status()).toBe(403);
  }finally{await tenantContext.close();}
