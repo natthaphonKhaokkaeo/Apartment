@@ -151,9 +151,32 @@ function App(){
    if(!id)throw new Error("ยังไม่ได้ตั้งค่า VITE_LIFF_ID บนเว็บ");
    await liff.init({liffId:id});
    if(!liff.isLoggedIn()){liff.login({redirectUri:window.location.href});return;}
+   const refreshExpiredLineToken=()=>{
+    const key="apartment.liff.expired-token-refresh";
+    if(sessionStorage.getItem(key)==="1"){sessionStorage.removeItem(key);return false;}
+    sessionStorage.setItem(key,"1");
+    const inLiffBrowser=liff.isInClient();
+    liff.logout();
+    if(inLiffBrowser)window.location.reload();
+    else liff.login({redirectUri:window.location.href});
+    return true;
+   };
+   const decoded=liff.getDecodedIDToken();
+   if(typeof decoded?.exp==="number"&&decoded.exp*1000<=Date.now()){
+    if(refreshExpiredLineToken())return;
+    throw new Error("LINE ID Token หมดอายุ กรุณาปิดแล้วเปิด LIFF ใหม่อีกครั้ง");
+   }
    const token=liff.getIDToken();
    if(!token)throw new Error("LINE Login ต้องเปิด scope openid เพื่อรับ ID Token");
-   await post("/auth/line/exchange",{idToken:token});
+   try{await post("/auth/line/exchange",{idToken:token});}
+   catch(e){
+    if((e as Error).message==="LINE_ID_TOKEN_EXPIRED"){
+     if(refreshExpiredLineToken())return;
+     throw new Error("LINE ID Token หมดอายุ กรุณาปิดแล้วเปิด LIFF ใหม่อีกครั้ง");
+    }
+    throw e;
+   }
+   sessionStorage.removeItem("apartment.liff.expired-token-refresh");
    const user=await loadMe();if(user)await loadOrgs();
   }catch(e){setError((e as Error).message);}finally{setLineBusy(false);}
  }

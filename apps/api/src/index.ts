@@ -92,7 +92,7 @@ app.post("/v1/auth/line/exchange",async(req,reply)=>{
   }catch{/* Provider returned a non-JSON response. */}
   req.log.warn({providerStatus:r.status,providerError,providerDescription},
    "LINE ID token verification rejected the login token");
-  throw new AppError(401,"INVALID_LINE_TOKEN");
+  throw new AppError(401,providerDescription==="IdToken expired."?"LINE_ID_TOKEN_EXPIRED":"INVALID_LINE_TOKEN");
  }
  const data=await r.json() as {sub?:string;name?:string;aud?:string;iss?:string;exp?:number};
  if(!data.sub||data.aud!==config.LINE_CHANNEL_ID||data.iss!=="https://access.line.me"||!data.exp||data.exp*1000<Date.now())throw new AppError(401,"INVALID_LINE_CLAIMS");
