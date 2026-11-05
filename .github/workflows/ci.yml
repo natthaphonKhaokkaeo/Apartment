@@ -83,6 +83,7 @@ jobs:
       - name: Web production build (no live LIFF key)
         run: corepack pnpm --filter @apartment/web build
         env:
+          NODE_ENV: production
           VITE_LIFF_ID: ''
       - name: Install isolated Playwright Chromium
         run: corepack pnpm exec playwright install --with-deps chromium
