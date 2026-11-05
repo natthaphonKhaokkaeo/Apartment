@@ -4,7 +4,7 @@ export type RichMenuRole="public"|"owner"|"tenant"|"account"|"superadmin";
 export type RichMenuArea={bounds:{x:number;y:number;width:number;height:number};action:{type:"uri";uri:string;label:string}};
 export type RichMenuDefinition={size:{width:2500;height:1686};selected:boolean;name:string;chatBarText:string;areas:RichMenuArea[]};
 const names:Record<RichMenuRole,string>={
- public:"apartment-public-v1",owner:"apartment-owner-v1",tenant:"apartment-tenant-v1",account:"apartment-account-v1",superadmin:"apartment-superadmin-v1"
+ public:"apartment-public-v2",owner:"apartment-owner-v2",tenant:"apartment-tenant-v2",account:"apartment-account-v2",superadmin:"apartment-superadmin-v2"
 };
 const sectionActions:Record<RichMenuRole,[string,string,string][]>={
  public:[["เข้าสู่ระบบ","overview",""],["บริการ","overview",""],["วิธีใช้งาน","overview",""],["จัดการหอพัก","overview",""],["ติดต่อเรา","profile",""],["เกี่ยวกับเรา","overview",""]],
@@ -74,15 +74,17 @@ export async function provisionLineRichMenus(options:{channelAccessToken:string|
   }
   const richMenuId=ids[role];
   if(!richMenuId)throw new Error(`LINE_RICH_MENU_${role.toUpperCase()}_ID_MISSING`);
-  try{
-   const image=await imageLoader(role);
-   const uploaded=await request(token,`https://api-data.line.me/v2/bot/richmenu/${encodeURIComponent(richMenuId)}/content`,{
-    method:"POST",headers:{"Content-Type":"image/png"},body:Buffer.from(image)
-   },fetcher);
-   if(!uploaded.ok)throw new Error(`LINE_RICH_MENU_IMAGE_HTTP_${uploaded.status}`);
-  }catch(error){
-   if(created)await request(token,`https://api.line.me/v2/bot/richmenu/${encodeURIComponent(richMenuId)}`,{method:"DELETE"},fetcher).catch(()=>undefined);
-   throw error;
+  if(created){
+   try{
+    const image=await imageLoader(role);
+    const uploaded=await request(token,`https://api-data.line.me/v2/bot/richmenu/${encodeURIComponent(richMenuId)}/content`,{
+     method:"POST",headers:{"Content-Type":"image/png"},body:Buffer.from(image)
+    },fetcher);
+    if(!uploaded.ok)throw new Error(`LINE_RICH_MENU_IMAGE_HTTP_${uploaded.status}`);
+   }catch(error){
+    await request(token,`https://api.line.me/v2/bot/richmenu/${encodeURIComponent(richMenuId)}`,{method:"DELETE"},fetcher).catch(()=>undefined);
+    throw error;
+   }
   }
  }
  const publicId=ids.public;

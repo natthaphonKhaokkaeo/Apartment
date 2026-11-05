@@ -27,4 +27,4 @@ Verify actual behavior with a consented DEV test account by opening the OA chat 
 
 ## Visual and tap-area design
 
-Each tile is an independent LINE URI action area. The five role templates use a restrained navy/slate base with muted role accents; each button still navigates to its own role-appropriate LIFF section. Rebuild PNG/SVG assets with `node infra/generate-line-rich-menu-assets.mjs`.
+Each tile is an independent LINE URI action area. LINE does not allow overwriting uploaded rich-menu artwork, so visual changes ship as new v2 rich-menu IDs; provisioning leaves v1 IDs intact for users already linked to them. New logins are assigned v2 menus. The five v2 role templates use a restrained navy/slate base with muted role accents; each button still navigates to its own role-appropriate LIFF section. Rebuild PNG/SVG assets with `node infra/generate-line-rich-menu-assets.mjs`.

@@ -68,14 +68,14 @@ describe("LINE rich menu provider operations",()=>{
   const second=await provisionLineRichMenus({channelAccessToken:"test-token",liffId:"123456-abcdefgh",fetcher,imageLoader});
   expect(second).toEqual(result);
   expect(calls.filter(x=>x.url.endsWith("/richmenu")&&x.init?.method==="POST")).toHaveLength(0);
-  expect(calls.filter(x=>x.url.includes("api-data.line.me")&&x.init?.method==="POST")).toHaveLength(5);
+  expect(calls.filter(x=>x.url.includes("api-data.line.me")&&x.init?.method==="POST")).toHaveLength(0);
  });
  it("links the verified LINE user to their role menu without sending a message",async()=>{
   resetLineRichMenuCache();
   const calls:{url:string;init?:RequestInit}[]=[];
   const fetcher=async(input:RequestInfo|URL,init?:RequestInit)=>{
    const url=String(input);calls.push({url,init});
-   if(url.endsWith("/richmenu/list"))return new Response(JSON.stringify({richmenus:[{richMenuId:"owner-id",name:"apartment-owner-v1"}]}),{status:200});
+   if(url.endsWith("/richmenu/list"))return new Response(JSON.stringify({richmenus:[{richMenuId:"owner-id",name:"apartment-owner-v2"}]}),{status:200});
    return new Response("{}",{status:200});
   };
   await expect(linkRichMenuToUser({channelAccessToken:"test-token",lineUserId:"Uverified",role:"owner",fetcher})).resolves.toBe(true);
