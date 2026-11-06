@@ -502,7 +502,7 @@ Latest verification: lint/typecheck passed, full unit suite 291/291 passed, brow
 ## 2026-11-06 latest rollout
 - Commit `4bcc514bc574999350a4f98a18f31e020af1cc0c` is pushed to `origin/main` and deployed to DEV.
 - `DEV_DEPLOY_PASS`; migration checks, backup checksum/encryption/retention/monitoring, isolated restore drill, public HTTPS web/API health/ready and unsigned-webhook denial all passed. API, web, and observer are healthy; PostgreSQL was not restarted.
-- Lint/typecheck passed, 291/291 unit tests and 39/39 browser E2E passed, PostgreSQL inbox/IDOR smoke passed, API line coverage 85.07%.
+- Lint/typecheck passed, 292/292 unit tests and 39/39 browser E2E passed, PostgreSQL inbox/IDOR smoke passed. API line coverage was last measured at 85.07% before the OpenRouter adapter; rerun coverage before the next release.
 - Continue role-separated DEV UAT for notification recipients and LINE help answers. OpenRouter provider smoke passed; chatbot live mode is approved. The general notification outbox remains disabled.
 
 ## LINE runtime handoff (2026-11-06)

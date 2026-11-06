@@ -291,7 +291,7 @@ Migration `0022_clean_the_call.sql` creates the table; `0023_fair_korg.sql` conf
 
 ## 2026-11-06 DEV rollout record
 - Feature commit `4bcc514bc574999350a4f98a18f31e020af1cc0c` is deployed to DEV.
-- Lint/typecheck, 291/291 unit tests, 39/39 Playwright E2E, PostgreSQL notification smoke, and 85.07% API line coverage passed.
+- Lint/typecheck, 292/292 unit tests, 39/39 Playwright E2E, and PostgreSQL notification smoke passed. API line coverage was last measured at 85.07% before the OpenRouter adapter; rerun coverage before the next release.
 - Backup checksum/encryption/retention/monitoring and isolated restore drill passed; migrations and public HTTPS smoke passed. API, web, and LINE observer containers are healthy; PostgreSQL was not restarted.
 - LINE real dispatch remains disabled; Gemini-compatible API key is not configured.
 
