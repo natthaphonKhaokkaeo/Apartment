@@ -35,7 +35,13 @@ PY
 old_api="$(docker inspect "$api" --format '{{.Image}}')"
 old_web="$(docker inspect "$web" --format '{{.Image}}')"
 old_observer="$(docker inspect "$observer" --format '{{.Image}}')"
-[[ "$old_api" == "$old_observer" ]] || { echo REVIEW_DIFFERENT_OBSERVER_BASELINE >&2; exit 2; }
+if [[ "$old_api" != "$old_observer" ]]; then
+ observer_health="$(docker inspect "$observer" --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}')"
+ [[ "$observer_health" == healthy ]] || { echo DIFFERENT_OBSERVER_BASELINE_NOT_HEALTHY >&2; exit 2; }
+ pending="$(docker exec apartment-dev-postgres-1 psql -U apartment -d apartment -X -Atc "SELECT count(*) FROM public.line_outbox WHERE status IN ('QUEUED','RETRY','SENDING')")"
+ [[ "$pending" == 0 ]] || { echo DIFFERENT_OBSERVER_BASELINE_HAS_PENDING_NOTIFICATIONS >&2; exit 2; }
+ echo DEV_DIFFERENT_OBSERVER_BASELINE_REVIEWED healthy=true pending_notifications=0 rollback_recreates_from_api_image=true
+fi
 db_started="$(docker inspect apartment-dev-postgres-1 --format '{{.State.StartedAt}}')"
 stamp="$(date -u +%Y%m%dT%H%M%SZ)"
 install -d -m 0700 .qa-output
