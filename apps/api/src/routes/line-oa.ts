@@ -8,6 +8,7 @@ import {lineOaBindings,lineWebhookEvents,organizations,users,memberships,leases}
 import {AppError,requireActor,requireAdmin} from "../security.js";
 import {parseLineWebhook,verifyLineSignature} from "../services/line-oa.js";
 import {answerRoleHelp,type HelpRole} from "../services/line-help-rag.js";
+import {answerTenantDatabaseQuestion} from "../services/line-tenant-answers.js";
 
 const bindingInput=z.object({
  organizationId:z.uuid(),
@@ -95,7 +96,12 @@ export async function registerLineOaRoutes(app:FastifyInstance){
       if(membership?.role==="OWNER"||membership?.role==="MANAGER"||membership?.role==="STAFF")role=membership.role;
       else {const [lease]=await db.select({id:leases.id}).from(leases).where(and(eq(leases.tenantLineSubject,event.sourceLineUserId),eq(leases.organizationId,binding.organizationId),eq(leases.status,"ACTIVE"))).limit(1);if(lease)role="TENANT";else role="USER";}
      }
-     const answer=await answerRoleHelp({question:event.messageText,role,apiKey:config.LINE_HELP_AI_API_KEY,provider:config.LINE_HELP_AI_PROVIDER,model:config.LINE_HELP_AI_MODEL});
+     if(role==="PUBLIC"&&!account){
+      const [lease]=await db.select({id:leases.id}).from(leases).where(and(eq(leases.tenantLineSubject,event.sourceLineUserId),eq(leases.organizationId,binding.organizationId),eq(leases.status,"ACTIVE"))).limit(1);
+      if(lease)role="TENANT";
+     }
+     const privateAnswer=await answerTenantDatabaseQuestion({question:event.messageText,role,lineUserId:event.sourceLineUserId,organizationId:binding.organizationId});
+     const answer=privateAnswer!==null?{answer:privateAnswer,sourceIds:[]}:await answerRoleHelp({question:event.messageText,role,apiKey:config.LINE_HELP_AI_API_KEY,provider:config.LINE_HELP_AI_PROVIDER,model:config.LINE_HELP_AI_MODEL});
      botProcessed++;
      if(config.LINE_CHATBOT_MODE==="simulate")continue;
      if(config.LINE_CHATBOT_MODE!=="live"||!config.LINE_CHATBOT_LIVE_APPROVED||!config.LINE_MESSAGING_CHANNEL_ACCESS_TOKEN)continue;

@@ -7,6 +7,10 @@
  */
 import {writeFileSync} from "node:fs";
 import {config} from "../src/config.js";
+import {db} from "../src/db/client.js";
+import {lineOaBindings} from "../src/db/schema.js";
+import {eq} from "drizzle-orm";
+import {bangkokDate,prepareDueReminders} from "../src/services/line-due-reminders.js";
 import {sqlClient} from "../src/db/client.js";
 import {runLineOutboxBatch} from "../src/services/line-outbox.js";
 import {decideWorkerMode,outboxGlobalCounts} from "../src/services/line-operations.js";
@@ -29,7 +33,19 @@ let stopping=false;
 process.once("SIGTERM",()=>{stopping=true;});
 process.once("SIGINT",()=>{stopping=true;});
 let tick=0;
+let lastPreparedDate="";
 async function oneTick(){
+ // Daily idempotent preparation; the outbox has a unique event key per invoice.
+ // Only the approved live worker prepares due reminders; observers remain read-only.
+ const today=bangkokDate(new Date());
+ if(mode==="live"&&process.env.LINE_AUTO_DUE_REMINDERS==="true"&&lastPreparedDate!==today){
+  const bindings=await db.select({organizationId:lineOaBindings.organizationId}).from(lineOaBindings).where(eq(lineOaBindings.enabled,true));
+  for(const organizationId of new Set(bindings.map(b=>b.organizationId))){
+   const prepared=await prepareDueReminders({date:today,organizationId,apply:true,limit:100});
+   console.log(JSON.stringify({event:"LINE_DUE_REMINDERS_PREPARED",organizationId,...prepared}));
+  }
+  lastPreparedDate=today;
+ }
  const counts=await outboxGlobalCounts();
  const alerts=await reconcileLineOpsAlerts();
  let dispatch:Awaited<ReturnType<typeof runLineOutboxBatch>>|null=null;

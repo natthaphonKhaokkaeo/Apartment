@@ -53,3 +53,9 @@ The provider API key is runtime secret material. Keep it in the deployment secre
 - `LINE_CHATBOT_MODE=live` and `LINE_CHATBOT_LIVE_APPROVED=true` are set in the protected Dokploy runtime environment. LINE credentials were verified with the read-only Bot Info endpoint; the configured bot ID matched. No test message was sent.
 - The API, web, and observer containers are healthy after deploy. OpenRouter is configured as the AI provider; the provider was tested with a role-scoped help query and returned generated text. If it is unavailable, the bot falls back to the local role-filtered corpus.
 - `LINE_OUTBOUND_MODE=disabled`; the observer remains pinned to observe-only. Bill/permission notification fan-out is not being dispatched to LINE yet.
+
+## Tenant database answers and automatic due reminders (2026-11-06)
+- Verified LINE webhook source identity is scoped to the bound organization and active lease. Private invoice balances are calculated from the payment ledger; maintenance status is scoped to the same active leases. These answers bypass the external LLM entirely.
+- The live outbox worker prepares today's Bangkok-dated unpaid invoice reminders once per running worker/day, then dispatches through the existing consent-checked, idempotent, rate-limited LINE outbox. It skips invoices with pending payment claims and checks outstanding balance under an invoice lock.
+- DEV Compose enables the approved worker and daily reminder preparation. No message is sent without an enabled OA binding, active tenant consent and active lease. The scheduler currently processes at most 100 due invoices per organization/day; larger deployments require cursor pagination before production use.
+- On 2026-11-06 the DEV database had **zero enabled OA bindings and zero active notification consents**, so real outbound bill delivery is not yet end-to-end verified. Configure OA binding and obtain explicit tenant consent before expecting any push messages.
