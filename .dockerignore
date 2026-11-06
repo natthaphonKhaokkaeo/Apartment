@@ -8,4 +8,8 @@
 **/.private-payment-evidence
 **/*.log
 **/coverage
-docs
+docs/*
+!docs/help-knowledge/
+!docs/help-knowledge/*.md
+.private-db-backups
+.serena
