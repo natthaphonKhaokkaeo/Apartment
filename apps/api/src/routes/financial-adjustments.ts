@@ -104,14 +104,22 @@ export async function registerFinancialAdjustmentRoutes(app:FastifyInstance){
    if(payload.amountSatang>balance.outstandingSatang)
     throw new AppError(422,"ADJUSTMENT_EXCEEDS_OUTSTANDING");
   }
-  const [created]=await db.insert(financeAdjustmentRequests).values({
-   organizationId:property.organizationId,propertyId,invoiceId,kind:payload.kind,
-   originalLedgerId:payload.originalLedgerId??null,amountSatang:payload.amountSatang,
-   reason:payload.reason,requestedBy:actor.id,idempotencyKey:header
-  }).returning();
-  await db.insert(auditLogs).values({actorId:actor.id,organizationId:property.organizationId,
-   action:"FINANCE_ADJUSTMENT_REQUESTED",targetId:created.id,
-   metadata:{invoiceId,kind:created.kind,amountSatang:created.amountSatang}});
+  // Serialize adjustment creation with invoice void/reissue and payment approvals.
+  const created=await db.transaction(async tx=>{
+   const [current]=await tx.select({id:invoices.id}).from(invoices).where(and(
+    eq(invoices.id,invoiceId),eq(invoices.propertyId,propertyId),
+    eq(invoices.organizationId,property.organizationId),eq(invoices.status,"ISSUED"))).for("update");
+   if(!current)throw new AppError(409,"INVOICE_NOT_ISSUED");
+   const [record]=await tx.insert(financeAdjustmentRequests).values({
+    organizationId:property.organizationId,propertyId,invoiceId,kind:payload.kind,
+    originalLedgerId:payload.originalLedgerId??null,amountSatang:payload.amountSatang,
+    reason:payload.reason,requestedBy:actor.id,idempotencyKey:header
+   }).returning();
+   await tx.insert(auditLogs).values({actorId:actor.id,organizationId:property.organizationId,
+    action:"FINANCE_ADJUSTMENT_REQUESTED",targetId:record.id,
+    metadata:{invoiceId,kind:record.kind,amountSatang:record.amountSatang}});
+   return record;
+  });
   return reply.code(201).send({request:created,replayed:false});
  });
 

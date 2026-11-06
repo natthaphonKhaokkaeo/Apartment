@@ -9,6 +9,7 @@ COPY packages/domain/package.json packages/domain/package.json
 RUN corepack pnpm install --frozen-lockfile
 COPY apps ./apps
 COPY packages ./packages
+COPY docs/help-knowledge ./docs/help-knowledge
 ARG VITE_LIFF_ID=
 ENV VITE_LIFF_ID=${VITE_LIFF_ID}
 RUN corepack pnpm --filter @apartment/web build

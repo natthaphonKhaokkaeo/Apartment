@@ -14,7 +14,7 @@ const id=z.uuid(),day=z.iso.date();
 const digest=(value:unknown)=>createHash("sha256").update(JSON.stringify(value)).digest("hex");
 type Reader=Pick<typeof db,"select">;
 
-async function assertOwner(actorId:string,property:typeof properties.$inferSelect,client:Reader){
+export async function assertOwner(actorId:string,property:typeof properties.$inferSelect,client:Reader){
  const [user]=await client.select({id:users.id}).from(users)
   .where(and(eq(users.id,actorId),eq(users.status,"ACTIVE"))).for("share");
  if(!user)throw new AppError(403,"OWNER_REQUIRED");
@@ -47,7 +47,7 @@ async function buildSnapshot(property:typeof properties.$inferSelect,start:strin
    if(!leaseId)throw new AppError(422,"FULL_PERIOD_ACTIVE_LEASE_REQUIRED");
    const preview=await prepareInvoice({roomId:room.id,start,endExclusive},property,client);
    const [duplicate]=await client.select({id:invoices.id}).from(invoices).where(and(
-    eq(invoices.leaseId,preview.lease.id),eq(invoices.periodStart,start),eq(invoices.periodEnd,endExclusive)));
+    eq(invoices.leaseId,preview.lease.id),eq(invoices.periodStart,start),eq(invoices.periodEnd,endExclusive),eq(invoices.status,"ISSUED")));
    if(duplicate)throw new AppError(409,"PERIOD_ALREADY_BILLED");
    const [overlap]=await client.select({id:invoices.id}).from(invoices).where(and(
     eq(invoices.leaseId,preview.lease.id),eq(invoices.organizationId,property.organizationId),

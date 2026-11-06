@@ -1,3 +1,4 @@
+import {InvoiceCorrectionCenter} from "./components/InvoiceCorrectionCenter.js";
 import {PrivacyCenter} from "./components/PrivacyCenter.js";
 import {PlatformAdminCenter} from "./components/PlatformAdminCenter.js";
 import {RoomRateOverrides} from "./components/RoomRateOverrides.js";
@@ -382,7 +383,7 @@ function App(){
       {orgRole==="OWNER"&&<MeterReplacementHistory propertyId={property.id} rooms={rooms} api={api}/>}
       {isStaff&&<StaffMeterReadings key={property.id} propertyId={property.id} rooms={rooms} api={api}/>}
       {!isStaff&&<div className="hint"><Gauge size={19}/> ระบบบันทึกค่าเริ่มใหม่ในวันที่เปลี่ยนโดยอัตโนมัติ และรวมหน่วยการใช้งานข้ามมิเตอร์ก่อนออกบิล ต้องมีค่าที่ต้นและปลายรอบบิลด้วย</div>}</>}
-    {property&&section==="billing"&&<>{orgRole==="OWNER"&&<BulkBillingCenter propertyId={property.id} cadence={property.cadence} api={api} post={post} onIssued={()=>loadProperty(property.id)}/>}<Panel title="ออกใบแจ้งหนี้รายห้อง" subtitle="ทดลองคำนวณก่อน แล้วจึงกดออกบิลจริงภายหลังตรวจความถูกต้อง"><form className="form" onSubmit={e=>{e.preventDefault();void preview(new FormData(e.currentTarget),false);}}><div className="cols3"><Field label="ห้องพัก"><select name="roomId">{rooms.filter(r=>r.status==="OCCUPIED").map(r=><option key={r.id} value={r.id}>{r.number}</option>)}</select></Field><Field label="วันเริ่มรอบ"><input name="start" required type="date"/></Field><Field label="วันสิ้นสุด (ไม่รวมวันนี้)"><input name="end" required type="date"/></Field></div><Field label="ประเภทการออกบิล">
+    {property&&section==="billing"&&<>{orgRole==="OWNER"&&<><BulkBillingCenter propertyId={property.id} cadence={property.cadence} api={api} post={post} onIssued={()=>loadProperty(property.id)}/><InvoiceCorrectionCenter propertyId={property.id} api={api} post={post} onIssued={()=>loadProperty(property.id)}/></>}<Panel title="ออกใบแจ้งหนี้รายห้อง" subtitle="ทดลองคำนวณก่อน แล้วจึงกดออกบิลจริงภายหลังตรวจความถูกต้อง"><form className="form" onSubmit={e=>{e.preventDefault();void preview(new FormData(e.currentTarget),false);}}><div className="cols3"><Field label="ห้องพัก"><select name="roomId">{rooms.filter(r=>r.status==="OCCUPIED").map(r=><option key={r.id} value={r.id}>{r.number}</option>)}</select></Field><Field label="วันเริ่มรอบ"><input name="start" required type="date"/></Field><Field label="วันสิ้นสุด (ไม่รวมวันนี้)"><input name="end" required type="date"/></Field></div><Field label="ประเภทการออกบิล">
        <select name="partialMode" defaultValue="">
         <option value="">รอบบิลเต็มตามปกติ</option>
         <option value="MOVE_IN">ย้ายเข้ากลางรอบ (เริ่มตรงวันเริ่มสัญญาเท่านั้น)</option>

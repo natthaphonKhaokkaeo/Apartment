@@ -12,3 +12,7 @@ coverage/
 test-results/
 playwright-report/
 .qa-output/
+
+# Local private backups and MCP workspace state
+.private-db-backups/
+.serena/

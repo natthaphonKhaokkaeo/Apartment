@@ -169,6 +169,13 @@
       "when": 1793898558593,
       "tag": "0023_fair_korg",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1793973765700,
+      "tag": "0024_striped_the_enforcers",
+      "breakpoints": true
     }
   ]
 }

@@ -71,3 +71,12 @@ Verified `SUPER_ADMIN` can ask for **all usage documentation**, including tenant
 ### AI-first intent routing
 
 For each incoming LINE text, the backend attempts a bounded AI classification (`HELP`, `PRIVATE_DATA`, `UNKNOWN`) and a Thai canonical question before selecting the response logic. `HELP` requests use role-scoped usage guides, while private data is still retrieved only from the original request under the verified LINE identity and active-lease authorization. The classifier has a 5-second timeout and fails back to the original question when credentials, provider, or output validation fail. The AI classification never grants permissions or executes mutations.
+
+## Role-scoped AI knowledge retrieval (2026-11-06)
+
+- The AI now receives relevant existing help excerpts and curated end-user documentation from `docs/help-knowledge/`, loaded at runtime from the API image. No arbitrary filesystem access, database SQL generation, `.env` access, or credentials are exposed to LLM tools.
+- Incoming questions are interpreted by AI, and natural-language answers are generated from approved user guides, even without an exact keyword match. If the provider is unavailable, the system falls back to authorized manual guides.
+- `SUPER_ADMIN` may access all **usage** guides, not tenants' private records. Access to live financial records remains enforced by the original authenticated backend authorization checks.
+- A separate read-only, double-verified role-scoped tool exposes only organization-level aggregate counts (property/room/invoice/maintenance statuses) to OWNER, MANAGER, or SUPER_ADMIN. It never includes customer names, identities, payment details, tokens, or secrets.
+- Role filters are resolved from verified LINE identity and active membership; requests cannot select another role by saying so in a message.
+- To teach the bot a new area, add and review a user-safe guide in `docs/help-knowledge` and explicitly authorize it in `apps/api/src/services/line-knowledge.ts`. Never place internal runbooks, environment files, secrets or raw database records in this knowledge directory.

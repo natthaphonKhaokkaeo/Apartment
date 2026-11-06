@@ -1,5 +1,5 @@
 import {isNull,sql} from "drizzle-orm";
-import {pgTable, pgEnum, uuid, text, timestamp, varchar, date, integer, numeric, boolean, jsonb, uniqueIndex, index, check, customType, foreignKey} from "drizzle-orm/pg-core";
+import {pgTable, pgEnum, uuid, text, timestamp, varchar, date, integer, numeric, boolean, jsonb, uniqueIndex, index, check, customType, foreignKey,type AnyPgColumn} from "drizzle-orm/pg-core";
 
 export const roles = pgEnum("membership_role", ["OWNER","MANAGER","STAFF"]);
 export const staffGrantLevel = pgEnum("property_staff_level", ["VIEWER","METER_READER"]);
@@ -273,12 +273,17 @@ export const invoices = pgTable("invoices", {
   amountSatang: integer("amount_satang").notNull(),
   documentSnapshot: jsonb("document_snapshot").$type<InvoiceDocumentSnapshot|null>(),
   billingBatchRunId:uuid("billing_batch_run_id").references(()=>billingBatchRuns.id),
+  replacesInvoiceId:uuid("replaces_invoice_id").references(():AnyPgColumn=>invoices.id),
+  voidReason:varchar("void_reason",{length:500}),
+  voidedAt:timestamp("voided_at",{withTimezone:true}),
+  voidedBy:uuid("voided_by").references(()=>users.id),
   status: invoiceStatus("status").notNull().default("ISSUED"),
   idempotencyKey: varchar("idempotency_key", {length:128}).notNull(),
   issuedBy: uuid("issued_by").notNull().references(() => users.id),
   createdAt: timestamp("created_at", {withTimezone:true}).notNull().defaultNow()
 }, t => [
-  uniqueIndex("uq_invoice_lease_period").on(t.leaseId,t.periodStart,t.periodEnd),
+  uniqueIndex("uq_invoice_lease_period").on(t.leaseId,t.periodStart,t.periodEnd).where(sql`${t.status} = 'ISSUED'`),
+  uniqueIndex("uq_invoice_replaces_invoice").on(t.replacesInvoiceId),
   uniqueIndex("uq_invoice_property_idem").on(t.propertyId,t.idempotencyKey),
   index("idx_invoice_org_property").on(t.organizationId,t.propertyId)
 ]);

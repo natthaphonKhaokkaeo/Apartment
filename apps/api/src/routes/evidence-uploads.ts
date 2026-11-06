@@ -63,10 +63,17 @@ export async function registerEvidenceUploadRoutes(app:FastifyInstance){
    orgId:bill.organizationId,uploadId:id,contentType:input.contentType,
    size:input.size,checksumSha256:input.checksumSha256
   });
-  await db.insert(evidenceUploads).values({
-   id,organizationId:bill.organizationId,propertyId:bill.propertyId,invoiceId:bill.id,
-   submittedBy:actor.id,contentType:input.contentType,contentLength:input.size,
-   checksumSha256:input.checksumSha256,expiresAt
+  // Re-check under invoice row lock: an owner may void/reissue while S3 signing is running.
+  await db.transaction(async tx=>{
+   const [current]=await tx.select({id:invoices.id}).from(invoices).where(and(
+    eq(invoices.id,bill.id),eq(invoices.organizationId,bill.organizationId),
+    eq(invoices.propertyId,bill.propertyId),eq(invoices.status,"ISSUED"))).for("update");
+   if(!current)throw new AppError(409,"INVOICE_NOT_ISSUED");
+   await tx.insert(evidenceUploads).values({
+    id,organizationId:bill.organizationId,propertyId:bill.propertyId,invoiceId:bill.id,
+    submittedBy:actor.id,contentType:input.contentType,contentLength:input.size,
+    checksumSha256:input.checksumSha256,expiresAt
+   });
   });
   reply.header("cache-control","no-store");
   return reply.code(201).send({

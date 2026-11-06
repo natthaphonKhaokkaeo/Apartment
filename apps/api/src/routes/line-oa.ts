@@ -1,3 +1,4 @@
+import {roleSystemFacts} from "../services/line-system-facts.js";
 import {interpretLineIntent} from "../services/line-intent.js";
 import {createHash} from "node:crypto";
 import type {FastifyInstance} from "fastify";
@@ -103,8 +104,12 @@ export async function registerLineOaRoutes(app:FastifyInstance){
      }
      const intent=await interpretLineIntent({question:event.messageText,apiKey:config.LINE_HELP_AI_API_KEY,provider:config.LINE_HELP_AI_PROVIDER,model:config.LINE_HELP_AI_MODEL});
      const privateAnswer=intent.kind==="HELP"?null:await answerTenantDatabaseQuestion({question:event.messageText,role,lineUserId:event.sourceLineUserId,organizationId:binding.organizationId});
-     const helpQuestion=intent.kind==="HELP"?`วิธี ${intent.canonicalQuestion}`:event.messageText;
-     const answer=privateAnswer!==null?{answer:privateAnswer,sourceIds:[]}:await answerRoleHelp({question:helpQuestion,role,apiKey:config.LINE_HELP_AI_API_KEY,provider:config.LINE_HELP_AI_PROVIDER,model:config.LINE_HELP_AI_MODEL});
+     const helpQuestion=intent.kind==="HELP"?intent.canonicalQuestion:event.messageText;
+     const facts=privateAnswer===null?await roleSystemFacts({role,accountId:account?.id,organizationId:binding.organizationId}).catch(()=>""):"";
+     const restrictedPrivate=intent.kind==="PRIVATE_DATA"&&!(["OWNER","MANAGER","SUPER_ADMIN"] as string[]).includes(role);
+     const answer=privateAnswer!==null?{answer:privateAnswer,sourceIds:[]}:restrictedPrivate?
+      {answer:"ข้อมูลส่วนบุคคลหรือการเงินต้องตรวจสอบผ่านบัญชีที่ผูกสิทธิ์กับสัญญาเช่า กรุณาใช้หน้าเว็บผู้เช่าหรือติดต่อเจ้าของหอพัก",sourceIds:[]}:
+      await answerRoleHelp({question:helpQuestion,role,apiKey:config.LINE_HELP_AI_API_KEY,provider:config.LINE_HELP_AI_PROVIDER,model:config.LINE_HELP_AI_MODEL,facts});
      botProcessed++;
      if(config.LINE_CHATBOT_MODE==="simulate")continue;
      if(config.LINE_CHATBOT_MODE!=="live"||!config.LINE_CHATBOT_LIVE_APPROVED||!config.LINE_MESSAGING_CHANNEL_ACCESS_TOKEN)continue;

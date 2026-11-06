@@ -29,3 +29,18 @@
 ## Current delivered change
 
 The bulk-billing UI now shows a clearer three-step instruction, allows selecting any date range with client-side end-after-start validation, and explicitly warns against issuing a duplicate to correct an existing invoice. This is a UX improvement only; **the actual reissue feature is NOT implemented**.
+
+## Implementation update — Void & Reissue (2026-11-06)
+
+Implemented in `apps/api/src/routes/invoice-reissue.ts` and `apps/web/src/components/InvoiceCorrectionCenter.tsx`:
+
+- OWNER-only recent invoice list, correction preview, and confirmed reissue with idempotency key.
+- Correction reason (15–500 characters), signed satang adjustment and recalculation of the base invoice from current rates/meter readings.
+- On commit, locked original invoice becomes `VOID`; a new `ISSUED` invoice references it through `replaces_invoice_id`. Historical lines remain unchanged. Unique lease+period now applies only to `ISSUED` invoices.
+- Hard fail when original has payment claims, payment ledger, financial adjustments, evidence uploads or an in-flight LINE send. Pending old invoice/due LINE notification events are cancelled before the new invoice event is queued.
+- Payment claim creation, direct evidence initiation and financial-adjustment creation use invoice row locks to synchronize with reissue.
+- Repeated corrections create an auditable replacement chain. Source invoice remains stored.
+
+**Restrictions:** This is not a refund or paid-invoice reversal tool. Never issue a replacement for an invoice with payment-related activity until that financial workflow has been independently reconciled; the API blocks it by design. OWNER-only approval is retained; SUPER_ADMIN platform rights do not bypass finance authorization. Corrections may include a positive/negative adjustment, but the total must remain positive and within database integer bounds.
+
+**Operational verification required after deployment:** Migration `0024_striped_the_enforcers`, API readiness, web readiness, and real owner-authorization HTTP smoke checks. Avoid test mutations to a tenant's real invoice during smoke checks.

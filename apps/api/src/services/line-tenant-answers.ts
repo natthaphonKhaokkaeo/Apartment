@@ -25,7 +25,7 @@ export async function answerTenantDatabaseQuestion(input:{question:string;role:s
   return rows.length?"สถานะงานแจ้งซ่อมล่าสุดของคุณ:\n"+rows.map(x=>`${x.title.slice(0,80)}: ${x.status}`).join("\n"):"ยังไม่พบรายการแจ้งซ่อมของคุณ";
  }
  const rows=await db.select({id:invoices.id,dueDate:invoices.dueDate,status:invoices.status})
-  .from(invoices).where(and(eq(invoices.organizationId,input.organizationId),inArray(invoices.leaseId,leaseIds)))
+  .from(invoices).where(and(eq(invoices.organizationId,input.organizationId),inArray(invoices.leaseId,leaseIds),eq(invoices.status,"ISSUED")))
   .orderBy(desc(invoices.createdAt)).limit(3);
  if(!rows.length)return "ยังไม่พบใบแจ้งหนี้สำหรับสัญญาเช่าของคุณ";
  const results=await Promise.all(rows.map(async x=>({dueDate:x.dueDate,status:x.status,position:await getFinancialPosition(x.id)})));
