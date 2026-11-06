@@ -52,7 +52,9 @@ function ensureValid(b:BillingNoticeInput){
  if(!checkMoney(b.amountSatang))throw new Error("INVALID_BILL_AMOUNT");
  if(!Array.isArray(b.lines)||b.lines.length===0)throw new Error("EMPTY_INVOICE_LINES");
  if(b.lines.length>300)throw new Error("TOO_MANY_INVOICE_LINES");
- if(!b.lines.every(l=>checkMoney(l.amountSatang)&&l.description?.trim()&&l.description.length<=450))
+ if(!b.lines.every(l=>Number.isSafeInteger(l.amountSatang)&&
+  l.amountSatang>=-2147483647&&l.amountSatang<=2147483647&&
+  (l.amountSatang>=0||l.type==="CORRECTION")&&l.description?.trim()&&l.description.length<=450))
   throw new Error("INVALID_INVOICE_LINE");
  const sum=b.lines.reduce((acc,l)=>acc+l.amountSatang,0);
  if(!Number.isSafeInteger(sum)||sum!==b.amountSatang)throw new Error("INVOICE_LINE_SUM_MISMATCH");

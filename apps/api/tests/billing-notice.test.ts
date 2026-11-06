@@ -53,6 +53,17 @@ describe("P3-05b informational Billing Notice",()=>{
   expect(pages.text).toContain("ข้อมูลปัจจุบัน");
   expect(pages.text).toContain("700.00");
  });
+ it("allows a negative correction line while requiring a positive final invoice",async()=>{
+  const corrected:BillingNoticeInput={...bill,amountSatang:411750,
+   lines:[...bill.lines,{type:"CORRECTION",description:"ส่วนลดแก้บิลเดิม",amountSatang:-1250,
+    unitsMilli:null,tariffSatang:null}]};
+  const document=await textFrom(await renderBillingNotice(corrected));
+  expect(document.text).toContain("ส่วนลดแก้บิลเดิม");
+  expect(document.text).toContain("4,117.50");
+  expect(document.text).toContain("-12.50");
+  await expect(renderBillingNotice({...corrected,lines:[...bill.lines,{...corrected.lines[3],type:"WATER"}]}))
+   .rejects.toThrow("INVALID_INVOICE_LINE");
+ });
  it("never renders inconsistent or negative invoice totals",async()=>{
   await expect(renderBillingNotice({...bill,amountSatang:413001})).rejects.toThrow("INVOICE_LINE_SUM_MISMATCH");
   await expect(renderBillingNotice({...bill,amountSatang:-1})).rejects.toThrow("INVALID_BILL_AMOUNT");

@@ -46,7 +46,7 @@ async function buildCorrection(tx:Tx,property:typeof properties.$inferSelect,
  if(prepared.lease.id!==original.leaseId)throw new AppError(409,"LEASE_CHANGED_SINCE_ISSUE");
  const total=correctedInvoiceTotal(prepared.totalSatang,input.adjustmentSatang);
  const lines:Array<{type:string;description:string;unitsMilli:number|null;tariffSatang:number|null;amountSatang:number;snapshot:unknown}>=[...prepared.lines];
- if(input.adjustmentSatang!==0)lines.push({type:"CORRECTION",description:"ปรับปรุงยอดใบแจ้งหนี้: "+input.reason,
+ if(input.adjustmentSatang!==0)lines.push({type:"CORRECTION",description:("ปรับปรุงยอดใบแจ้งหนี้: "+input.reason).slice(0,450),
   unitsMilli:null,tariffSatang:null,amountSatang:input.adjustmentSatang,
   snapshot:{reason:input.reason,originalInvoiceId:original.id}});
  const previewHash=hash({originalId:original.id,originalAmount:original.amountSatang,
