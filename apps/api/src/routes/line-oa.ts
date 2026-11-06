@@ -1,3 +1,4 @@
+import {interpretLineIntent} from "../services/line-intent.js";
 import {createHash} from "node:crypto";
 import type {FastifyInstance} from "fastify";
 import {and,eq} from "drizzle-orm";
@@ -100,8 +101,10 @@ export async function registerLineOaRoutes(app:FastifyInstance){
       const [lease]=await db.select({id:leases.id}).from(leases).where(and(eq(leases.tenantLineSubject,event.sourceLineUserId),eq(leases.organizationId,binding.organizationId),eq(leases.status,"ACTIVE"))).limit(1);
       if(lease)role="TENANT";
      }
-     const privateAnswer=await answerTenantDatabaseQuestion({question:event.messageText,role,lineUserId:event.sourceLineUserId,organizationId:binding.organizationId});
-     const answer=privateAnswer!==null?{answer:privateAnswer,sourceIds:[]}:await answerRoleHelp({question:event.messageText,role,apiKey:config.LINE_HELP_AI_API_KEY,provider:config.LINE_HELP_AI_PROVIDER,model:config.LINE_HELP_AI_MODEL});
+     const intent=await interpretLineIntent({question:event.messageText,apiKey:config.LINE_HELP_AI_API_KEY,provider:config.LINE_HELP_AI_PROVIDER,model:config.LINE_HELP_AI_MODEL});
+     const privateAnswer=intent.kind==="HELP"?null:await answerTenantDatabaseQuestion({question:event.messageText,role,lineUserId:event.sourceLineUserId,organizationId:binding.organizationId});
+     const helpQuestion=intent.kind==="HELP"?`วิธี ${intent.canonicalQuestion}`:event.messageText;
+     const answer=privateAnswer!==null?{answer:privateAnswer,sourceIds:[]}:await answerRoleHelp({question:helpQuestion,role,apiKey:config.LINE_HELP_AI_API_KEY,provider:config.LINE_HELP_AI_PROVIDER,model:config.LINE_HELP_AI_MODEL});
      botProcessed++;
      if(config.LINE_CHATBOT_MODE==="simulate")continue;
      if(config.LINE_CHATBOT_MODE!=="live"||!config.LINE_CHATBOT_LIVE_APPROVED||!config.LINE_MESSAGING_CHANNEL_ACCESS_TOKEN)continue;

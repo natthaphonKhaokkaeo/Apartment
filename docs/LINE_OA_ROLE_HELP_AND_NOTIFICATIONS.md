@@ -67,3 +67,7 @@ The bot recognizes Thai how-to requests (`วิธี`, `ขั้นตอน`
 ### Super Admin help scope
 
 Verified `SUPER_ADMIN` can ask for **all usage documentation**, including tenant-only help flows, without changing the caller's identity or granting private tenant DB access. Personal billing/maintenance data still requires an active lease bound to the requesting LINE user. The bot does not treat self-declared role text as authentication.
+
+### AI-first intent routing
+
+For each incoming LINE text, the backend attempts a bounded AI classification (`HELP`, `PRIVATE_DATA`, `UNKNOWN`) and a Thai canonical question before selecting the response logic. `HELP` requests use role-scoped usage guides, while private data is still retrieved only from the original request under the verified LINE identity and active-lease authorization. The classifier has a 5-second timeout and fails back to the original question when credentials, provider, or output validation fail. The AI classification never grants permissions or executes mutations.
