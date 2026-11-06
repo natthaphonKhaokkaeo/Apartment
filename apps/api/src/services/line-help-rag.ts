@@ -1,3 +1,4 @@
+import {findUsageFlow} from "./line-help-flows.js";
 export type HelpRole="PUBLIC"|"USER"|"TENANT"|"OWNER"|"MANAGER"|"STAFF"|"SUPER_ADMIN";
 type HelpDocument={id:string;roles:readonly HelpRole[];keywords:readonly string[];answer:string};
 const all:readonly HelpRole[]=["PUBLIC","USER","TENANT","OWNER","MANAGER","STAFF","SUPER_ADMIN"];
@@ -23,6 +24,9 @@ export function sanitizeHelpQuestion(question:string){
   .replace(/U[0-9a-f]{32}/gi,"[ข้อมูลส่วนบุคคล]");
 }
 export async function answerRoleHelp(options:{question:string;role:HelpRole;apiKey?:string;provider?:"google"|"openrouter";model?:string;fetcher?:typeof fetch}){
+ const wantsSteps=/(วิธี|ขั้นตอน|สอน|ทำยังไง|อย่างไร|คู่มือ|เริ่มต้น|how to|flow|แนะนำการใช้)/i.test(options.question);
+ const flow=wantsSteps?findUsageFlow(options.question,options.role):null;
+ if(flow)return {answer:flow.answer,sourceIds:[flow.id]};
  const matches=retrieveRoleHelp(options.question,options.role);
  if(!matches.length)return {answer:"ขออภัย ยังไม่พบคำตอบในคู่มือระบบ กรุณาติดต่อผู้ดูแลหอพักหรือบริษัท",sourceIds:[] as string[]};
  const context=matches.map(x=>x.answer).join("\\n");
