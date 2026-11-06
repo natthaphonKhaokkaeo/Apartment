@@ -6,6 +6,7 @@ import {db} from "../db/client.js";
 import {auditLogs,memberships,organizations,properties,propertyStaffGrants,staffInvitations,users} from "../db/schema.js";
 import {AppError,requireActor,requireOrg,type Actor} from "../security.js";
 import {staffInviteTargetIsValid} from "../services/staff-permissions.js";
+import {notifyOrganizationMembersTx} from "../services/org-notifications.js";
 
 const uuid=z.uuid();
 const orgParams=z.object({orgId:uuid});
@@ -141,6 +142,8 @@ export async function registerStaffRoutes(app:FastifyInstance){
    await tx.insert(auditLogs).values({actorId:actor.id,organizationId:orgId,
     action:"STAFF_INVITE_APPROVED",targetId:inviteId,
     metadata:{userId:invite.claimedBy,role:invite.role,propertyId:invite.propertyId}});
+   await notifyOrganizationMembersTx(tx,orgId,{eventKey:`STAFF_ROLE_GRANTED:${inviteId}`,kind:"STAFF_ROLE_CHANGED",
+    title:"มีการเปลี่ยนสิทธิสมาชิก",body:`เพิ่มหรือปรับสิทธิสมาชิกเป็น ${invite.role} แล้ว`});
    return {ok:true,userId:invite.claimedBy,role:invite.role};
   });
   reply.header("cache-control","private, no-store");
@@ -189,6 +192,8 @@ export async function registerStaffRoutes(app:FastifyInstance){
    }
    await tx.insert(auditLogs).values({actorId:actor.id,organizationId:orgId,
     action:"STAFF_ACCESS_REVOKED",targetId:userId,metadata:{propertyId}});
+   await notifyOrganizationMembersTx(tx,orgId,{eventKey:`STAFF_ACCESS_REVOKED:${userId}:${propertyId??"organization"}`,kind:"STAFF_ROLE_CHANGED",
+    title:"มีการเปลี่ยนสิทธิสมาชิก",body:"มีการเพิกถอนสิทธิสมาชิกหรือสิทธิเข้าถึงที่พักแล้ว"});
   });
   reply.header("cache-control","private, no-store");
   return {ok:true};

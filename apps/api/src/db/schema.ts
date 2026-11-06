@@ -48,6 +48,20 @@ export const memberships = pgTable("memberships", {
   role: roles("role").notNull(),
   status: accountStatus("status").notNull().default("ACTIVE")
 }, t => [uniqueIndex("uq_member_org_user").on(t.organizationId,t.userId)]);
+export const orgNotifications = pgTable("org_notifications", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  organizationId: uuid("organization_id").notNull().references(() => organizations.id,{onDelete:"cascade"}),
+  recipientUserId: uuid("recipient_user_id").notNull().references(() => users.id,{onDelete:"cascade"}),
+  eventKey: varchar("event_key", {length: 160}).notNull(),
+  kind: varchar("kind", {length: 48}).notNull(),
+  title: varchar("title", {length: 160}).notNull(),
+  body: text("body").notNull(),
+  readAt: timestamp("read_at", {withTimezone:true}),
+  createdAt: timestamp("created_at", {withTimezone:true}).notNull().defaultNow()
+}, t => [
+  uniqueIndex("uq_org_notification_recipient_event").on(t.organizationId,t.recipientUserId,t.eventKey),
+  index("idx_org_notification_inbox").on(t.recipientUserId,t.createdAt)
+]);
 export const properties = pgTable("properties", {
   id: uuid("id").primaryKey().defaultRandom(),
   organizationId: uuid("organization_id").notNull().references(() => organizations.id),

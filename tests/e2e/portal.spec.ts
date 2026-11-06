@@ -58,6 +58,9 @@ async function intercept(page:Page,actor:Actor|null){
    "/v1/tenant/invoices":[],
    "/v1/tenant/invitations":[],
    "/v1/tenant/history/invoices":[],
+   "/v1/notifications":{items:[{id:"notification-e2e",organizationId,eventKey:"ROOM_CREATED:room-e2e",
+    kind:"ROOM_CREATED",title:"เพิ่มห้องพักใหม่",body:"เพิ่มห้อง A101 ในที่พักแล้ว",readAt:null,
+    createdAt:"2026-11-05T09:00:00.000Z"}]},
   };
   if(method==="GET"&&pathname==="/v1/me"&&!actor){
    await route.fulfill(json({error:"UNAUTHENTICATED"},401));return;
@@ -68,6 +71,9 @@ async function intercept(page:Page,actor:Actor|null){
   if(method==="PATCH"&&pathname==="/v1/admin/platform-users/account-e2e/role"){
    managedRole=(route.request().postDataJSON() as {role:string}).role;
    await route.fulfill(json({id:"account-e2e",displayName:"บัญชีทดสอบ",platformRole:managedRole,changed:true}));return;
+  }
+  if(method==="POST"&&pathname==="/v1/notifications/notification-e2e/read"){
+   await route.fulfill(json({id:"notification-e2e",readAt:"2026-11-05T10:00:00.000Z"}));return;
   }
   if(method==="POST"&&pathname==="/v1/auth/logout"){
    await route.fulfill(json({}));return;
@@ -85,6 +91,20 @@ test("guest sees LINE entry point without tenant or owner data",async({page})=>{
  const layout=await page.evaluate(()=>({width:innerWidth,contentWidth:document.documentElement.scrollWidth}));
  expect(layout.contentWidth).toBeLessThanOrEqual(layout.width+1);
  expect(requests).not.toContain("GET /v1/organizations");
+});
+
+test("owner can read and mark an organization notification",async({page})=>{
+ const requests=await intercept(page,owner);
+ await page.goto("/");
+ const menu=page.getByRole("button",{name:"เมนู"});
+ if(await menu.isVisible())await menu.click();
+ await page.getByRole("navigation",{name:"เมนูหลัก"}).getByRole("button",{name:"แจ้งเตือน"}).click();
+ await expect(page.getByRole("heading",{name:"การแจ้งเตือน"})).toBeVisible();
+ await expect(page.getByText("เพิ่มห้อง A101 ในที่พักแล้ว")).toBeVisible();
+ await page.getByRole("button",{name:"อ่านแล้ว"}).click();
+ await expect(page.getByRole("button",{name:"อ่านแล้ว"})).toHaveCount(0);
+ expect(requests).toContain("GET /v1/notifications");
+ expect(requests).toContain("POST /v1/notifications/notification-e2e/read");
 });
 
 test("authenticated owner loads scoped overview and logs out",async({page})=>{

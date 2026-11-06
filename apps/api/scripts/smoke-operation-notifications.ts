@@ -3,9 +3,10 @@ import {randomUUID} from "node:crypto";
 import {strict as assert} from "node:assert";
 import {eq} from "drizzle-orm";
 import {db,sqlClient} from "../src/db/client.js";
-import {users,sessions,organizations,memberships,properties,rooms,leases,lineOaBindings,lineOutbox} from "../src/db/schema.js";
+import {users,sessions,organizations,memberships,properties,rooms,leases,lineOaBindings,lineOutbox,orgNotifications} from "../src/db/schema.js";
 import {newSessionToken,tokenHash} from "../src/security.js";
 import {queueLeaseNotificationTx} from "../src/services/line-notifications.js";
+import {notifyOrganizationMembersTx} from "../src/services/org-notifications.js";
 if(!process.env.APARTMENT_COVERAGE_ROOT||!process.env.DATABASE_URL?.includes("isolated_coverage_only@127.0.0.1:"))throw Error("DISPOSABLE_DATABASE_REQUIRED");
 const bot="U"+randomUUID().replace(/-/g,""),tenantSubject="U"+randomUUID().replace(/-/g,"");
 const child=spawn("node",["--import","tsx","src/index.ts"],{cwd:process.cwd(),env:{...process.env,LINE_OA_BOT_USER_ID:bot,LINE_OUTBOUND_MODE:"disabled"},stdio:"ignore"});
@@ -19,10 +20,23 @@ try{
  const tokens:string[]=[];for(const u of [owner,tenant]){const token=newSessionToken();await db.insert(sessions).values({userId:u.id,tokenHash:tokenHash(token),expiresAt:new Date(Date.now()+300000)});tokens.push(token);}
  const [org]=await db.insert(organizations).values({name:"Operation notifications "+randomUUID()}).returning();
  await db.insert(memberships).values({organizationId:org.id,userId:owner.id,role:"OWNER"});
+ const inboxEventKey="SMOKE:"+randomUUID();
+ const inserted=await db.transaction(tx=>notifyOrganizationMembersTx(tx,org.id,{eventKey:inboxEventKey,
+  kind:"ROOM_CREATED",title:"ห้องทดสอบ",body:"แจ้งเตือนทดสอบ"}));
+ assert.equal(inserted,1);
+ assert.equal(await db.transaction(tx=>notifyOrganizationMembersTx(tx,org.id,{eventKey:inboxEventKey,
+  kind:"ROOM_CREATED",title:"ห้องทดสอบ",body:"แจ้งเตือนทดสอบ"})),0);
  const [p]=await db.insert(properties).values({organizationId:org.id,name:"Ops",rentSatang:100,waterSatangPerUnit:100,electricSatangPerUnit:100}).returning();
  const [room]=await db.insert(rooms).values({organizationId:org.id,propertyId:p.id,number:"N101",status:"OCCUPIED"}).returning();
  const [lease]=await db.insert(leases).values({organizationId:org.id,propertyId:p.id,roomId:room.id,tenantName:"Tenant",tenantLineSubject:tenantSubject,startDate:"2026-11-01"}).returning();leaseId=lease.id;
  await db.insert(lineOaBindings).values({organizationId:org.id,botUserId:bot,enabled:true});
+ const ownerInbox=await request("/v1/notifications",tokens[0]);
+ const tenantInbox=await request("/v1/notifications",tokens[1]);
+ const notification=ownerInbox.body.items.find((item:any)=>item.eventKey===inboxEventKey);
+ assert.ok(notification);assert.equal(tenantInbox.body.items.length,0);
+ assert.equal((await request(`/v1/notifications/${notification.id}/read`,tokens[0],"POST",{})).status,200);
+ assert.equal((await request(`/v1/notifications/${notification.id}/read`,tokens[1],"POST",{})).status,404);
+ assert.equal((await db.select().from(orgNotifications).where(eq(orgNotifications.eventKey,inboxEventKey))).length,1);
  const consent="/v1/tenant/leases/"+lease.id+"/notification-consent";
  assert.equal((await request(consent,tokens[1],"PUT",{enabled:true,policyVersion:"2026-11-v1",acknowledgedPurpose:true})).status,200);
  const created=await request("/v1/tenant/leases/"+lease.id+"/maintenance-tickets",tokens[1],"POST",{title:"SENSITIVE_FIXTURE_PLUMBING",description:"Synthetic private repair description never included in LINE messages",category:"PLUMBING"});assert.equal(created.status,201);
@@ -41,7 +55,7 @@ try{
  queued=await db.select().from(lineOutbox).where(eq(lineOutbox.leaseId,lease.id));assert.equal(queued.length,2);assert.equal(queued.filter(x=>x.status==="QUEUED").length,1);
  assert.equal(await db.transaction(tx=>queueLeaseNotificationTx(tx,{id:randomUUID(),leaseId:lease.id,organizationId:org.id,propertyId:p.id},"TENANT_LINK_APPROVED")),"INELIGIBLE");
  assert.equal((await db.select().from(lineOutbox).where(eq(lineOutbox.leaseId,lease.id))).length,2);
- console.log("PASS operation notifications: transactional repair status producer, generic no-PII text, repeated/concurrent transitions dedupe, invalid transition no event, revoke suppression, regrant new event, invitation purpose fail-closed, no provider dispatch");
+ console.log("PASS organization inbox: active member fan-out, retry idempotency, authenticated read, recipient IDOR denied; LINE operation notices retain consent/revocation safeguards");
 }finally{
  child.kill("SIGTERM");await new Promise(r=>setTimeout(r,200));
  if(leaseId)await db.delete(lineOutbox).where(eq(lineOutbox.leaseId,leaseId));

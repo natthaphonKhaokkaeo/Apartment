@@ -417,3 +417,10 @@ Implementation verified: sanitized private image upload/list/download on mainten
 - DEV smoke: public Web, `/healthz`, `/readyz` = 200; unsigned LINE webhook = 401; certificates verified; no live LINE calls.
 - LINE login diagnostic: provider rejection handling was exercised only with a synthetic invalid token and logged `providerStatus=400`, `providerError=invalid_request`; no token or secret appeared in the warning. This is not evidence for the user's real login attempt. The LIFF/API channel prefix matches; prior real attempts predated this diagnostic and cannot be attributed more specifically. Re-test from LINE after deployment to read the sanitized provider reason.
 - External LINE user/device login acceptance remains pending. LINE outbound remains disabled; production untouched.
+
+## Follow-up implementation — organization notifications and role-scoped LINE help (2026-11-05)
+
+- P4: role-scoped LINE OA help is implemented in the webhook. It verifies/deduplicates events, resolves roles from the bound organization, filters help articles before Gemini context construction, and keeps reply dispatch disabled by default (`LINE_CHATBOT_MODE=disabled`, `LINE_CHATBOT_LIVE_APPROVED=false`).
+- P5/P6: an authenticated notification inbox is implemented for room creation, individual/batch invoice issuance, and staff role/access changes. It fans out to active organization memberships in the source transaction, uses recipient-scoped idempotency, and is visible under the web console's แจ้งเตือน menu.
+- P0/P7: migration `0022_clean_the_call.sql` adds the inbox table and `0023_fair_korg.sql` adds cascading lifecycle cleanup. The disposable PostgreSQL migration/API coverage run passed; detailed verification is in `docs/IMPLEMENTATION-MASTER-STATUS.md`.
+- External acceptance still requires configuring the provider API key and an approved LINE live-reply UAT. Mocks do not count as real provider evidence.

@@ -38,11 +38,13 @@ import {registerMeterReplacementRoutes} from "./routes/meter-replacement.js";
 import {registerStaffRoutes} from "./routes/staff.js";
 import {registerMaintenanceTicketRoutes} from "./routes/maintenance-tickets.js";
 import {registerBillingBatchRoutes} from "./routes/billing-batches.js";
+import {registerNotificationRoutes} from "./routes/notifications.js";
 import {readingSegmentIndex} from "./services/meter-replacement.js";
 import {meterReplacements} from "./db/schema.js";
 import {bangkokToday} from "./services/property-rates.js";
 import {propertyRateVersions,roomRateVersions} from "./db/schema.js";
 import {queueInvoiceIssuedTx} from "./services/line-notifications.js";
+import {notifyOrganizationMembersTx} from "./services/org-notifications.js";
 import {readingToMilli,parseDay} from "@apartment/domain";
 
 const app=Fastify({logger:{redact:["req.headers.cookie","req.headers.authorization","res.headers.set-cookie"]},bodyLimit:1048576});
@@ -282,7 +284,12 @@ const override=z.object({rentOverrideSatang:satang.nullable().optional(),waterOv
 app.post("/v1/properties/:propertyId/rooms",async(req,reply)=>{
  const a=await requireActor(req),p=await requireProperty(a,params(req.params),true);
  const b=take(override.extend({number:z.string().trim().min(1).max(50),floor:z.number().int().min(0).max(300).default(1)}),req.body);
- const [r]=await db.insert(rooms).values({...b,organizationId:p.organizationId,propertyId:p.id}).returning();
+ const [r]=await db.transaction(async tx=>{
+  const [room]=await tx.insert(rooms).values({...b,organizationId:p.organizationId,propertyId:p.id}).returning();
+  await notifyOrganizationMembersTx(tx,p.organizationId,{eventKey:`ROOM_CREATED:${room.id}`,kind:"ROOM_CREATED",
+   title:"เพิ่มห้องพักใหม่",body:`เพิ่มห้อง ${room.number} ในที่พักแล้ว`});
+  return [room];
+ });
  await audit(a,p.organizationId,"ROOM_CREATED",r.id);return reply.code(201).send(r);
 });
 app.patch("/v1/properties/:propertyId/rooms/:roomId",async req=>{
@@ -410,6 +417,8 @@ app.post("/v1/properties/:propertyId/bills/issue",async(req,reply)=>{
   // Enqueue only with verified active LINE tenant and explicit opt-in. Atomic with
   // the invoice: a rollback removes both the invoice and its pending notification.
   const notificationStatus=await queueInvoiceIssuedTx(tx,i);
+  await notifyOrganizationMembersTx(tx,p.organizationId,{eventKey:`INVOICE_ISSUED:${i.id}`,kind:"INVOICE_ISSUED",
+   title:"ออกใบแจ้งหนี้แล้ว",body:`ออกใบแจ้งหนี้ห้อง ${preview.room.number} รอบ ${b.start} ถึง ${b.endExclusive} แล้ว`});
   return {invoice:i,replayed:false,notificationStatus};
  });
  return reply.code(result.replayed?200:201).send(result);
@@ -465,4 +474,5 @@ await registerDepositRoutes(app);
 await registerMeterRecordRoutes(app);
 await registerPrivacyRequestRoutes(app);
 await registerPlatformAdminRoutes(app);
+await registerNotificationRoutes(app);
 await app.listen({host:config.HOST,port:config.PORT});

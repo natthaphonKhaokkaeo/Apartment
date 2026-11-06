@@ -8,6 +8,7 @@ import {auditLogs,billingBatchRuns,invoices,invoiceLines,leases,memberships,orga
 import {AppError,requireActor,requireProperty} from "../security.js";
 import {prepareInvoice,validBillingPeriod} from "../services/billing.js";
 import {queueInvoiceIssuedTx} from "../services/line-notifications.js";
+import {notifyOrganizationMembersTx} from "../services/org-notifications.js";
 
 const id=z.uuid(),day=z.iso.date();
 const digest=(value:unknown)=>createHash("sha256").update(JSON.stringify(value)).digest("hex");
@@ -167,6 +168,8 @@ export async function registerBillingBatchRoutes(app:FastifyInstance){
     await tx.insert(auditLogs).values({actorId:actor.id,organizationId:locked.organizationId,
      action:"INVOICE_ISSUED",targetId:invoice.id,metadata:{amountSatang:invoice.amountSatang,billingBatchRunId:run.id}});
     await queueInvoiceIssuedTx(tx,invoice);
+    await notifyOrganizationMembersTx(tx,locked.organizationId,{eventKey:`INVOICE_ISSUED:${invoice.id}`,kind:"INVOICE_ISSUED",
+     title:"ออกใบแจ้งหนี้แล้ว",body:`ออกใบแจ้งหนี้ห้อง ${preview.room.number} รอบ ${run.periodStart} ถึง ${run.periodEnd} แล้ว`});
    }
    const [completed]=await tx.update(billingBatchRuns).set({status:"COMPLETED",approvedBy:actor.id,
     approvedAt:new Date(),completedAt:new Date(),issuedCount:ready.length})

@@ -489,3 +489,12 @@ A signed synthetic empty LINE webhook now reaches the deployed HTTPS route and p
 - DEV smoke: public Web, `/healthz`, `/readyz` = 200; unsigned LINE webhook = 401; certificates verified; no live LINE calls.
 - LINE login diagnostic: provider rejection handling was exercised only with a synthetic invalid token and logged `providerStatus=400`, `providerError=invalid_request`; no token or secret appeared in the warning. This is not evidence for the user's real login attempt. The LIFF/API channel prefix matches; prior real attempts predated this diagnostic and cannot be attributed more specifically. Re-test from LINE after deployment to read the sanitized provider reason.
 - External LINE user/device login acceptance remains pending. LINE outbound remains disabled; production untouched.
+
+## Apartment follow-up completed in code — 2026-11-05
+
+- Organization notification inbox is implemented for room creation, invoice issuance (single and batch), and staff role/access changes. UI route/menu is **แจ้งเตือน**; API is `GET /v1/notifications` and `POST /v1/notifications/:notificationId/read`.
+- Role-filtered LINE OA support bot is implemented with a local support corpus and configurable Gemini-compatible model. `LINE_CHATBOT_MODE` defaults to `disabled`; do not enable `live` until the API key, channel configuration and operator approval are in place.
+- Migration/API integration verification passed with `corepack pnpm coverage:api:postgres` against a disposable PostgreSQL container (84.96% API line coverage). Unit/full suite, lint, typecheck and browser E2E status are recorded in the master status.
+- Remaining external UAT: set `LINE_HELP_AI_API_KEY` in the secret store; test simulate mode; approve and separately test live reply in the intended LINE OA; verify inbox visibility and IDOR isolation with distinct DEV users. No deployment or live dispatch was performed for this code-only request.
+
+Latest verification: lint/typecheck passed, full unit suite 291/291 passed, browser E2E 39/39 passed at desktop/390px/320px, and disposable PostgreSQL/API coverage passed at 85.07%, including the notification inbox IDOR smoke. Before rollout, review `git diff`, deploy migration through the approved DEV pipeline, and run role-separated inbox UAT. Real Gemini/LINE provider use has not been exercised; chatbot and outbound dispatch remain disabled by default.

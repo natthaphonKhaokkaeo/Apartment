@@ -280,3 +280,11 @@ A synthetic HMAC-signed empty LINE webhook passed through public HTTPS/signature
 - DEV smoke: public Web, `/healthz`, `/readyz` = 200; unsigned LINE webhook = 401; certificates verified; no live LINE calls.
 - LINE login diagnostic: provider rejection handling was exercised only with a synthetic invalid token and logged `providerStatus=400`, `providerError=invalid_request`; no token or secret appeared in the warning. This is not evidence for the user's real login attempt. The LIFF/API channel prefix matches; prior real attempts predated this diagnostic and cannot be attributed more specifically. Re-test from LINE after deployment to read the sanitized provider reason.
 - External LINE user/device login acceptance remains pending. LINE outbound remains disabled; production untouched.
+
+## Notifications and LINE role-help update (2026-11-05)
+
+Implemented an authenticated organization notification inbox backed by a new recipient-scoped PostgreSQL table. Notifications are created transactionally and idempotently for room creation, individual and batch invoice issuance, and staff role/access changes. The web console now exposes these items in a แจ้งเตือน screen with read-state updates. The API only returns/updates items owned by the session user.
+
+Implemented role-scoped LINE OA RAG help. The webhook verifies signatures and event deduplication, resolves active organization role on the server, filters the in-code Thai help corpus before model context construction, and uses configurable Gemini API/model settings. AI calls use the API key header and do not include tenant/account data. Safe default remains `LINE_CHATBOT_MODE=disabled`; `simulate` never sends LINE replies; `live` requires separately approved UAT.
+
+Migration `0022_clean_the_call.sql` creates the table; `0023_fair_korg.sql` configures cascade cleanup. The isolated PostgreSQL/API coverage script passed with 85.07% line coverage, including inbox idempotency and recipient-isolation smoke. See `docs/LINE_OA_ROLE_HELP_AND_NOTIFICATIONS.md` for contracts, configuration and UAT steps.

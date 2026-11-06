@@ -5,7 +5,9 @@ const lineEvent=z.object({
  webhookEventId:z.string().min(8).max(128),
  type:z.string().min(1).max(64),
  source:z.object({type:z.string(),userId:z.string().optional()}).optional(),
- deliveryContext:z.object({isRedelivery:z.boolean().optional()}).optional()
+ deliveryContext:z.object({isRedelivery:z.boolean().optional()}).optional(),
+ replyToken:z.string().min(1).max(256).optional(),
+ message:z.object({type:z.string().optional(),text:z.string().max(5000).optional()}).optional()
 }).passthrough();
 const webhook=z.object({
  destination:z.string().regex(BOT_USER),
@@ -13,7 +15,7 @@ const webhook=z.object({
 });
 export type MinimalLineEvent={
  webhookEventId:string;eventType:string;redelivery:boolean;
- sourceLineUserId:string|null
+ sourceLineUserId:string|null;replyToken:string|null;messageText:string|null
 };
 export function verifyLineSignature(raw:Buffer,signature:string|undefined,secret:string):boolean{
  if(!secret||!signature||!/^[a-zA-Z0-9+/]{43}=$/.test(signature))return false;
@@ -30,7 +32,8 @@ export function parseLineWebhook(raw:Buffer):{destination:string;events:MinimalL
  return {destination:envelope.destination,events:envelope.events.map(e=>({
   webhookEventId:e.webhookEventId,eventType:e.type,
   redelivery:e.deliveryContext?.isRedelivery===true,
-  sourceLineUserId:e.source?.type==="user"&&e.source.userId?.match(BOT_USER)?e.source.userId:null
+  sourceLineUserId:e.source?.type==="user"&&e.source.userId?.match(BOT_USER)?e.source.userId:null,
+  replyToken:e.replyToken??null,messageText:e.message?.type==="text"?e.message.text??null:null
  }))};
 }
 export type SendStatus="ACCEPTED"|"RETRY"|"DEAD";

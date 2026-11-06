@@ -340,3 +340,23 @@ Implementation verified: sanitized private image upload/list/download on mainten
 - DEV smoke: public Web, `/healthz`, `/readyz` = 200; unsigned LINE webhook = 401; certificates verified; no live LINE calls.
 - LINE login diagnostic: provider rejection handling was exercised only with a synthetic invalid token and logged `providerStatus=400`, `providerError=invalid_request`; no token or secret appeared in the warning. This is not evidence for the user's real login attempt. The LIFF/API channel prefix matches; prior real attempts predated this diagnostic and cannot be attributed more specifically. Re-test from LINE after deployment to read the sanitized provider reason.
 - External LINE user/device login acceptance remains pending. LINE outbound remains disabled; production untouched.
+
+## 2026-11-05 — notifications and LINE help follow-up
+
+| Task ID | Phase | Status | Files changed | Tests executed | Evidence | External dependency | Commit SHA | Deployment status |
+|---|---|---|---|---|---|---|---|---|
+| P5-NOTIFY-INBOX | P5/P6 | DONE (code; DEV UAT pending) | `apps/api/src/db/schema.ts`, migrations `0022`–`0023`, `apps/api/src/services/org-notifications.ts`, `apps/api/src/routes/notifications.ts`, room/billing/staff routes, `apps/web/src/components/NotificationsInbox.tsx`, `apps/web/src/main.tsx` | API tests, full regression and E2E verification recorded below | Recipient-scoped inbox; event fan-out and inbox read are owner-bound; idempotent transaction key; disposable PostgreSQL migration/API coverage passed | DEV UAT using distinct owner/staff accounts | — | Not deployed in this task |
+| P4-LINE-HELP-RAG | P4 | DONE (code; live provider UAT pending) | `apps/api/src/services/line-help-rag.ts`, `apps/api/src/services/line-oa.ts`, `apps/api/src/routes/line-oa.ts`, `apps/api/src/config.ts`, `.env.example` | API tests, lint/typecheck and E2E verification recorded below | Role-filtered retrieval before AI context; organization-scoped role lookup; provider key sent in header; default chatbot mode is disabled and live dispatch has a second approval flag; Gemini mock tests pass | `LINE_HELP_AI_API_KEY`, provider quota/model availability, approved LINE reply UAT | — | Not deployed; LINE replies remain disabled |
+
+Verification for this change: `corepack pnpm coverage:api:postgres` passed on an isolated disposable PostgreSQL database with `POSTGRES_HTTP_COVERAGE_PASS`; The first post-change coverage run measured 84.96% (6,102/7,182); final coverage including the notification PostgreSQL smoke is recorded below. The initial run caught an organization deletion FK issue; the notification references were changed to cascade and the rerun passed. No real LINE or Gemini provider dispatch was performed.
+
+Final verification for 2026-11-05 implementation:
+
+- `corepack pnpm lint` — PASS, zero errors/warnings.
+- `corepack pnpm typecheck` — PASS.
+- `corepack pnpm test` — PASS, 56 test files / 291 tests.
+- `corepack pnpm test:e2e` — PASS, 39 browser tests on desktop, mobile 390px and mobile 320px; includes notification inbox/read-state flow.
+- `corepack pnpm coverage:api:postgres` — PASS on disposable PostgreSQL; migration compatibility and HTTP smoke gates passed; API line coverage 85.07% (6,127/7,202), statements 85.07%, functions 86.43%. The added isolated inbox smoke verified idempotent fan-out, authenticated read, and cross-user read denial.
+- `git diff --check` — see final repository review below; no commit or deployment performed.
+
+Real Gemini/LINE provider UAT remains external and unverified. The application stays in `LINE_CHATBOT_MODE=disabled` and `LINE_OUTBOUND_MODE=disabled` unless deployment secrets and explicit live-reply approval are provided.

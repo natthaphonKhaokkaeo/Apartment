@@ -7,7 +7,7 @@ import {parseSatang} from "./money.js";
 import React,{useEffect,useState,useCallback} from "react";
 import {createRoot} from "react-dom/client";
 import liff from "@line/liff";
-import {Building2,LayoutDashboard,DoorOpen,ReceiptText,Gauge,Settings,ShieldCheck,LogOut,ChevronDown,CheckCircle2,AlertTriangle,Wallet,Users,Menu,Wrench,UserRound} from "lucide-react";
+import {Building2,LayoutDashboard,DoorOpen,ReceiptText,Gauge,Settings,ShieldCheck,LogOut,ChevronDown,CheckCircle2,AlertTriangle,Wallet,Users,Menu,Wrench,UserRound,Bell} from "lucide-react";
 import {OwnerInvitations} from "./components/OwnerInvitations.js";
 import {TenantPortal} from "./components/TenantPortal.js";
 import {PropertyOperationsReports} from "./components/PropertyOperationsReports.js";
@@ -19,6 +19,7 @@ import {PaymentCenter} from "./components/PaymentCenter.js";
 import {StaffManagement,StaffInviteClaim,StaffMeterReadings} from "./components/StaffManagement.js";
 import {MaintenanceCenter} from "./components/MaintenanceCenter.js";
 import {BulkBillingCenter} from "./components/BulkBillingCenter.js";
+import {NotificationsInbox} from "./components/NotificationsInbox.js";
 import "./styles.css";
 type Organization={id:string;name:string;status:string};
 type Property={id:string;name:string;organizationId:string;address:string;rentSatang:number;waterSatangPerUnit:number;electricSatangPerUnit:number;cadence:string;rollingAnchor:string|null;complianceReviewedAt:string|null};
@@ -28,9 +29,9 @@ type Room={id:string;number:string;floor:number;status:string;rentOverrideSatang
 type Invoice={id:string;roomId:string;amountSatang:number;periodStart:string;periodEnd:string;dueDate:string;status:string;createdAt:string};
 type Me={id:string;name:string;role:string;memberships?:{organizationId:string;role:"OWNER"|"MANAGER"|"STAFF"}[];
  propertyGrants?:{propertyId:string;level:"VIEWER"|"METER_READER"}[]};
-type Section="overview"|"rooms"|"meter"|"billing"|"payments"|"maintenance"|"invites"|"staff"|"tenant"|"settings"|"admin"|"profile";
+type Section="overview"|"notifications"|"rooms"|"meter"|"billing"|"payments"|"maintenance"|"invites"|"staff"|"tenant"|"settings"|"admin"|"profile";
 const sections:[Section,string,React.ReactNode][]=[
- ["overview","ภาพรวม",<LayoutDashboard size={19}/>],["rooms","ห้องพัก",<DoorOpen size={19}/>],
+ ["overview","ภาพรวม",<LayoutDashboard size={19}/>],["notifications","แจ้งเตือน",<Bell size={19}/>],["rooms","ห้องพัก",<DoorOpen size={19}/>],
  ["meter","จดมิเตอร์",<Gauge size={19}/>],["billing","ออกบิล",<ReceiptText size={19}/>],
  ["payments","รับชำระเงิน",<Wallet size={19}/>],["maintenance","ซ่อมบำรุง",<Wrench size={19}/>],
  ["invites","เชิญผู้เช่า",<Users size={19}/>],
@@ -301,6 +302,7 @@ function App(){
     {success&&<div className="notice success" role="status"><CheckCircle2 size={18}/>{success}</div>}
     {!me?<div className="welcome"><div className="welcome-art"><Building2 size={48}/></div><h2>หอพักของคุณ จัดการง่ายในที่เดียว</h2><p>ดูห้องพัก จดน้ำไฟ ออกบิลใน LINE OA อย่างเป็นระบบและปลอดภัย</p><button className="btn primary large" disabled={lineBusy} onClick={()=>void login()}>{lineBusy?"กำลังเชื่อมต่อ...":"เข้าสู่ระบบด้วย LINE"}</button><small>ระบบจะตรวจสอบ LINE ID Token จากฝั่งเซิร์ฟเวอร์ก่อนเข้าสู่ระบบ</small></div>:
     <>
+    {section==="notifications"&&<NotificationsInbox api={api}/>}
     {orgs.length===0&&section==="overview"&&<Panel title="สร้างบัญชีเจ้าของหอพัก" subtitle="ผู้ใช้หนึ่งคนสามารถมีหลายบัญชีและหลายหอพักได้">{form(createOrg,<Field label="ชื่อบัญชีเจ้าของ"><input name="name" required minLength={2} placeholder="เช่น บริษัท บ้านรุ่งเรือง"/></Field>)}</Panel>}
     {orgId&&props.length===0&&!isStaff&&section!=="tenant"&&<Panel title="เพิ่มหอพักแห่งแรก" subtitle="ตั้งราคา Master ที่ทุกห้องจะได้รับโดยอัตโนมัติ">{form(createProperty,<><Field label="ชื่อหอพัก"><input name="name" required placeholder="บ้านสุขใจ"/></Field><Field label="ที่อยู่"><input name="address" placeholder="ที่อยู่หอพัก"/></Field>
       <div className="cols3"><Field label="ค่าเช่า / เดือน (บาท) · ค่าเริ่มต้นหอพัก (แก้รายห้องได้)"><input name="rent" type="number" step=".01" min="0" required defaultValue="4000"/></Field><Field label="ค่าน้ำ / หน่วย (บาท) · ค่าเริ่มต้นหอพัก (แก้รายห้องได้)"><input name="water" type="number" step=".01" min="0" required defaultValue="18"/></Field><Field label="ค่าไฟ / หน่วย (บาท) · ค่าเริ่มต้นหอพัก (แก้รายห้องได้)"><input name="electric" type="number" step=".01" min="0" required defaultValue="4"/></Field></div>
