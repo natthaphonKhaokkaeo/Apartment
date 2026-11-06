@@ -504,3 +504,8 @@ Latest verification: lint/typecheck passed, full unit suite 291/291 passed, brow
 - `DEV_DEPLOY_PASS`; migration checks, backup checksum/encryption/retention/monitoring, isolated restore drill, public HTTPS web/API health/ready and unsigned-webhook denial all passed. API, web, and observer are healthy; PostgreSQL was not restarted.
 - Lint/typecheck passed, 291/291 unit tests and 39/39 browser E2E passed, PostgreSQL inbox/IDOR smoke passed, API line coverage 85.07%.
 - Continue role-separated DEV UAT for notification recipients and LINE help answers. `LINE_HELP_AI_API_KEY` is missing and bot/live outbound remain disabled; do not claim provider UAT.
+
+## LINE runtime handoff (2026-11-06)
+- DEV LINE direct-chat bot is live under explicit approval. Runtime credential check passed via read-only Bot Info (200; Bot ID matched); no message was sent. Containers are healthy.
+- Local role-filtered help answers are active. Add `LINE_HELP_AI_API_KEY` in Dokploy before testing generated AI answers.
+- Automatic notification outbox sending remains disabled/observe-only; enabling it requires a separate reviewed rollout after inspecting pending queue and recipients.

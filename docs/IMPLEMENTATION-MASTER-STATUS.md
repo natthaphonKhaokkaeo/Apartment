@@ -366,3 +366,8 @@ Real Gemini/LINE provider UAT remains external and unverified. The application s
 - Quality gates: lint, typecheck, 291/291 unit tests, 39/39 Playwright E2E, and PostgreSQL notification smoke passed; API line coverage 85.07%.
 - Deployment: `DEV_DEPLOY_PASS`; migrations and observer safe-mode checks passed; backup checksum/encryption/retention/monitoring and isolated restore drill passed; public web/API health/ready and unsigned-webhook denial smoke passed.
 - API, web, and LINE observer containers are healthy. PostgreSQL was not restarted. No real LINE message was sent. `LINE_HELP_AI_API_KEY` is not configured, so chatbot remains disabled.
+
+## 2026-11-06 LINE chatbot activation
+- DEV LINE direct-chat replies are live with explicit approval (`LINE_CHATBOT_MODE=live`, `LINE_CHATBOT_LIVE_APPROVED=true` in the protected runtime environment). LINE Bot Info read-only validation returned 200 and matched the configured bot ID; no test message was sent. API/Web/observer containers are healthy.
+- `LINE_HELP_AI_API_KEY` is absent, so answers currently come from the local role-filtered help corpus; generated AI answers still require provider-key configuration and UAT.
+- General LINE outbox dispatch remains disabled (`LINE_OUTBOUND_MODE=disabled`; observer pinned to observe-only), so automatic bill/permission notifications are not yet sent through LINE.

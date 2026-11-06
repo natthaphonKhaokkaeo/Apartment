@@ -294,3 +294,8 @@ Migration `0022_clean_the_call.sql` creates the table; `0023_fair_korg.sql` conf
 - Lint/typecheck, 291/291 unit tests, 39/39 Playwright E2E, PostgreSQL notification smoke, and 85.07% API line coverage passed.
 - Backup checksum/encryption/retention/monitoring and isolated restore drill passed; migrations and public HTTPS smoke passed. API, web, and LINE observer containers are healthy; PostgreSQL was not restarted.
 - LINE real dispatch remains disabled; Gemini-compatible API key is not configured.
+
+## LINE runtime status (2026-11-06)
+- DEV direct chatbot replies are live and LINE credentials were verified through read-only Bot Info (200, Bot ID matched); no test message was sent.
+- Without `LINE_HELP_AI_API_KEY`, replies use role-filtered local help corpus. AI provider response UAT remains pending.
+- General LINE notification outbox remains disabled and observe-only.
