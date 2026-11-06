@@ -24,7 +24,7 @@ export function sanitizeHelpQuestion(question:string){
   .replace(/U[0-9a-f]{32}/gi,"[ข้อมูลส่วนบุคคล]");
 }
 export async function answerRoleHelp(options:{question:string;role:HelpRole;apiKey?:string;provider?:"google"|"openrouter";model?:string;fetcher?:typeof fetch}){
- const wantsSteps=/(วิธี|ขั้นตอน|สอน|ทำยังไง|อย่างไร|คู่มือ|เริ่มต้น|how to|flow|แนะนำการใช้)/i.test(options.question);
+ const wantsSteps=/(วิธี|ขั้นตอน|สอน|ทำยังไง|ยังไง|อย่างไร|คู่มือ|เริ่มต้น|how to|flow|แนะนำการใช้)/i.test(options.question);
  const flow=wantsSteps?findUsageFlow(options.question,options.role):null;
  if(flow)return {answer:flow.answer,sourceIds:[flow.id]};
  const matches=retrieveRoleHelp(options.question,options.role);

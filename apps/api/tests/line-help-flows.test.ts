@@ -14,3 +14,15 @@ describe("super admin help access",()=>{
  it("can read tenant repair walkthrough",()=>{expect(findUsageFlow("ขั้นตอนแจ้งซ่อม","SUPER_ADMIN")?.id).toBe("tenant-repair");});
  it("keeps public role restricted",()=>{expect(findUsageFlow("ขั้นตอนแจ้งซ่อม","PUBLIC")).toBeNull();});
 });
+
+describe("natural-language billing notification setup",()=>{
+ for(const question of ["ตั้งค่าแจ้งบิลผ่านไลน์ ยังไง","วิธีตั้งค่าแจ้งเตือนบิลผ่าน LINE OA"]){
+  it(`answers ${question} consistently`,async()=>{
+   for(const role of ["PUBLIC","OWNER","SUPER_ADMIN"] as const){
+    const result=await answerRoleHelp({question,role});
+    expect(result.sourceIds).toContain("line-notify");
+    expect(result.answer).toContain("Webhook");
+   }
+  });
+ }
+});
