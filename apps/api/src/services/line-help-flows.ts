@@ -18,7 +18,7 @@ const guides:Guide[]=[
 ];
 export function findUsageFlow(question:string,role:HelpRole){
  const q=question.toLocaleLowerCase().trim();
- const candidates=guides.filter(g=>g.roles.includes(role)).map(g=>({guide:g,score:g.terms.reduce((n,t)=>n+(q.includes(t.toLocaleLowerCase())?t.length:0),0)})).filter(x=>x.score>0).sort((a,b)=>b.score-a.score);
+ const candidates=guides.filter(g=>role==="SUPER_ADMIN"||g.roles.includes(role)).map(g=>({guide:g,score:g.terms.reduce((n,t)=>n+(q.includes(t.toLocaleLowerCase())?t.length:0),0)})).filter(x=>x.score>0).sort((a,b)=>b.score-a.score);
  const guide=candidates[0]?.guide;
  if(!guide)return null;
  return {id:guide.id,answer:`📘 วิธีใช้งาน: ${guide.id.replaceAll("-"," ")}\n\n${guide.steps.map((s,i)=>`${i+1}. ${s}`).join("\n↓\n")}\n\n💡 ข้อควรรู้: ${guide.note}\n\nหากติดขั้นตอนไหน พิมพ์ชื่อขั้นตอนหรือปัญหาที่พบเพื่อถามต่อได้`};

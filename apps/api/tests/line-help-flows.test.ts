@@ -8,3 +8,9 @@ describe("LINE usage guides",()=>{
  it("explains LINE billing notifications to managers",()=>{const r=findUsageFlow("ตั้งค่าแจ้งเตือนบิล LINE OA", "OWNER");expect(r?.answer).toContain("ความยินยอม");});
  it("answers general onboarding without authentication",()=>{expect(findUsageFlow("เริ่มต้นใช้งานระบบ","PUBLIC")?.answer).toContain("เข้าสู่ระบบ");});
 });
+
+describe("super admin help access",()=>{
+ it("can read tenant billing walkthrough",()=>{expect(findUsageFlow("วิธีชำระเงิน","SUPER_ADMIN")?.id).toBe("tenant-bill");});
+ it("can read tenant repair walkthrough",()=>{expect(findUsageFlow("ขั้นตอนแจ้งซ่อม","SUPER_ADMIN")?.id).toBe("tenant-repair");});
+ it("keeps public role restricted",()=>{expect(findUsageFlow("ขั้นตอนแจ้งซ่อม","PUBLIC")).toBeNull();});
+});

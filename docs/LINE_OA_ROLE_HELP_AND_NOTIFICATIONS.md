@@ -63,3 +63,7 @@ The provider API key is runtime secret material. Keep it in the deployment secre
 ## LINE chatbot step-by-step usage flows
 
 The bot recognizes Thai how-to requests (`วิธี`, `ขั้นตอน`, `สอน`, `ทำยังไง`, `คู่มือ`, `flow`) and returns a numbered, arrow-separated walkthrough and a safety note. Guides are role-scoped: public onboarding and login, tenant invoices and repairs, administrator rooms/leases/billing/payment reviews/LINE notifications/reports, and owner/manager staff access. Private tenant balances and repair records continue to use verified active-lease lookups, not help retrieval or external LLM context. Non-how-to questions continue through the existing role-scoped help and AI fallback. Add or revise guide steps in `apps/api/src/services/line-help-flows.ts` and cover role boundaries in `apps/api/tests/line-help-flows.test.ts`.
+
+### Super Admin help scope
+
+Verified `SUPER_ADMIN` can ask for **all usage documentation**, including tenant-only help flows, without changing the caller's identity or granting private tenant DB access. Personal billing/maintenance data still requires an active lease bound to the requesting LINE user. The bot does not treat self-declared role text as authentication.

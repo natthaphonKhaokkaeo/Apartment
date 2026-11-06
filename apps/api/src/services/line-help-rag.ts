@@ -15,7 +15,7 @@ const docs:HelpDocument[]=[
 function tokens(s:string):string[]{return (s.toLocaleLowerCase().match(/[a-z0-9]+|[ก-๙]{2,}/g)||[]).filter(x=>x.length>1)}
 export function retrieveRoleHelp(question:string,role:HelpRole){
  const q=tokens(question);if(!q.length)return [];
- return docs.filter(d=>d.roles.includes(role)).map(d=>({id:d.id,answer:d.answer,score:d.keywords.reduce((n,k)=>n+(q.some(t=>k.toLocaleLowerCase().includes(t)||t.includes(k.toLocaleLowerCase()))?1:0),0)})).filter(x=>x.score>0).sort((a,b)=>b.score-a.score).slice(0,3);
+ return docs.filter(d=>role==="SUPER_ADMIN"||d.roles.includes(role)).map(d=>({id:d.id,answer:d.answer,score:d.keywords.reduce((n,k)=>n+(q.some(t=>k.toLocaleLowerCase().includes(t)||t.includes(k.toLocaleLowerCase()))?1:0),0)})).filter(x=>x.score>0).sort((a,b)=>b.score-a.score).slice(0,3);
 }
 export function sanitizeHelpQuestion(question:string){
  return question.slice(0,1000)
