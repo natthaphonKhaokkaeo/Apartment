@@ -80,3 +80,7 @@ For each incoming LINE text, the backend attempts a bounded AI classification (`
 - A separate read-only, double-verified role-scoped tool exposes only organization-level aggregate counts (property/room/invoice/maintenance statuses) to OWNER, MANAGER, or SUPER_ADMIN. It never includes customer names, identities, payment details, tokens, or secrets.
 - Role filters are resolved from verified LINE identity and active membership; requests cannot select another role by saying so in a message.
 - To teach the bot a new area, add and review a user-safe guide in `docs/help-knowledge` and explicitly authorize it in `apps/api/src/services/line-knowledge.ts`. Never place internal runbooks, environment files, secrets or raw database records in this knowledge directory.
+
+### Live provider fix and fail-safe retrieval
+
+The configured OpenRouter `nvidia/nemotron-3.5-lightning:free` model sometimes returned HTTP 200 with no visible response because reasoning consumed completion tokens. LINE intent and help generation now explicitly request `reasoning.effort=none`. When AI remains unavailable, the bot retrieves the most relevant passages from the same role-authorized help knowledge (not a blanket no-match reply). Pasted access tokens and credential assignments are redacted before being sent to the provider.

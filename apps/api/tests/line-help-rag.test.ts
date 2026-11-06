@@ -38,7 +38,7 @@ describe("role-scoped LINE help retrieval",()=>{
    expect(headers.get("http-referer")).toBe("https://apartme.makemarket.space");
    const payload=JSON.parse(String(init?.body));
    expect(payload.model).toBe("nvidia/nemotron-3.5-lightning:free");
-   expect(payload.reasoning).toMatchObject({effort:"low",exclude:true});
+   expect(payload.reasoning).toMatchObject({effort:"none",exclude:true});
    expect(payload.messages[0].content).toContain("ROLE=TENANT");
    expect(payload.messages[0].content).toContain("ชำระได้จากเมนู");
    expect(payload.messages[0].content).not.toContain("จัดการสมาชิก");

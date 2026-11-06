@@ -44,3 +44,28 @@ describe("role-scoped knowledge augmented answers",()=>{
   expect(await roleSystemFacts({role:"TENANT",accountId:"abc",organizationId:"abc"})).toBe("");
  });
 });
+
+describe("offline semantic guide fallback",()=>{
+ it("finds the correction workflow without exact keyword triggers",async()=>{
+  const result=await answerRoleHelp({question:"เผลอคิดยอดผิด อยากออกกระดาษใบใหม่แต่เก็บของเก่าไว้",role:"OWNER"});
+  expect(result.answer).toContain("แก้ไขและออกบิลใหม่");
+  expect(result.sourceIds).toContain("guide-owner");
+ });
+ it("does not retrieve OWNER correction procedures for a tenant",async()=>{
+  const result=await answerRoleHelp({question:"เผลอคิดยอดผิด อยากออกกระดาษใบใหม่แต่เก็บของเก่าไว้",role:"TENANT"});
+  expect(result.answer).not.toContain("OWNER เปิดหน้าแก้ไขบิล");
+ });
+});
+
+describe("sensitive content isolation",()=>{
+ it("redacts user-pasted credentials before AI is called",async()=>{
+  const fetcher=vi.fn(async(_url:RequestInfo|URL,init?:RequestInit)=>{
+   const text=String(init?.body);
+   expect(text).not.toContain("sk-12345678901234567890");
+   expect(text).not.toContain("LINE_MESSAGING_CHANNEL_ACCESS_TOKEN=123456789abcdefgh");
+   return new Response(JSON.stringify({choices:[{message:{content:"ดูขั้นตอนตั้งค่า LINE OA จากหน้า LINE Operations"}}]}),{status:200});
+  });
+  await answerRoleHelp({question:"วิธีตั้งค่า LINE OA sk-12345678901234567890 LINE_MESSAGING_CHANNEL_ACCESS_TOKEN=123456789abcdefgh",role:"OWNER",apiKey:"test",provider:"openrouter",fetcher});
+  expect(fetcher).toHaveBeenCalledOnce();
+ });
+});
