@@ -34,7 +34,7 @@ export async function answerRoleHelp(options:{question:string;role:HelpRole;apiK
  if(flow&&!options.apiKey)return {answer:flow.answer,sourceIds:[flow.id]};
  const matches=retrieveRoleHelp(options.question,options.role);
  const articles=roleKnowledge(options.role);
- const sourceIds=matches.length?matches.map(x=>x.id):articles.map(x=>x.id);
+
  const fallback={answer:"ขออภัย ยังไม่พบคำตอบในคู่มือระบบ กรุณาติดต่อผู้ดูแลหอพักหรือบริษัท",sourceIds:[] as string[]};
  const safeQuestion=sanitizeHelpQuestion(options.question)
   .replace(/(?:sk-[A-Za-z0-9_-]{12,}|Bearer\s+[A-Za-z0-9._~-]{12,})/gi,"[ข้อมูลลับ]");
@@ -42,11 +42,13 @@ export async function answerRoleHelp(options:{question:string;role:HelpRole;apiK
  if(bankPrivacy)return {answer:"ไม่สามารถเปิดเผยข้อมูลบัญชีธนาคารของผู้อื่นได้ กรุณาติดต่อผู้ดูแลหอพักผ่านช่องทางที่ยืนยันตัวตน",sourceIds:[] as string[]};
  const exposedSecret=/(?:ขอ|แสดง|ดึง|ส่ง|เปิดเผย|ดูค่า|บอกค่า|ขโมย).{0,45}(?:api.?key|secret|access.?token|private.?key|password|รหัสผ่าน|คีย์ลับ|โทเคน)/i.test(safeQuestion);
  if(exposedSecret)return {answer:"ไม่สามารถเปิดเผยรหัสผ่าน โทเคน หรือ Secret จากระบบได้ กรุณาใช้ช่องทางจัดการข้อมูลลับที่ได้รับอนุญาต",sourceIds:[] as string[]};
- const nearby=retrieveRoleKnowledge(options.question,options.role);
+ const nearby=retrieveRoleKnowledge(options.question,options.role,3);
+ const chosen=nearby.length?nearby.map(x=>({id:x.id,text:x.answer})):articles;
+ const sourceIds=matches.length?matches.map(x=>x.id):[...new Set(chosen.map(x=>x.id))];
  const offline=()=>flow?{answer:flow.answer,sourceIds:[flow.id]}:matches.length?
   {answer:matches.map(x=>x.answer).join("\n"),sourceIds:matches.map(x=>x.id)}:nearby.length?
   {answer:"จากคู่มือระบบ:\n"+nearby.map(x=>x.answer).join("\n\n"),sourceIds:nearby.map(x=>x.id)}:fallback;
- const context=[...matches.map(x=>x.answer),...articles.map(x=>`[${x.id}]\n${x.text}`),
+ const context=[...matches.map(x=>x.answer),...chosen.map(x=>`[${x.id}]\n${x.text}`),
   ...(options.facts?[`[verified-live-aggregates]\n${options.facts.slice(0,1200)}`]:[])].join("\n\n").slice(0,15500);
  if(!options.apiKey)return offline();
  if(!context)return fallback;
@@ -54,14 +56,14 @@ export async function answerRoleHelp(options:{question:string;role:HelpRole;apiK
  try{
   let response:Response;
   if(options.provider==="openrouter"){
-   response=await (options.fetcher||fetch)("https://openrouter.ai/api/v1/chat/completions",{method:"POST",headers:{"content-type":"application/json",Authorization:`Bearer ${options.apiKey}`,"HTTP-Referer":"https://apartme.makemarket.space","X-Title":"Apartment Help Bot"},body:JSON.stringify({model:options.model||"nvidia/nemotron-3.5-lightning:free",messages:[{role:"user",content:prompt}],temperature:0.1,max_tokens:1024,reasoning:{effort:"none",exclude:true}}),signal:AbortSignal.timeout(8000)});
+   response=await (options.fetcher||fetch)("https://openrouter.ai/api/v1/chat/completions",{method:"POST",headers:{"content-type":"application/json",Authorization:`Bearer ${options.apiKey}`,"HTTP-Referer":"https://apartme.makemarket.space","X-Title":"Apartment Help Bot"},body:JSON.stringify({model:options.model||"nvidia/nemotron-3.5-lightning:free",messages:[{role:"user",content:prompt}],temperature:0.1,max_tokens:1024,reasoning:{effort:"none",exclude:true}}),signal:AbortSignal.timeout(15000)});
    if(!response.ok)throw new Error("AI_PROVIDER_ERROR");
    const data=await response.json() as {choices?:{message?:{content?:string|{text?:string}[]}}[]};
    const content=data.choices?.[0]?.message?.content;
    const answer=typeof content==="string"?content:Array.isArray(content)?content.map(part=>part.text||"").join(""):"";
    if(answer.trim()&&!/sk-[A-Za-z0-9_-]{12,}|Bearer\s+[A-Za-z0-9._~-]{12,}/i.test(answer))return {answer:answer.trim().slice(0,1200),sourceIds};
   }else{
-   response=await (options.fetcher||fetch)(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(options.model||"gemini-3.8-flash")}:generateContent`,{method:"POST",headers:{"content-type":"application/json","x-goog-api-key":options.apiKey},body:JSON.stringify({contents:[{parts:[{text:prompt}]}],generationConfig:{temperature:0.1,maxOutputTokens:240}}),signal:AbortSignal.timeout(8000)});
+   response=await (options.fetcher||fetch)(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(options.model||"gemini-3.8-flash")}:generateContent`,{method:"POST",headers:{"content-type":"application/json","x-goog-api-key":options.apiKey},body:JSON.stringify({contents:[{parts:[{text:prompt}]}],generationConfig:{temperature:0.1,maxOutputTokens:240}}),signal:AbortSignal.timeout(15000)});
    if(!response.ok)throw new Error("AI_PROVIDER_ERROR");
    const data=await response.json() as {candidates?:{content?:{parts?:{text?:string}[]}}[]};
    const answer=data.candidates?.[0]?.content?.parts?.map(p=>p.text||"").join("").trim();
