@@ -22,19 +22,29 @@ export function sanitizeHelpQuestion(question:string){
   .replace(/\+?\d[\d\s().-]{7,}\d/g,"[ข้อมูลส่วนบุคคล]")
   .replace(/U[0-9a-f]{32}/gi,"[ข้อมูลส่วนบุคคล]");
 }
-export async function answerRoleHelp(options:{question:string;role:HelpRole;apiKey?:string;model?:string;fetcher?:typeof fetch}){
+export async function answerRoleHelp(options:{question:string;role:HelpRole;apiKey?:string;provider?:"google"|"openrouter";model?:string;fetcher?:typeof fetch}){
  const matches=retrieveRoleHelp(options.question,options.role);
  if(!matches.length)return {answer:"ขออภัย ยังไม่พบคำตอบในคู่มือระบบ กรุณาติดต่อผู้ดูแลหอพักหรือบริษัท",sourceIds:[] as string[]};
- const context=matches.map(x=>x.answer).join("\n");
+ const context=matches.map(x=>x.answer).join("\\n");
  const safeQuestion=sanitizeHelpQuestion(options.question);
  if(!options.apiKey)return {answer:context,sourceIds:matches.map(x=>x.id)};
- const model=options.model||"gemini-3.8-flash";
+ const prompt=`ตอบเป็นภาษาไทยสั้น ๆ โดยอิงเฉพาะคู่มือใน CONTEXT ห้ามเดาสิทธิหรือข้อมูลบัญชี ถ้าไม่มีคำตอบให้บอกให้ติดต่อผู้ดูแล\\nROLE=${options.role}\\nCONTEXT:\\n${context}\\nQUESTION:\\n${safeQuestion}`;
  try{
-  const response=await (options.fetcher||fetch)(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,{method:"POST",headers:{"content-type":"application/json","x-goog-api-key":options.apiKey},body:JSON.stringify({contents:[{parts:[{text:`ตอบเป็นภาษาไทยสั้น ๆ โดยอิงเฉพาะคู่มือใน CONTEXT ห้ามเดาสิทธิหรือข้อมูลบัญชี ถ้าไม่มีคำตอบให้บอกให้ติดต่อผู้ดูแล\nROLE=${options.role}\nCONTEXT:\n${context}\nQUESTION:\n${safeQuestion}`}]}],generationConfig:{temperature:0.1,maxOutputTokens:240}}),signal:AbortSignal.timeout(8000)});
-  if(!response.ok)throw new Error("AI_PROVIDER_ERROR");
-  const data=await response.json() as {candidates?:{content?:{parts?:{text?:string}[]}}[]};
-  const answer=data.candidates?.[0]?.content?.parts?.map(p=>p.text||"").join("").trim();
-  if(answer)return {answer:answer.slice(0,1200),sourceIds:matches.map(x=>x.id)};
- }catch{/* Use retrieved official help text when the free-tier provider is unavailable. */}
+  let response:Response;
+  if(options.provider==="openrouter"){
+   response=await (options.fetcher||fetch)("https://openrouter.ai/api/v1/chat/completions",{method:"POST",headers:{"content-type":"application/json",Authorization:`Bearer ${options.apiKey}`,"HTTP-Referer":"https://apartme.makemarket.space","X-Title":"Apartment Help Bot"},body:JSON.stringify({model:options.model||"nvidia/nemotron-3.5-lightning:free",messages:[{role:"user",content:prompt}],temperature:0.1,max_tokens:1024,reasoning:{effort:"low",exclude:true}}),signal:AbortSignal.timeout(8000)});
+   if(!response.ok)throw new Error("AI_PROVIDER_ERROR");
+   const data=await response.json() as {choices?:{message?:{content?:string|{text?:string}[]}}[]};
+   const content=data.choices?.[0]?.message?.content;
+   const answer=typeof content==="string"?content:Array.isArray(content)?content.map(part=>part.text||"").join(""):"";
+   if(answer.trim())return {answer:answer.trim().slice(0,1200),sourceIds:matches.map(x=>x.id)};
+  }else{
+   response=await (options.fetcher||fetch)(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(options.model||"gemini-3.8-flash")}:generateContent`,{method:"POST",headers:{"content-type":"application/json","x-goog-api-key":options.apiKey},body:JSON.stringify({contents:[{parts:[{text:prompt}]}],generationConfig:{temperature:0.1,maxOutputTokens:240}}),signal:AbortSignal.timeout(8000)});
+   if(!response.ok)throw new Error("AI_PROVIDER_ERROR");
+   const data=await response.json() as {candidates?:{content?:{parts?:{text?:string}[]}}[]};
+   const answer=data.candidates?.[0]?.content?.parts?.map(p=>p.text||"").join("").trim();
+   if(answer)return {answer:answer.slice(0,1200),sourceIds:matches.map(x=>x.id)};
+  }
+ }catch{/* Use retrieved official help text when the provider is unavailable. */}
  return {answer:context,sourceIds:matches.map(x=>x.id)};
 }

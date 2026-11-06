@@ -297,5 +297,5 @@ Migration `0022_clean_the_call.sql` creates the table; `0023_fair_korg.sql` conf
 
 ## LINE runtime status (2026-11-06)
 - DEV direct chatbot replies are live and LINE credentials were verified through read-only Bot Info (200, Bot ID matched); no test message was sent.
-- Without `LINE_HELP_AI_API_KEY`, replies use role-filtered local help corpus. AI provider response UAT remains pending.
+- OpenRouter key/model are configured in the protected runtime env and a real provider call returned a generated role-scoped answer. Provider failures fall back to the local help corpus; actual LINE conversation UAT is pending.
 - General LINE notification outbox remains disabled and observe-only.

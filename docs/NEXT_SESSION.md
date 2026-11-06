@@ -495,7 +495,7 @@ A signed synthetic empty LINE webhook now reaches the deployed HTTPS route and p
 - Organization notification inbox is implemented for room creation, invoice issuance (single and batch), and staff role/access changes. UI route/menu is **แจ้งเตือน**; API is `GET /v1/notifications` and `POST /v1/notifications/:notificationId/read`.
 - Role-filtered LINE OA support bot is implemented with a local support corpus and configurable Gemini-compatible model. `LINE_CHATBOT_MODE` defaults to `disabled`; do not enable `live` until the API key, channel configuration and operator approval are in place.
 - Migration/API integration verification passed with `corepack pnpm coverage:api:postgres` against a disposable PostgreSQL container (84.96% API line coverage). Unit/full suite, lint, typecheck and browser E2E status are recorded in the master status.
-- Remaining external UAT: set `LINE_HELP_AI_API_KEY` in the secret store; test simulate mode; approve and separately test live reply in the intended LINE OA; verify inbox visibility and IDOR isolation with distinct DEV users. Live dispatch was not performed; the feature commit was deployed to DEV with chatbot/outbound still disabled.
+- Remaining external UAT: send a controlled LINE question from a verified test user to confirm the deployed live chatbot reply and role assignment. Do not send bulk notification outbox messages; that worker remains observe-only.
 
 Latest verification: lint/typecheck passed, full unit suite 291/291 passed, browser E2E 39/39 passed at desktop/390px/320px, and disposable PostgreSQL/API coverage passed at 85.07%, including the notification inbox IDOR smoke. Deployment and migration completed; run role-separated inbox UAT before enabling any live provider behavior. Real Gemini/LINE provider use has not been exercised; chatbot and outbound dispatch remain disabled by default.
 
@@ -503,9 +503,9 @@ Latest verification: lint/typecheck passed, full unit suite 291/291 passed, brow
 - Commit `4bcc514bc574999350a4f98a18f31e020af1cc0c` is pushed to `origin/main` and deployed to DEV.
 - `DEV_DEPLOY_PASS`; migration checks, backup checksum/encryption/retention/monitoring, isolated restore drill, public HTTPS web/API health/ready and unsigned-webhook denial all passed. API, web, and observer are healthy; PostgreSQL was not restarted.
 - Lint/typecheck passed, 291/291 unit tests and 39/39 browser E2E passed, PostgreSQL inbox/IDOR smoke passed, API line coverage 85.07%.
-- Continue role-separated DEV UAT for notification recipients and LINE help answers. `LINE_HELP_AI_API_KEY` is missing and bot/live outbound remain disabled; do not claim provider UAT.
+- Continue role-separated DEV UAT for notification recipients and LINE help answers. OpenRouter provider smoke passed; chatbot live mode is approved. The general notification outbox remains disabled.
 
 ## LINE runtime handoff (2026-11-06)
 - DEV LINE direct-chat bot is live under explicit approval. Runtime credential check passed via read-only Bot Info (200; Bot ID matched); no message was sent. Containers are healthy.
-- Local role-filtered help answers are active. Add `LINE_HELP_AI_API_KEY` in Dokploy before testing generated AI answers.
+- OpenRouter-generated role-scoped answers are active, with local-corpus fallback on provider failure. Test with verified DEV users before accepting user-facing behavior.
 - Automatic notification outbox sending remains disabled/observe-only; enabling it requires a separate reviewed rollout after inspecting pending queue and recipients.

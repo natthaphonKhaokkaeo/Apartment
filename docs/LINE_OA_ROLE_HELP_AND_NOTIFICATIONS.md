@@ -30,25 +30,26 @@ Configuration:
 ```dotenv
 LINE_CHATBOT_MODE=disabled
 LINE_CHATBOT_LIVE_APPROVED=false
+LINE_HELP_AI_PROVIDER=openrouter
 LINE_HELP_AI_API_KEY=
-LINE_HELP_AI_MODEL=gemini-3.8-flash
+LINE_HELP_AI_MODEL=nvidia/nemotron-3.5-lightning:free
 ```
 
 - `disabled` (default): persist/deduplicate webhook events; do not run the bot or send replies.
 - `simulate`: process a role-scoped answer but do not send a LINE reply. An AI key is optional; without it, the bot returns retrieved help text.
 - `live`: reply to eligible direct user text messages through LINE Messaging API only when both `LINE_CHATBOT_MODE=live` and `LINE_CHATBOT_LIVE_APPROVED=true` are explicitly configured. This requires an approved operational change, a valid channel access token, webhook configuration, and provider testing. Do not set these values as part of a routine deploy.
 
-The provider API key is runtime secret material. Keep it in the deployment secret store, never in source control or logs. Email, phone-like numbers, and LINE user IDs are redacted from the question before a provider call. The default model is configurable. Google currently lists [Gemini 3.8 Flash](https://ai.google.dev/gemini-api/docs/pricing) with a free tier, but provider account eligibility/rates can vary; the provider free tier also states submitted content may be used to improve its products, so do not send sensitive tenant/account or payment data. The automated tests use mocked provider responses and do not demonstrate real LINE or AI provider acceptance.
+The provider API key is runtime secret material. Keep it in the deployment secret store, never in source control or logs. Email, phone-like numbers, and LINE user IDs are redacted before provider calls; only the sanitized question and role-filtered help articles are sent. The provider and model are configurable. OpenRouter uses its OpenAI-compatible chat completions endpoint and Bearer authorization. OpenRouter's `openrouter/free` router selects among available free models; free model variants have usage limits, and availability can change. The automated tests use mocked responses; the DEV provider smoke separately verifies a real OpenRouter response. Do not send sensitive tenant/account or payment data.
 
 ## Operational validation
 
 - Unit tests: `corepack pnpm --filter @apartment/api exec vitest run tests/line-help-rag.test.ts tests/line-oa.test.ts tests/org-notifications.test.ts`
 - Migration is `apps/api/drizzle/0022_clean_the_call.sql`; apply it only through the normal migration pipeline after an isolated PostgreSQL migration check.
 - Verify notification recipient isolation with separate signed-in users during UAT.
-- Default configuration remains disabled. The DEV chatbot has explicit operator approval and is configured for live LINE replies; while `LINE_HELP_AI_API_KEY` is absent, it replies with role-filtered help text from the local corpus. Configure the provider key and run AI-specific UAT before claiming generated AI answers. The general LINE outbox worker remains observe-only and outbound notification dispatch is not enabled.
+- Default configuration remains disabled. The DEV chatbot has explicit operator approval and is configured for live LINE replies with OpenRouter. On provider errors or quota limits, it falls back to role-filtered help text from the local corpus. The general LINE outbox worker remains observe-only and outbound notification dispatch is not enabled.
 
 
 ## DEV runtime status (2026-11-06)
 - `LINE_CHATBOT_MODE=live` and `LINE_CHATBOT_LIVE_APPROVED=true` are set in the protected Dokploy runtime environment. LINE credentials were verified with the read-only Bot Info endpoint; the configured bot ID matched. No test message was sent.
-- The API, web, and observer containers are healthy after deploy. The chatbot answers from the local role-filtered corpus until the AI provider key is configured.
+- The API, web, and observer containers are healthy after deploy. OpenRouter is configured as the AI provider; the provider was tested with a role-scoped help query and returned generated text. If it is unavailable, the bot falls back to the local role-filtered corpus.
 - `LINE_OUTBOUND_MODE=disabled`; the observer remains pinned to observe-only. Bill/permission notification fan-out is not being dispatched to LINE yet.

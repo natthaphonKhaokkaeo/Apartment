@@ -33,6 +33,7 @@ const schema = z.object({
  LINE_OUTBOUND_MODE: z.enum(["disabled","simulate","live"]).default("disabled"),
  LINE_CHATBOT_MODE: z.enum(["disabled","simulate","live"]).default("disabled"),
  LINE_CHATBOT_LIVE_APPROVED: z.enum(["true","false"]).default("false").transform(value=>value==="true"),
+ LINE_HELP_AI_PROVIDER: z.enum(["google","openrouter"]).default("google"),
  LINE_HELP_AI_API_KEY: z.string().optional(),
  LINE_HELP_AI_MODEL: z.string().default("gemini-3.8-flash"),
  LINE_GLOBAL_PER_MINUTE: z.coerce.number().int().min(1).max(60).default(20),
