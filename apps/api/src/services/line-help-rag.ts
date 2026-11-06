@@ -35,7 +35,7 @@ export async function answerRoleHelp(options:{question:string;role:HelpRole;apiK
  const matches=retrieveRoleHelp(options.question,options.role);
  const articles=roleKnowledge(options.role);
 
- const fallback={answer:"ขออภัย ยังไม่พบคำตอบในคู่มือระบบ กรุณาติดต่อผู้ดูแลหอพักหรือบริษัท",sourceIds:[] as string[]};
+ const fallback={answer:`ช่วยระบุส่วนที่ต้องการทราบเพิ่มเติมได้ไหม เช่น หน้าจอหรือขั้นตอนที่พบปัญหา? ฉันจะอธิบายจากข้อมูลระบบที่อนุญาตสำหรับบทบาท ${options.role} โดยไม่เปิดเผยข้อมูลส่วนตัวหรือข้อมูลลับ`,sourceIds:[] as string[]};
  const safeQuestion=sanitizeHelpQuestion(options.question)
   .replace(/(?:sk-[A-Za-z0-9_-]{12,}|Bearer\s+[A-Za-z0-9._~-]{12,})/gi,"[ข้อมูลลับ]");
  const bankPrivacy=/(?:บัญชีธนาคาร|เลขบัญชี).{0,20}(?:ของผู้เช่า|ของคนอื่น|ของลูกค้า)/i.test(safeQuestion);
@@ -47,7 +47,8 @@ export async function answerRoleHelp(options:{question:string;role:HelpRole;apiK
  const sourceIds=matches.length?matches.map(x=>x.id):[...new Set(chosen.map(x=>x.id))];
  const offline=()=>flow?{answer:flow.answer,sourceIds:[flow.id]}:matches.length?
   {answer:matches.map(x=>x.answer).join("\n"),sourceIds:matches.map(x=>x.id)}:nearby.length?
-  {answer:"จากคู่มือระบบ:\n"+nearby.map(x=>x.answer).join("\n\n"),sourceIds:nearby.map(x=>x.id)}:fallback;
+  {answer:"จากคู่มือระบบ:\n"+nearby.map(x=>x.answer).join("\n\n"),sourceIds:nearby.map(x=>x.id)}:options.facts?
+  {answer:`ข้อมูลระบบที่ตรวจสิทธิ์แล้ว:\n${options.facts.slice(0,1200)}\n\nหากต้องการรายละเอียดเฉพาะเรื่อง โปรดระบุคำถามเพิ่มเติม`,sourceIds:["verified-live-aggregates"]}:fallback;
  const context=[...matches.map(x=>x.answer),...chosen.map(x=>`[${x.id}]\n${x.text}`),
   ...(options.facts?[`[verified-live-aggregates]\n${options.facts.slice(0,1200)}`]:[])].join("\n\n").slice(0,15500);
  if(!options.apiKey)return offline();
