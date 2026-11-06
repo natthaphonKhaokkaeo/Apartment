@@ -63,13 +63,13 @@ export function BulkBillingCenter({propertyId,cadence,api,post,onIssued}:Props){
  }
  return <section className="panel" aria-label="ออกบิลหลายห้อง">
   <div className="panel-head"><div><h2><Layers3 size={19}/> ออกบิลหลายห้อง</h2>
-   <p>ตรวจตัวอย่างทั้งชุดก่อน แล้ว OWNER อนุมัติออกบิลในธุรกรรมเดียว · ไม่ส่งข้อความอัตโนมัติ</p></div>
+   <p>ขั้นที่ 1 เลือกรอบบิล → ขั้นที่ 2 ตรวจยอดแต่ละห้อง → ขั้นที่ 3 ยืนยันออกบิล · สามารถเริ่มรอบใหม่ได้ทุกเมื่อ แต่ห้ามออกซ้ำรอบเดิม</p></div>
    <button className="btn outline" type="button" disabled={busy} onClick={()=>void reload()}><RefreshCw size={15}/> โหลดประวัติ</button></div>
-  <div className="form"><div className="cols2">
+  <div className="form"><p className="hint">เลือกช่วงวันที่ต้องการคิดค่าเช่าได้ ไม่จำเป็นต้องรอวันสิ้นเดือน ระบบจะตรวจสอบห้องที่ออกบิลไปแล้วก่อนเสมอ</p><div className="cols2">
    <label className="field"><span>วันเริ่มรอบ</span><input type="date" value={start} onChange={e=>setStart(e.target.value)}/></label>
-   <label className="field"><span>วันสิ้นสุด (ไม่รวมวันนี้)</span><input type="date" value={endExclusive} onChange={e=>setEndExclusive(e.target.value)}/></label>
+   <label className="field"><span>วันสิ้นสุดรอบ (ไม่รวมวันที่เลือก)</span><input type="date" value={endExclusive} onChange={e=>setEndExclusive(e.target.value)}/></label>
   </div><p className="hint"><ShieldCheck size={15}/> ระบบออกบิลเฉพาะห้องที่มีสัญญาและข้อมูลครบ ห้องที่ขาดมิเตอร์หรือมีบิลแล้วจะแสดงสาเหตุและไม่ถูกรวมในชุด</p>
-   <button className="btn primary" type="button" disabled={busy||!start||!endExclusive} onClick={()=>void preview()}>{busy?"กำลังคำนวณ…":"คำนวณตัวอย่างทุกห้อง"}</button></div>
+   <button className="btn primary" type="button" disabled={busy||!start||!endExclusive||endExclusive<=start} onClick={()=>void preview()}>{busy?"กำลังคำนวณ…":"คำนวณตัวอย่างทุกห้อง"}</button>{endExclusive<=start&&<p className="notice danger">วันสิ้นสุดต้องอยู่หลังวันเริ่มรอบ</p>}</div>
   {error&&<p className="notice danger" role="alert">{error}</p>}{notice&&<p className="notice success" role="status">{notice}</p>}
   {active&&<div className="claim-list" aria-live="polite">
    <article className="claim-item"><div className="claim-heading"><div><b>รอบ {active.periodStart} – {active.periodEnd}</b>
@@ -87,6 +87,7 @@ export function BulkBillingCenter({propertyId,cadence,api,post,onIssued}:Props){
     {active.previewSnapshot.rooms.length===0&&<tr><td colSpan={4}>ไม่พบห้องที่มีสถานะพักอาศัยในรอบนี้</td></tr>}
    </tbody></table></div></article>
   </div>}
+  <p className="hint"><TriangleAlert size={15}/> หากออกบิลผิด ห้ามออกซ้ำเพื่อทับบิลเดิม: ต้องตรวจสถานะการชำระและใช้ขั้นตอนยกเลิก/ปรับปรุงบิลที่มีประวัติตรวจสอบก่อน</p>
   <div className="claim-list"><h3>ประวัติชุดออกบิล</h3>{runs.map(run=><button key={run.id} type="button" className="claim-item" onClick={()=>setActive(run)}>
    <span><b>{run.periodStart} – {run.periodEnd}</b><small>{run.previewSnapshot.rooms.filter(r=>r.status==="READY").length} ห้องพร้อม · {run.previewSnapshot.rooms.length-run.previewSnapshot.rooms.filter(r=>r.status==="READY").length} ห้องถูกข้าม · {new Date(run.createdAt).toLocaleString("th-TH")}</small></span>
    <span className="pill">{run.status==="PREVIEWED"?"รออนุมัติ":run.status==="COMPLETED"?`ออกแล้ว ${run.issuedCount}`:"ต้องคำนวณใหม่"}</span>
