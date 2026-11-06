@@ -371,3 +371,12 @@ Real Gemini/LINE provider UAT remains external and unverified. The application s
 - DEV LINE direct-chat replies are live with explicit approval (`LINE_CHATBOT_MODE=live`, `LINE_CHATBOT_LIVE_APPROVED=true` in the protected runtime environment). LINE Bot Info read-only validation returned 200 and matched the configured bot ID; no test message was sent. API/Web/observer containers are healthy.
 - OpenRouter generates role-scoped help answers on DEV; after commit `bdbd55d`, deployed API-container smoke returned provider-generated text. Provider failures fall back to the local role-filtered corpus. Real LINE conversation UAT is still pending.
 - General LINE outbox dispatch remains disabled (`LINE_OUTBOUND_MODE=disabled`; observer pinned to observe-only), so automatic bill/permission notifications are not yet sent through LINE.
+
+
+## LINE bill notification activation — 2026-11-06
+
+- Status: IN_PROGRESS for P4-04. DEV outbound notification mode is explicitly approved and enabled for invoice-issued and due-date events; this does not enable or require AI.
+- Runtime: `/etc/dokploy/runtime-env/apartment-api.env` is configured with `LINE_OUTBOUND_MODE=live`, worker approval, and automatic due reminders. Secrets stay in the owner-only runtime file.
+- Safety: the queue was empty at activation; dispatch remains limited to enabled OA + active LINE-linked lease + explicit unrevoked tenant consent.
+- Code: invoice issue and batch issue enqueue idempotently; the worker prepares due-date reminders in Bangkok time. Maintenance LINE event producers and real delivery/UAT evidence remain open.
+- Deployment and verification evidence will be recorded after the DEV rollout.

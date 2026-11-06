@@ -270,7 +270,7 @@ Recovery-key operator export/custody not yet confirmed. Real LINE dispatch is st
     - [x] P4-03e.1 Consent revoke/dispatch race serialization with consistent lease/OA/consent lock order, real mock HTTP concurrency proof; messages already in flight are NOT recallable
     - [x] P4-03e.2 Per-org 30-day min reservation retention, manual dry-run by default and bounded confirmed cleanup with PostgreSQL integration test
     - [ ] P4-03e.3 Alert delivery/retention legal policy, real LINE provider quota, live in-flight uncertainty testing and offsite backup
-- [ ] P4-04 Tenant consent and notification event producers (PARTIAL — real provider and future workflows pending)
+- [ ] P4-04 Tenant consent and notification event producers (PARTIAL — DEV bill issue/due reminders are live for opted-in LINE-linked tenants; maintenance LINE producers and full provider UAT remain pending)
   - [x] P4-04a Tenant-specific opt-in/revoke endpoints and React UI with explicit purpose acknowledgment, active verified LINE lease scope, audit, idempotent actions, no-store, revoke pending/retry/SENDING jobs
   - [x] P4-04b Invoice-issued Outbox event created atomically with invoice transaction only on active lease + enabled OA + unrevoked exact recipient consent; generic Thai template and eventKey prevent duplicates
   - [x] P4-04c Manual due-date Outbox preparation with Bangkok-day guard, org-scoped dry-run default, explicit confirmation for enqueue, payment/outstanding/pending-claim guards; never sends LINE itself

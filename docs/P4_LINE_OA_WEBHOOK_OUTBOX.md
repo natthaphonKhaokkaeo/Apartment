@@ -61,4 +61,15 @@ The live command exists but is **not to be scheduled or run without real tenant 
 - [ ] Multi-channel secrets manager per organization. Current DEV server supports **one configured OA at a time**; schema supports multiple OA bindings, but do not enable multiple channels without proper per-channel secret resolution
 
 ## P4-03c addendum
-An isolated Dokploy observer now reads aggregate statuses every minute and has a Docker heartbeat healthcheck, without sending real LINE messages. SUPER_ADMIN scoped API/UI supports masked Dead-letter inspection and one-time acknowledgment with audit (not retry). Live sender is still disabled. See docs/P4_LINE_OPERATIONS.md.
+The Dokploy DEV worker reads aggregate status and has a Docker heartbeat healthcheck. SUPER_ADMIN scoped API/UI supports masked dead-letter inspection and one-time acknowledgment with audit (not retry). Live bill notification activation is documented below. See docs/P4_LINE_OPERATIONS.md.
+
+
+## DEV live bill notifications (2026-11-06)
+
+- The operator approved live LINE event notifications on DEV; this is independent of the AI help chatbot and does not call an AI provider.
+- Issuing an individual or batch invoice inserts one idempotent `BILL_ISSUED` event into the outbox in the same database transaction.
+- The worker prepares `PAYMENT_DUE` reminders once per Bangkok due date and dispatches them automatically.
+- Dispatch requires an enabled organization LINE OA binding, an active lease linked to the recipient's LINE account, and an unrevoked explicit tenant notification consent. Consent revocation invalidates pending/retry sends.
+- Current activation starts with an empty outbox; no old notifications were sent on enablement. The worker's DEV rate limit is at most three dispatch attempts per minute. A LINE API acceptance is not treated as proof that the recipient read the message.
+- The API and worker now require the same live mode and credentials. `infra/deploy-apartment-dev.sh` checks operator approval, required credentials, and the live due-reminder flag before deployment.
+- Maintenance LINE notification producers and full provider delivery UAT are still pending; do not claim every operational event type is live.

@@ -18,10 +18,19 @@ env={}
 for line in Path('/etc/dokploy/runtime-env/apartment-api.env').read_text().splitlines():
  if '=' in line and not line.lstrip().startswith('#'):
   k,v=line.split('=',1);env[k.strip()]=v.strip().strip('"').strip("'")
-assert env.get('LINE_OUTBOUND_MODE','disabled')=='disabled','LINE must remain disabled'
+mode=env.get('LINE_OUTBOUND_MODE','disabled')
+assert mode in ('disabled','live'),'Unsupported LINE outbound mode'
+if mode=='live':
+ assert env.get('LINE_WORKER_MODE')=='live','Live LINE requires worker mode live'
+ assert env.get('LINE_WORKER_APPROVED')=='true','Live LINE requires explicit approval flag'
+ assert env.get('LINE_AUTO_DUE_REMINDERS')=='true','Live LINE due reminders must be explicitly enabled'
+ assert all(env.get(k) for k in ('LINE_MESSAGING_CHANNEL_SECRET','LINE_MESSAGING_CHANNEL_ACCESS_TOKEN','LINE_OA_BOT_USER_ID')),'Live LINE credentials are incomplete'
+else:
+ assert env.get('LINE_WORKER_MODE','observe')=='observe' and env.get('LINE_WORKER_APPROVED','false')=='false','Disabled LINE worker must remain observe-only'
+
 assert env.get('WEB_ORIGIN')=='https://apartme.makemarket.space','Unexpected DEV origin'
 assert env.get('COOKIE_SECURE')=='true','HTTPS cookies required'
-print('DEV_RUNTIME_SAFE_PREFLIGHT_PASS')
+print('DEV_RUNTIME_LINE_LIVE_PREFLIGHT_PASS' if mode=='live' else 'DEV_RUNTIME_SAFE_PREFLIGHT_PASS')
 PY
 old_api="$(docker inspect "$api" --format '{{.Image}}')"
 old_web="$(docker inspect "$web" --format '{{.Image}}')"
@@ -79,10 +88,12 @@ assert actual==str(len(journal))+'|'+str(journal[-1]['when']),'Migration journal
 for name in ['apartment-dokploy-dev-ajcnbm-api-1','apartment-dokploy-dev-ajcnbm-line-observer-1']:
  data=json.loads(subprocess.check_output(['docker','inspect',name],text=True))[0]
  env=dict(x.split('=',1) for x in data['Config']['Env'] if '=' in x)
- assert env.get('LINE_OUTBOUND_MODE','disabled')=='disabled'
  if 'observer' in name:
-  assert env.get('LINE_WORKER_MODE')=='observe' and env.get('LINE_WORKER_APPROVED')=='false'
-print('DEV_MIGRATIONS_AND_OBSERVER_SAFE_PASS')
+  assert env.get('LINE_OUTBOUND_MODE')=='live' and env.get('LINE_WORKER_MODE')=='live'
+  assert env.get('LINE_WORKER_APPROVED')=='true' and env.get('LINE_AUTO_DUE_REMINDERS')=='true'
+ else:
+  assert env.get('LINE_OUTBOUND_MODE')=='live'
+print('DEV_MIGRATIONS_AND_LINE_LIVE_PASS')
 PY
 bash infra/smoke-apartment-public-dev.sh
 trap - ERR

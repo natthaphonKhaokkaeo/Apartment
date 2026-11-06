@@ -3,7 +3,7 @@
  * Default OBSERVE periodically samples aggregate queue health and NEVER sends.
  * Actual live send requires three independent controls plus real credentials:
  * LINE_WORKER_MODE=live, LINE_WORKER_APPROVED=true, LINE_OUTBOUND_MODE=live.
- * Dokploy DEV overrides to observe/false/disabled explicitly.
+ * Dokploy DEV may run live only with the explicit operator approval and complete credentials.
  */
 import {writeFileSync} from "node:fs";
 import {config} from "../src/config.js";
