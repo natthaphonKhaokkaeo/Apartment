@@ -28,6 +28,14 @@ export function sanitizeHelpQuestion(question:string){
   .replace(/\b(?:[A-Z][A-Z_]*(?:SECRET|TOKEN|PASSWORD|API_KEY)|DATABASE_URL)\s*=\s*[^\s]+/gi,"[ข้อมูลลับ]")
   .replace(/\beyJ[A-Za-z0-9_-]{15,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\b/g,"[ข้อมูลลับ]");
 }
+/** Final outbound filter: never relay model-generated credentials or personal identifiers to LINE. */
+function safeGeneratedAnswer(raw:string):string|null{
+ if(/-----BEGIN [^-]*PRIVATE KEY-----/i.test(raw))return null;
+ const filtered=sanitizeHelpQuestion(raw)
+  .replace(/\b(?:[A-Z][A-Z_]*(?:SECRET|TOKEN|PASSWORD|API_KEY)|DATABASE_URL)\s*[:=]\s*\S+/gi,"[ข้อมูลลับ]")
+  .replace(/["'](?:api_key|access_token|client_secret|password|private_key)["']\s*:\s*["'][^"']+["']/gi,"[ข้อมูลลับ]");
+ return filtered.trim().slice(0,1200)||null;
+}
 export async function answerRoleHelp(options:{question:string;role:HelpRole;apiKey?:string;provider?:"google"|"openrouter";model?:string;fetcher?:typeof fetch;facts?:string}){
  const wantsSteps=/(วิธี|ขั้นตอน|สอน|ทำยังไง|ยังไง|อย่างไร|คู่มือ|เริ่มต้น|how to|flow|แนะนำการใช้)/i.test(options.question);
  const flow=wantsSteps?findUsageFlow(options.question,options.role):null;
@@ -62,13 +70,15 @@ export async function answerRoleHelp(options:{question:string;role:HelpRole;apiK
    const data=await response.json() as {choices?:{message?:{content?:string|{text?:string}[]}}[]};
    const content=data.choices?.[0]?.message?.content;
    const answer=typeof content==="string"?content:Array.isArray(content)?content.map(part=>part.text||"").join(""):"";
-   if(answer.trim()&&!/sk-[A-Za-z0-9_-]{12,}|Bearer\s+[A-Za-z0-9._~-]{12,}/i.test(answer))return {answer:answer.trim().slice(0,1200),sourceIds};
+   const safe=typeof answer==="string"?safeGeneratedAnswer(answer):null;
+   if(safe)return {answer:safe,sourceIds};
   }else{
    response=await (options.fetcher||fetch)(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(options.model||"gemini-3.8-flash")}:generateContent`,{method:"POST",headers:{"content-type":"application/json","x-goog-api-key":options.apiKey},body:JSON.stringify({contents:[{parts:[{text:prompt}]}],generationConfig:{temperature:0.1,maxOutputTokens:240}}),signal:AbortSignal.timeout(15000)});
    if(!response.ok)throw new Error("AI_PROVIDER_ERROR");
    const data=await response.json() as {candidates?:{content?:{parts?:{text?:string}[]}}[]};
    const answer=data.candidates?.[0]?.content?.parts?.map(p=>p.text||"").join("").trim();
-   if(answer&&!/sk-[A-Za-z0-9_-]{12,}|Bearer\s+[A-Za-z0-9._~-]{12,}/i.test(answer))return {answer:answer.slice(0,1200),sourceIds};
+   const safe=answer?safeGeneratedAnswer(answer):null;
+   if(safe)return {answer:safe,sourceIds};
   }
  }catch{/* Use retrieved official help text when the provider is unavailable. */}
  return offline();

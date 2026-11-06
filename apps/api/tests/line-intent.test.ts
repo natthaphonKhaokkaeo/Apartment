@@ -6,6 +6,13 @@ describe("AI intent interpretation",()=>{
   const result=await interpretLineIntent({question:"ตั้งค่าแจ้งบิลผ่านไลน์ยังไง",apiKey:"test",provider:"openrouter",fetcher:fetcher as typeof fetch});
   expect(result.kind).toBe("HELP");expect(result.canonicalQuestion).toContain("แจ้งเตือนบิล");
  });
+ it("plans a data tool from natural Thai and rejects an untrusted tool name",async()=>{
+  const reply=(tool:string)=>vi.fn(async()=>new Response(JSON.stringify({choices:[{message:{content:JSON.stringify({kind:"UNKNOWN",canonicalQuestion:"ห้องว่างกี่ห้อง",tool})}}]}),{status:200}));
+  const allowed=await interpretLineIntent({question:"มีห้องให้เช่าเหลือเท่าไร",apiKey:"test",provider:"openrouter",fetcher:reply("ROOM_STATUS") as typeof fetch});
+  expect(allowed.tool).toBe("ROOM_STATUS");
+  const denied=await interpretLineIntent({question:"มีห้องให้เช่าเหลือเท่าไร",apiKey:"test",provider:"openrouter",fetcher:reply("READ_SECRETS") as typeof fetch});
+  expect(denied.tool).toBeUndefined();
+ });
  it("falls back safely without AI",async()=>{expect(await interpretLineIntent({question:"ยอดค้างฉันเท่าไร"})).toEqual({kind:"UNKNOWN",canonicalQuestion:"ยอดค้างฉันเท่าไร"});});
  it("rejects malformed classification",async()=>{const fetcher=vi.fn(async()=>new Response("{}",{status:200}));expect((await interpretLineIntent({question:"test",apiKey:"x",provider:"openrouter",fetcher:fetcher as typeof fetch})).kind).toBe("UNKNOWN");});
 });

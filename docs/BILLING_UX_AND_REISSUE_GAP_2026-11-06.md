@@ -44,3 +44,9 @@ Implemented in `apps/api/src/routes/invoice-reissue.ts` and `apps/web/src/compon
 **Restrictions:** This is not a refund or paid-invoice reversal tool. Never issue a replacement for an invoice with payment-related activity until that financial workflow has been independently reconciled; the API blocks it by design. OWNER-only approval is retained; SUPER_ADMIN platform rights do not bypass finance authorization. Corrections may include a positive/negative adjustment, but the total must remain positive and within database integer bounds.
 
 **Operational verification required after deployment:** Migration `0024_striped_the_enforcers`, API readiness, web readiness, and real owner-authorization HTTP smoke checks. Avoid test mutations to a tenant's real invoice during smoke checks.
+
+## Verification refresh — 2026-11-07
+
+The earlier note saying reissue was "NOT implemented" was a historical status before the subsequent implementation described above. The **current code includes Void & Reissue** (API, transaction, partial unique index in migration 0024, audit, LINE outbox cancellation, OWNER correction UI). Owner preview and confirmation are separate; paid/partially-paid and evidence-touched invoices remain intentionally ineligible. Role-only tests are not sufficient to prove a real paid-invoice migration or payment-processor reversal: do not imply such a reversal exists.
+
+Regression suite checked on this date: 63 test files, 335 tests passed; TypeScript and ESLint passed. API, Web and LINE Observer containers were previously confirmed healthy. Manual owner-account payment/void/reissue/LINE end-to-end UAT remains a distinct acceptance step and must not modify real tenant invoices as test data.

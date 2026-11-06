@@ -24,9 +24,15 @@ export function retrieveRoleKnowledge(question:string,role:HelpRole,limit=2){
  const normalize=(s:string)=>s.toLocaleLowerCase().replace(/[^a-z0-9ก-๙]+/g,"");
  const trigrams=(s:string)=>{const chars=Array.from(normalize(s));const result=new Set<string>();
   for(let i=0;i<chars.length-2;i++)result.add(chars.slice(i,i+3).join(""));return result;};
+ const stop=new Set(["ระบบ","อะไร","อย่างไร","ยังไง","ช่วย","หน่อย","อยาก","ของ","ตอนนี้","ล่าสุด","ทั้งหมด","สถานะ","ทำไม","ได้","ไหม","ถาม","ต้อง","การ"]);
+ const substantive=[...new Intl.Segmenter("th",{granularity:"word"}).segment(question)]
+  .filter(x=>x.isWordLike).map(x=>normalize(x.segment))
+  .filter(x=>Array.from(x).length>=3&&!stop.has(x));
  const grams=trigrams(question);
  if(!grams.size)return [];
  return roleKnowledge(role).flatMap(doc=>doc.text.split(/\n+/).filter(x=>x.length>30).map(paragraph=>{
+  const paragraphNorm=normalize(paragraph);
+  if(!substantive.some(word=>paragraphNorm.includes(word)))return {id:doc.id,answer:paragraph,score:0};
   const candidate=trigrams(paragraph);
   const overlap=[...grams].filter(x=>candidate.has(x)).length;
   const heading=trigrams(paragraph.split(":",1)[0].slice(0,48));

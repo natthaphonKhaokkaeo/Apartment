@@ -17,6 +17,11 @@ describe("role-scoped LINE help retrieval",()=>{
   expect(answer.sourceIds).toEqual([]);
   expect(answer.answer).toContain("ติดต่อผู้ดูแล");
  });
+ it("redacts credential-shaped content returned by the model",async()=>{
+  const fetcher=vi.fn(async()=>new Response(JSON.stringify({choices:[{message:{content:"ตั้งค่าที่หน้าหอพัก LINE_MESSAGING_CHANNEL_ACCESS_TOKEN=PRIVATEVALUE123456789"}}]}),{status:200}));
+  const result=await answerRoleHelp({question:"วิธีตั้งค่า LINE OA",role:"OWNER",apiKey:"test",provider:"openrouter",fetcher:fetcher as typeof fetch});
+  expect(result.answer).not.toContain("PRIVATEVALUE123456789");
+ });
  it("uses configured Gemini only with retrieved role-filtered context",async()=>{
   const fetcher=vi.fn(async(_url:RequestInfo|URL,init?:RequestInit)=>{
    const payload=JSON.parse(String(init?.body));
