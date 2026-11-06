@@ -379,4 +379,4 @@ Real Gemini/LINE provider UAT remains external and unverified. The application s
 - Runtime: `/etc/dokploy/runtime-env/apartment-api.env` is configured with `LINE_OUTBOUND_MODE=live`, worker approval, and automatic due reminders. Secrets stay in the owner-only runtime file.
 - Safety: the queue was empty at activation; dispatch remains limited to enabled OA + active LINE-linked lease + explicit unrevoked tenant consent.
 - Code: invoice issue and batch issue enqueue idempotently; the worker prepares due-date reminders in Bangkok time. Maintenance LINE event producers and real delivery/UAT evidence remain open.
-- Deployment and verification evidence will be recorded after the DEV rollout.
+- DEV deployment completed at commit `880fc2603bfa9b10c3e8282edb834ddd0dd1b267`; API and worker are healthy with live mode, approval, and due reminders enabled. Migration verification passed, PostgreSQL remained running, same-VPS encrypted backup/restore drill passed, and public HTTPS smoke passed. Worker reported zero due invoices and zero outbox items after activation; no real push was needed, so recipient delivery remains unverified until a real opted-in bill event occurs.
