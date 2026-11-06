@@ -288,3 +288,9 @@ Implemented an authenticated organization notification inbox backed by a new rec
 Implemented role-scoped LINE OA RAG help. The webhook verifies signatures and event deduplication, resolves active organization role on the server, filters the in-code Thai help corpus before model context construction, and uses configurable Gemini API/model settings. AI calls use the API key header and do not include tenant/account data. Safe default remains `LINE_CHATBOT_MODE=disabled`; `simulate` never sends LINE replies; `live` requires separately approved UAT.
 
 Migration `0022_clean_the_call.sql` creates the table; `0023_fair_korg.sql` configures cascade cleanup. The isolated PostgreSQL/API coverage script passed with 85.07% line coverage, including inbox idempotency and recipient-isolation smoke. See `docs/LINE_OA_ROLE_HELP_AND_NOTIFICATIONS.md` for contracts, configuration and UAT steps.
+
+## 2026-11-06 DEV rollout record
+- Feature commit `4bcc514bc574999350a4f98a18f31e020af1cc0c` is deployed to DEV.
+- Lint/typecheck, 291/291 unit tests, 39/39 Playwright E2E, PostgreSQL notification smoke, and 85.07% API line coverage passed.
+- Backup checksum/encryption/retention/monitoring and isolated restore drill passed; migrations and public HTTPS smoke passed. API, web, and LINE observer containers are healthy; PostgreSQL was not restarted.
+- LINE real dispatch remains disabled; Gemini-compatible API key is not configured.

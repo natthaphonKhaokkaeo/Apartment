@@ -360,3 +360,9 @@ Final verification for 2026-11-05 implementation:
 - `git diff --check` — see final repository review below; no commit or deployment performed.
 
 Real Gemini/LINE provider UAT remains external and unverified. The application stays in `LINE_CHATBOT_MODE=disabled` and `LINE_OUTBOUND_MODE=disabled` unless deployment secrets and explicit live-reply approval are provided.
+
+## 2026-11-06 DEV rollout record
+- Feature commit deployed: `4bcc514bc574999350a4f98a18f31e020af1cc0c` (organization notifications and role-scoped LINE help).
+- Quality gates: lint, typecheck, 291/291 unit tests, 39/39 Playwright E2E, and PostgreSQL notification smoke passed; API line coverage 85.07%.
+- Deployment: `DEV_DEPLOY_PASS`; migrations and observer safe-mode checks passed; backup checksum/encryption/retention/monitoring and isolated restore drill passed; public web/API health/ready and unsigned-webhook denial smoke passed.
+- API, web, and LINE observer containers are healthy. PostgreSQL was not restarted. No real LINE message was sent. `LINE_HELP_AI_API_KEY` is not configured, so chatbot remains disabled.
