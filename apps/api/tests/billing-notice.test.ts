@@ -53,6 +53,16 @@ describe("P3-05b informational Billing Notice",()=>{
   expect(pages.text).toContain("ข้อมูลปัจจุบัน");
   expect(pages.text).toContain("700.00");
  });
+ it("prints an optional zero-charge owner note without changing invoice total",async()=>{
+  const notice:BillingNoticeInput={...bill,lines:[...bill.lines,
+   {type:"NOTE",description:"แจ้งหมายเหตุสำหรับผู้เช่า กรุณาติดต่อเจ้าของก่อนชำระ",amountSatang:0,
+    unitsMilli:null,tariffSatang:null}]};
+  const data=await textFrom(await renderBillingNotice(notice));
+  expect(data.text).toContain("หมายเหตุ");
+  expect(data.text).toContain("เจ้าของก่อน");
+  expect(data.text).toContain("4,130.00");
+  expect(data.text).toContain("4,130.00");
+ });
  it("allows a negative correction line while requiring a positive final invoice",async()=>{
   const corrected:BillingNoticeInput={...bill,amountSatang:411750,
    lines:[...bill.lines,{type:"CORRECTION",description:"ส่วนลดแก้บิลเดิม",amountSatang:-1250,

@@ -7,13 +7,14 @@ import cookie from "@fastify/cookie";
 import cors from "@fastify/cors";
 import helmet from "@fastify/helmet";
 import rateLimit from "@fastify/rate-limit";
-import {and,eq,desc,gt,lte,inArray,lt} from "drizzle-orm";
+import {and,eq,asc,desc,gt,lte,inArray,lt} from "drizzle-orm";
 import {z,ZodError} from "zod";
 import {config} from "./config.js";
 import {db,sqlClient} from "./db/client.js";
 import {users,sessions,organizations,memberships,properties,rooms,leases,meterReadings,invoices,invoiceLines,auditLogs,paymentLedger,financeAdjustmentEntries,propertyStaffGrants} from "./db/schema.js";
 import {AppError,newSessionToken,tokenHash,requireActor,requireOrg,requireProperty,requireAdmin} from "./security.js";
 import {prepareInvoice} from "./services/billing.js";
+import {invoiceNoteLine,optionalInvoiceNote} from "./services/invoice-note.js";
 import {classifyRichMenuRole,linkRichMenuToUser,provisionLineRichMenus,unlinkRichMenuFromUser} from "./services/line-rich-menus.js";
 import {registerTenantRoutes} from "./routes/tenant.js";
 import {registerFormerTenantHistoryRoutes} from "./routes/former-tenant-history.js";
@@ -39,6 +40,7 @@ import {registerStaffRoutes} from "./routes/staff.js";
 import {registerMaintenanceTicketRoutes} from "./routes/maintenance-tickets.js";
 import {registerBillingBatchRoutes} from "./routes/billing-batches.js";
 import {registerInvoiceReissueRoutes} from "./routes/invoice-reissue.js";
+import {registerInvoiceRoomReportRoutes} from "./routes/invoice-room-report.js";
 import {registerNotificationRoutes} from "./routes/notifications.js";
 import {readingSegmentIndex} from "./services/meter-replacement.js";
 import {meterReplacements} from "./db/schema.js";
@@ -374,10 +376,12 @@ app.post("/v1/properties/:propertyId/readings",async(req,reply)=>{
  return reply.code(201).send(created);
 });
 const billing=z.object({roomId:uuid,start:day,endExclusive:day,
- partialMode:z.enum(["MOVE_IN","MOVE_OUT"]).optional()});
+ partialMode:z.enum(["MOVE_IN","MOVE_OUT"]).optional(),note:optionalInvoiceNote});
 app.post("/v1/properties/:propertyId/bills/preview",async req=>{
  const a=await requireActor(req),p=await requireProperty(a,params(req.params));
- return prepareInvoice(take(billing,req.body),p);
+ const input=take(billing,req.body),preview=await prepareInvoice(input,p);
+ const noteLine=invoiceNoteLine(input.note);
+ return {...preview,lines:[...preview.lines,...(noteLine?[noteLine]:[])]};
 });
 app.post("/v1/properties/:propertyId/bills/issue",async(req,reply)=>{
  const a=await requireActor(req),p=await requireProperty(a,params(req.params),true);
@@ -389,6 +393,9 @@ app.post("/v1/properties/:propertyId/bills/issue",async(req,reply)=>{
   const [replay]=await tx.select().from(invoices).where(and(eq(invoices.propertyId,p.id),eq(invoices.idempotencyKey,key)));
   if(replay){
    if(replay.roomId!==b.roomId||replay.periodStart!==b.start||replay.periodEnd!==b.endExclusive)throw new AppError(409,"IDEMPOTENCY_KEY_REUSED");
+   const [savedNote]=await tx.select({description:invoiceLines.description}).from(invoiceLines)
+    .where(and(eq(invoiceLines.invoiceId,replay.id),eq(invoiceLines.type,"NOTE"))).limit(1);
+   if((savedNote?.description??"")!==(b.note??""))throw new AppError(409,"IDEMPOTENCY_KEY_REUSED");
    return {invoice:replay,replayed:true};
   }
   const preview=await prepareInvoice(b,locked,tx);
@@ -413,7 +420,9 @@ app.post("/v1/properties/:propertyId/bills/issue",async(req,reply)=>{
     documentSnapshot:{schemaVersion:1,issuerName:org.name,propertyName:locked.name,
       propertyAddress:locked.address,roomNumber:preview.room.number,tenantName:preview.lease.tenantName}
   }).returning();
-  await tx.insert(invoiceLines).values(preview.lines.map((l,ordinal)=>({invoiceId:i.id,ordinal,...l})));
+  const noteLine=invoiceNoteLine(b.note);
+  await tx.insert(invoiceLines).values([...preview.lines,...(noteLine?[noteLine]:[])]
+   .map((l,ordinal)=>({invoiceId:i.id,ordinal,...l})));
   await tx.insert(auditLogs).values({actorId:a.id,organizationId:p.organizationId,action:"INVOICE_ISSUED",targetId:i.id,metadata:{amountSatang:i.amountSatang}});
   // Enqueue only with verified active LINE tenant and explicit opt-in. Atomic with
   // the invoice: a rollback removes both the invoice and its pending notification.
@@ -433,7 +442,8 @@ app.get("/v1/properties/:propertyId/invoices/:invoiceId",async req=>{
  const {invoiceId}=take(z.object({invoiceId:uuid}),req.params);
  const [i]=await db.select().from(invoices).where(and(eq(invoices.id,invoiceId),eq(invoices.propertyId,p.id),eq(invoices.organizationId,p.organizationId)));
  if(!i)throw new AppError(404,"INVOICE_NOT_FOUND");
- return {...i,lines:await db.select().from(invoiceLines).where(eq(invoiceLines.invoiceId,i.id))};
+ return {...i,lines:await db.select().from(invoiceLines).where(eq(invoiceLines.invoiceId,i.id))
+  .orderBy(asc(invoiceLines.ordinal),asc(invoiceLines.id))};
 });
 app.post("/v1/admin/properties/:propertyId/compliance",async req=>{
  const a=await requireActor(req);requireAdmin(a);
@@ -472,6 +482,7 @@ await registerStaffRoutes(app);
 await registerMaintenanceTicketRoutes(app);
 await registerBillingBatchRoutes(app);
 await registerInvoiceReissueRoutes(app);
+await registerInvoiceRoomReportRoutes(app);
 await registerDepositRoutes(app);
 await registerMeterRecordRoutes(app);
 await registerPrivacyRequestRoutes(app);

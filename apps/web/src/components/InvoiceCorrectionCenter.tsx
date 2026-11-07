@@ -6,7 +6,7 @@ type Invoice={id:string;roomNumber:string;periodStart:string;periodEnd:string;
  voidReason:string|null;createdAt:string};
 type Preview={previewHash:string;originalAmountSatang:number;amountSatang:number;
  lines:Array<{description:string;amountSatang:number}>;periodStart:string;periodEnd:string};
-type Props={propertyId:string;api:<T>(path:string,options?:RequestInit)=>Promise<T>;
+type Props={propertyId:string;initialInvoiceId?:string|null;api:<T>(path:string,options?:RequestInit)=>Promise<T>;
  post:<T>(path:string,body:unknown,headers?:HeadersInit)=>Promise<T>;onIssued:()=>Promise<void>};
 const money=(satang:number)=>"฿"+(satang/100).toLocaleString("th-TH",{minimumFractionDigits:2,maximumFractionDigits:2});
 const message=(error:unknown)=>{
@@ -16,14 +16,21 @@ const message=(error:unknown)=>{
  if(code.includes("PREVIEW_STALE"))return "ข้อมูลใบแจ้งหนี้เปลี่ยนแล้ว กรุณาตรวจสอบยอดใหม่";
  return code||"เกิดข้อผิดพลาด กรุณาลองใหม่";
 };
-export function InvoiceCorrectionCenter({propertyId,api,post,onIssued}:Props){
+export function InvoiceCorrectionCenter({propertyId,initialInvoiceId,api,post,onIssued}:Props){
  const [invoices,setInvoices]=useState<Invoice[]>([]),[selected,setSelected]=useState<Invoice|null>(null);
- const [reason,setReason]=useState(""),[adjustmentBaht,setAdjustmentBaht]=useState("0.00");
+ const [reason,setReason]=useState(""),[adjustmentBaht,setAdjustmentBaht]=useState("0.00"),[note,setNote]=useState("");
  const [preview,setPreview]=useState<Preview|null>(null),[retryKey,setRetryKey]=useState("");
  const [busy,setBusy]=useState(false),[error,setError]=useState(""),[success,setSuccess]=useState("");
  const path=`/properties/${propertyId}`;
  const reload=useCallback(async()=>setInvoices(await api<Invoice[]>(`${path}/invoice-corrections`)),[api,path]);
  useEffect(()=>{void reload().catch(e=>setError(message(e)));},[reload]);
+ useEffect(()=>{if(initialInvoiceId&&invoices.length){
+  const target=invoices.find(row=>row.id===initialInvoiceId&&row.status==="ISSUED");
+  if(target)setSelected(target);
+ }},[initialInvoiceId,invoices]);
+ useEffect(()=>{if(initialInvoiceId&&selected?.id===initialInvoiceId){
+  document.querySelector('[aria-label="แก้ไขและออกบิลทดแทน"]')?.scrollIntoView({behavior:"smooth",block:"start"});
+ }},[initialInvoiceId,selected?.id]);
  function adjustmentSatang(){
   if(!/^-?\d+(?:\.\d{1,2})?$/.test(adjustmentBaht.trim()))throw new Error("กรอกยอดปรับปรุงเป็นบาท ทศนิยมไม่เกิน 2 ตำแหน่ง");
   const amount=Math.round(Number(adjustmentBaht)*100);
@@ -34,7 +41,7 @@ export function InvoiceCorrectionCenter({propertyId,api,post,onIssued}:Props){
   if(!selected)return;
   setBusy(true);setError("");setSuccess("");setPreview(null);
   try{
-   const response=await post<Preview>(`${path}/invoices/${selected.id}/reissue-preview`,{reason:reason.trim(),adjustmentSatang:adjustmentSatang()});
+   const response=await post<Preview>(`${path}/invoices/${selected.id}/reissue-preview`,{reason:reason.trim(),adjustmentSatang:adjustmentSatang(),...(note.trim()?{note:note.trim()}:{})});
    setPreview(response);setRetryKey(crypto.randomUUID());
   }catch(e){setError(message(e));}finally{setBusy(false);}
  }
@@ -43,8 +50,8 @@ export function InvoiceCorrectionCenter({propertyId,api,post,onIssued}:Props){
   if(!window.confirm(`ยืนยันยกเลิกบิลเดิมและออกบิลฉบับแก้ไขห้อง ${selected.roomNumber} ยอด ${money(preview.amountSatang)}? ระบบเก็บประวัติเดิมและไม่สามารถลบได้`))return;
   setBusy(true);setError("");setSuccess("");
   try{
-   await post(`${path}/invoices/${selected.id}/reissue`,{reason:reason.trim(),adjustmentSatang:adjustmentSatang(),previewHash:preview.previewHash,confirmed:true},{"idempotency-key":retryKey});
-   await reload();await onIssued();setSelected(null);setPreview(null);setReason("");setAdjustmentBaht("0.00");
+   await post(`${path}/invoices/${selected.id}/reissue`,{reason:reason.trim(),adjustmentSatang:adjustmentSatang(),...(note.trim()?{note:note.trim()}:{}),previewHash:preview.previewHash,confirmed:true},{"idempotency-key":retryKey});
+   await reload();await onIssued();setSelected(null);setPreview(null);setReason("");setAdjustmentBaht("0.00");setNote("");
    setSuccess("ออกบิลฉบับแก้ไขสำเร็จ บิลเดิมเปลี่ยนเป็นยกเลิกแล้ว ระบบเก็บประวัติไว้ครบถ้วน");
   }catch(e){setError(message(e));}finally{setBusy(false);}
  }
@@ -55,7 +62,7 @@ export function InvoiceCorrectionCenter({propertyId,api,post,onIssued}:Props){
   {error&&<p className="notice danger" role="alert">{error}</p>}{success&&<p className="notice success" role="status">{success}</p>}
   <div className="claim-list"><h3>ขั้นที่ 1 เลือกบิลที่ต้องการแก้ไข</h3>
    {invoices.map(invoice=><button className="claim-item" type="button" key={invoice.id}
-    disabled={busy||invoice.status!=="ISSUED"} onClick={()=>{setSelected(invoice);setPreview(null);setError("");setSuccess("");setReason("");setAdjustmentBaht("0.00");}}>
+    disabled={busy||invoice.status!=="ISSUED"} onClick={()=>{setSelected(invoice);setPreview(null);setError("");setSuccess("");setReason("");setAdjustmentBaht("0.00");setNote("");}}>
     <span><b>ห้อง {invoice.roomNumber} · {invoice.periodStart} – {invoice.periodEnd}</b>
      <small>{invoice.replacesInvoiceId?"บิลฉบับแก้ไข":"บิลเดิม"} · {new Date(invoice.createdAt).toLocaleString("th-TH")}</small></span>
     <span>{money(invoice.amountSatang)} · {invoice.status==="VOID"?"ยกเลิกแล้ว":"เลือกแก้ไข"}</span></button>)}
@@ -65,6 +72,7 @@ export function InvoiceCorrectionCenter({propertyId,api,post,onIssued}:Props){
    <p>ยอดเดิม {money(selected.amountSatang)} · รอบ {selected.periodStart} – {selected.periodEnd}</p>
    <label className="field"><span>เหตุผลการแก้บิล (อย่างน้อย 15 ตัวอักษร)</span><textarea value={reason} onChange={e=>{setReason(e.target.value);setPreview(null);}} maxLength={500} rows={3} required/></label>
    <label className="field"><span>ปรับยอดเพิ่ม/ลด (บาท) · กรอกค่าติดลบเพื่อลดหนี้</span><input type="text" inputMode="decimal" value={adjustmentBaht} onChange={e=>{setAdjustmentBaht(e.target.value);setPreview(null);}}/></label>
+   <label className="field"><span>หมายเหตุใหม่บนบิล (ไม่บังคับ · เว้นว่างเพื่อคงหมายเหตุเดิม)</span><textarea rows={2} maxLength={300} value={note} onChange={e=>{setNote(e.target.value);setPreview(null);}} placeholder="กรอกข้อความเพิ่มเติมที่ต้องการพิมพ์บนบิลฉบับแก้ไข"/></label>
    <p className="hint">ระบบจะคำนวณค่าเช่า น้ำ และไฟจากข้อมูลปัจจุบันใหม่ แล้วบวก/ลบยอดปรับปรุงนี้ ห้ามใช้แทนการคืนเงินที่ชำระแล้ว</p>
    <button className="btn outline" type="button" disabled={busy||reason.trim().length<15} onClick={()=>void inspect()}>ตรวจสอบบิลฉบับแก้ไข</button>
    {preview&&<div className="claim-list" aria-live="polite"><h3>ขั้นที่ 3 ตรวจสอบก่อนยืนยัน</h3>

@@ -1,3 +1,4 @@
+import {InvoiceRoomReport} from "./components/InvoiceRoomReport.js";
 import {InvoiceCorrectionCenter} from "./components/InvoiceCorrectionCenter.js";
 import {PrivacyCenter} from "./components/PrivacyCenter.js";
 import {PlatformAdminCenter} from "./components/PlatformAdminCenter.js";
@@ -30,10 +31,11 @@ type Room={id:string;number:string;floor:number;status:string;rentOverrideSatang
 type Invoice={id:string;roomId:string;amountSatang:number;periodStart:string;periodEnd:string;dueDate:string;status:string;createdAt:string};
 type Me={id:string;name:string;role:string;memberships?:{organizationId:string;role:"OWNER"|"MANAGER"|"STAFF"}[];
  propertyGrants?:{propertyId:string;level:"VIEWER"|"METER_READER"}[]};
-type Section="overview"|"notifications"|"rooms"|"meter"|"billing"|"payments"|"maintenance"|"invites"|"staff"|"tenant"|"settings"|"admin"|"profile";
+type Section="overview"|"notifications"|"rooms"|"meter"|"billing"|"reports"|"payments"|"maintenance"|"invites"|"staff"|"tenant"|"settings"|"admin"|"profile";
 const sections:[Section,string,React.ReactNode][]=[
  ["overview","ภาพรวม",<LayoutDashboard size={19}/>],["notifications","แจ้งเตือน",<Bell size={19}/>],["rooms","ห้องพัก",<DoorOpen size={19}/>],
  ["meter","จดมิเตอร์",<Gauge size={19}/>],["billing","ออกบิล",<ReceiptText size={19}/>],
+ ["reports","รายงานบิลรายห้อง",<ReceiptText size={19}/>],
  ["payments","รับชำระเงิน",<Wallet size={19}/>],["maintenance","ซ่อมบำรุง",<Wrench size={19}/>],
  ["invites","เชิญผู้เช่า",<Users size={19}/>],
  ["staff","จัดการพนักงาน",<Users size={19}/>],["tenant","สำหรับผู้เช่า",<DoorOpen size={19}/>],
@@ -119,6 +121,7 @@ function App(){
  const [admin,setAdmin]=useState<{organizationCount:number;propertyCount:number;roomCount:number;invoiceCount:number}|null>(null);
  const [error,setError]=useState(""),[success,setSuccess]=useState(""),[busy,setBusy]=useState(false),[menu,setMenu]=useState(false);
  const [lineBusy,setLineBusy]=useState(false),[hasTenantLease,setHasTenantLease]=useState(false);
+ const [correctionInvoiceId,setCorrectionInvoiceId]=useState<string|null>(null);
  const property=props.find(p=>p.id===propertyId);
  const orgRole=me?.memberships?.find(m=>m.organizationId===orgId)?.role;
  const isStaff=orgRole==="STAFF";
@@ -262,7 +265,7 @@ function App(){
  async function preview(form:FormData,issue:boolean){if(!property)return;await run(async()=>{
   const partialMode=String(form.get("partialMode")||"");
   const payload={roomId:String(form.get("roomId")),start:String(form.get("start")),
-   endExclusive:String(form.get("end")),
+   endExclusive:String(form.get("end")),note:String(form.get("note")||"").trim(),
    ...(partialMode==="MOVE_IN"||partialMode==="MOVE_OUT"?
     {partialMode:partialMode as "MOVE_IN"|"MOVE_OUT"}:{})};
   if(issue){const key=crypto.randomUUID();
@@ -286,6 +289,7 @@ function App(){
    <nav aria-label="เมนูหลัก">{sections.filter(([id])=>{
     if(id==="admin")return me.role==="SUPER_ADMIN";
     if(id==="staff")return orgRole==="OWNER";
+    if(id==="reports")return orgRole==="OWNER";
     if(id==="profile")return true;
     if(hasTenantLease&&!me.memberships?.length&&me.role!=="SUPER_ADMIN")return id==="tenant";
     if(isStaff)return ["rooms","meter","tenant"].includes(id);
@@ -319,7 +323,7 @@ function App(){
       <Panel title="ภาพรวมยอดเรียกเก็บและรับชำระ" subtitle="ยอดอนุมัติเป็นการตรวจสอบด้วยมือของเจ้าของหอพัก ไม่ใช่หลักฐานจาก Bank API"><div className="payment-figures"><div><small>อนุมัติรับชำระสะสม</small><strong>{money(overview?.manuallyApprovedSatang)}</strong></div><div><small>ยอดบิลคงเหลือทั้งหมด</small><strong>{money(overview?.outstandingSatang)}</strong></div><div><small>ยอดเลยกำหนด ({overview?.overdueInvoiceCount??0} ใบ)</small><strong>{money(overview?.overdueSatang)}</strong></div></div></Panel>
       <div className="two-col"><Panel title="ค่าบริการเริ่มต้น" subtitle="ค่าเช่าและค่าน้ำไฟของหอพักเป็นค่าเริ่มต้น ห้องที่ราคาแตกต่างสามารถกำหนดอัตรารายห้องได้"><div className="rate-row"><span>ค่าเช่ารายเดือน</span><b>{money(property.rentSatang)}</b></div><div className="rate-row"><span>ค่าน้ำ / หน่วย</span><b>{money(property.waterSatangPerUnit)}</b></div><div className="rate-row"><span>ค่าไฟ / หน่วย</span><b>{money(property.electricSatangPerUnit)}</b></div></Panel>
       <Panel title="สถานะออกบิล" subtitle="ความพร้อมก่อนส่งใบแจ้งหนี้"><div className="rate-row"><span>รอบบิล</span><b>{property.cadence}</b></div><div className="rate-row"><span>การยืนยันอัตราค่าน้ำไฟ</span><span className={"pill "+(property.complianceReviewedAt?"vacant":"occupied")}>{property.complianceReviewedAt?"ตรวจแล้ว":"รออนุมัติ"}</span></div><div className="rate-row"><span>ใบแจ้งหนี้ที่ออก</span><b>{overview?.issuedInvoices??0} ใบ</b></div></Panel></div>
-      {!isStaff&&<PropertyOperationsReports api={api} propertyId={property.id}/>}
+      {orgRole==="OWNER"&&<PropertyOperationsReports api={api} propertyId={property.id}/>}
     </>}
     {property&&section==="rooms"&&isStaff&&<Panel title="ห้องพักที่ได้รับสิทธิ์" subtitle="แสดงเฉพาะหอพักที่เจ้าของอนุญาต ไม่มีข้อมูลค่าเช่าหรือข้อมูลส่วนตัวผู้เช่า">
       <div className="room-grid">{rooms.map(r=><div className="room-tile" key={r.id}>
@@ -383,16 +387,20 @@ function App(){
       {orgRole==="OWNER"&&<MeterReplacementHistory propertyId={property.id} rooms={rooms} api={api}/>}
       {isStaff&&<StaffMeterReadings key={property.id} propertyId={property.id} rooms={rooms} api={api}/>}
       {!isStaff&&<div className="hint"><Gauge size={19}/> ระบบบันทึกค่าเริ่มใหม่ในวันที่เปลี่ยนโดยอัตโนมัติ และรวมหน่วยการใช้งานข้ามมิเตอร์ก่อนออกบิล ต้องมีค่าที่ต้นและปลายรอบบิลด้วย</div>}</>}
-    {property&&section==="billing"&&<>{orgRole==="OWNER"&&<><BulkBillingCenter propertyId={property.id} cadence={property.cadence} api={api} post={post} onIssued={()=>loadProperty(property.id)}/><InvoiceCorrectionCenter propertyId={property.id} api={api} post={post} onIssued={()=>loadProperty(property.id)}/></>}<Panel title="ออกใบแจ้งหนี้รายห้อง" subtitle="ทดลองคำนวณก่อน แล้วจึงกดออกบิลจริงภายหลังตรวจความถูกต้อง"><form className="form" onSubmit={e=>{e.preventDefault();void preview(new FormData(e.currentTarget),false);}}><div className="cols3"><Field label="ห้องพัก"><select name="roomId">{rooms.filter(r=>r.status==="OCCUPIED").map(r=><option key={r.id} value={r.id}>{r.number}</option>)}</select></Field><Field label="วันเริ่มรอบ"><input name="start" required type="date"/></Field><Field label="วันสิ้นสุด (ไม่รวมวันนี้)"><input name="end" required type="date"/></Field></div><Field label="ประเภทการออกบิล">
+    {property&&section==="billing"&&<>{orgRole==="OWNER"&&<><BulkBillingCenter propertyId={property.id} cadence={property.cadence} api={api} post={post} onIssued={()=>loadProperty(property.id)}/><InvoiceCorrectionCenter propertyId={property.id} api={api} post={post} initialInvoiceId={correctionInvoiceId} onIssued={()=>loadProperty(property.id)}/></>}<Panel title="ออกใบแจ้งหนี้รายห้อง" subtitle="ทดลองคำนวณก่อน แล้วจึงกดออกบิลจริงภายหลังตรวจความถูกต้อง"><form className="form" onSubmit={e=>{e.preventDefault();void preview(new FormData(e.currentTarget),false);}}><div className="cols3"><Field label="ห้องพัก"><select name="roomId">{rooms.filter(r=>r.status==="OCCUPIED").map(r=><option key={r.id} value={r.id}>{r.number}</option>)}</select></Field><Field label="วันเริ่มรอบ"><input name="start" required type="date"/></Field><Field label="วันสิ้นสุด (ไม่รวมวันนี้)"><input name="end" required type="date"/></Field></div><Field label="ประเภทการออกบิล">
        <select name="partialMode" defaultValue="">
         <option value="">รอบบิลเต็มตามปกติ</option>
         <option value="MOVE_IN">ย้ายเข้ากลางรอบ (เริ่มตรงวันเริ่มสัญญาเท่านั้น)</option>
         <option value="MOVE_OUT">บิลสุดท้ายย้ายออกกลางรอบ (ถึงวันส่งมอบจริง)</option>
        </select>
-      </Field><p className="hint">บิลย้ายเข้ากลางรอบต้องมีเลขมิเตอร์น้ำและไฟ ณ วันเริ่มสัญญาและวันสิ้นรอบบิล
+      </Field><Field label="รายละเอียดเพิ่มเติมบนบิล (ไม่บังคับ · ไม่เปลี่ยนยอดเงิน)"><textarea name="note" maxLength={300} rows={2} placeholder="เช่น กรุณาชำระภายในกำหนด หรือข้อมูลแจ้งให้ผู้เช่าทราบ"/></Field><p className="hint">บิลย้ายเข้ากลางรอบต้องมีเลขมิเตอร์น้ำและไฟ ณ วันเริ่มสัญญาและวันสิ้นรอบบิล
        ระบบจะคิดค่าเช่าตามจำนวนวันที่พักจริง รวมหน่วยมิเตอร์ก่อนและหลังการเปลี่ยนมิเตอร์ และไม่อนุญาตให้ออกบิลซ้อนช่วงที่เรียกเก็บแล้ว</p>
       <div className="actions"><button className="btn outline" disabled={busy} type="submit">คำนวณยอดก่อนออกบิล</button><button className="btn primary" disabled={busy} type="button" onClick={e=>{const f=e.currentTarget.closest("form");if(f&&window.confirm("ยืนยันออกบิลจริงสำหรับห้องและรอบวันที่เลือก?"))void preview(new FormData(f),true);}}>ยืนยันออกบิล</button></div></form></Panel>
       <Panel title="ใบแจ้งหนี้ที่ออกแล้ว" subtitle="ยอดเป็นหนี้ตั้งต้น; การรับชำระตรวจโดยเจ้าของจากหลักฐาน และยังไม่เชื่อม Bank API"><div className="table-scroll"><table><thead><tr><th>หมายเลขห้อง</th><th>รอบบิล</th><th>ครบกำหนด</th><th>ยอดเงิน</th><th>สถานะ</th><th>PDF</th></tr></thead><tbody>{invoices.map(i=><tr key={i.id}><td><b>{rooms.find(r=>r.id===i.roomId)?.number??"-"}</b></td><td>{i.periodStart} → {i.periodEnd}</td><td>{i.dueDate}</td><td>{money(i.amountSatang)}</td><td><span className="pill occupied">{i.status}</span></td><td><a className="btn outline" href={"/v1/properties/"+property.id+"/invoices/"+i.id+"/billing-notice.pdf"} target="_blank" rel="noopener noreferrer">ดาวน์โหลด PDF</a></td></tr>)}</tbody></table>{invoices.length===0&&<p className="empty">ยังไม่มีบิล</p>}</div></Panel></>}
+    {property&&section==="reports"&&orgRole==="OWNER"&&
+      <InvoiceRoomReport propertyId={property.id} propertyName={property.name} rooms={rooms} api={api}
+       onIssue={()=>{setCorrectionInvoiceId(null);setSection("billing");}}
+       onEdit={id=>{setCorrectionInvoiceId(id);setSection("billing");}}/>}
     {property&&section==="payments"&&<>{orgRole==="OWNER"?<><PaymentCenter key={property.id} propertyId={property.id} api={api} post={post}/><DepositCenter key={"deposit-"+property.id} propertyId={property.id} leases={leases} actorId={me.id} api={api} post={post}/></>:<Panel title="การเงินสำหรับเจ้าของหอพัก" subtitle="ผู้จัดการสามารถดูสถานะการดำเนินงานจากเจ้าของที่มีสิทธิ์ตรวจสอบการชำระเงิน"><p>การตั้งค่าบัญชี รายการแจ้งชำระ และการปรับปรุงบัญชีต้องดำเนินการโดยเจ้าของ</p></Panel>}</>}
     {property&&section==="maintenance"&&!isStaff&&<MaintenanceCenter key={property.id} propertyId={property.id} rooms={rooms} api={api} post={post} onRoomChanged={()=>loadProperty(property.id,isStaff)}/>}
     {property&&section==="invites"&&<OwnerInvitations key={property.id} propertyId={property.id} canApprove={orgRole==="OWNER"} api={api} post={post}/>}

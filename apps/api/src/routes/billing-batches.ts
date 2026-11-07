@@ -7,6 +7,7 @@ import {db} from "../db/client.js";
 import {auditLogs,billingBatchRuns,invoices,invoiceLines,leases,memberships,organizations,properties,rooms,users,type BillingBatchSnapshot} from "../db/schema.js";
 import {AppError,requireActor,requireProperty} from "../security.js";
 import {prepareInvoice,validBillingPeriod} from "../services/billing.js";
+import {invoiceNoteLine,optionalInvoiceNote} from "../services/invoice-note.js";
 import {queueInvoiceIssuedTx} from "../services/line-notifications.js";
 import {notifyOrganizationMembersTx} from "../services/org-notifications.js";
 
@@ -69,6 +70,18 @@ async function buildSnapshot(property:typeof properties.$inferSelect,start:strin
  return result;
 }
 
+/** Immutable note is visible in the preview and later stored as a zero-charge invoice line. */
+export function withBatchNote(snapshot:BillingBatchSnapshot,note:string|undefined){
+ if(!note)return snapshot;
+ const line=invoiceNoteLine(note);
+ if(!line)return snapshot;
+ snapshot.note=note;
+ for(const room of snapshot.rooms){
+  if(room.status==="READY")room.lines.push({type:line.type,description:line.description,amountSatang:0});
+ }
+ return snapshot;
+}
+
 function dueDate(endExclusive:string,dueDays:number){
  const date=parseDay(endExclusive);date.setUTCDate(date.getUTCDate()+dueDays);
  return date.toISOString().slice(0,10);
@@ -88,10 +101,10 @@ export async function registerBillingBatchRoutes(app:FastifyInstance){
  app.post("/v1/properties/:propertyId/billing-batch-runs/preview",async(req,reply)=>{
   const actor=await requireActor(req),{propertyId}=z.object({propertyId:id}).parse(req.params);
   const property=await requireProperty(actor,propertyId,true);
-  const body=z.object({start:day,endExclusive:day}).parse(req.body);
+  const body=z.object({start:day,endExclusive:day,note:optionalInvoiceNote}).parse(req.body);
   const key=req.headers["idempotency-key"];
   if(typeof key!=="string"||key.length<8||key.length>128)throw new AppError(400,"IDEMPOTENCY_KEY_REQUIRED");
-  const requestHash=digest({propertyId,start:body.start,endExclusive:body.endExclusive});
+  const requestHash=digest({propertyId,start:body.start,endExclusive:body.endExclusive,note:body.note||""});
   const result=await db.transaction(async tx=>{
    // Active user/org/OWNER locks precede the property lock, matching deposit scope order.
    await assertOwner(actor.id,property,tx);
@@ -104,7 +117,7 @@ export async function registerBillingBatchRoutes(app:FastifyInstance){
     if(existing.requestHash!==requestHash)throw new AppError(409,"IDEMPOTENCY_KEY_REUSED");
     return {run:existing,replayed:true};
    }
-   const snapshot=await buildSnapshot(locked,body.start,body.endExclusive,tx);
+   const snapshot=withBatchNote(await buildSnapshot(locked,body.start,body.endExclusive,tx),body.note);
    const [run]=await tx.insert(billingBatchRuns).values({organizationId:locked.organizationId,
     propertyId:locked.id,periodStart:body.start,periodEnd:body.endExclusive,idempotencyKey:key,
     requestHash,previewHash:digest(snapshot),previewSnapshot:snapshot,createdBy:actor.id}).returning();
@@ -144,7 +157,7 @@ export async function registerBillingBatchRoutes(app:FastifyInstance){
    if(roomIds.length)await tx.select({id:rooms.id}).from(rooms).where(and(
     eq(rooms.propertyId,locked.id),eq(rooms.organizationId,locked.organizationId)))
     .orderBy(rooms.id).for("update");
-   const current=await buildSnapshot(locked,run.periodStart,run.periodEnd,tx);
+   const current=withBatchNote(await buildSnapshot(locked,run.periodStart,run.periodEnd,tx),run.previewSnapshot.note);
    if(digest(current)!==run.previewHash){
     const [stale]=await tx.update(billingBatchRuns).set({status:"STALE"}).where(eq(billingBatchRuns.id,run.id)).returning();
     await tx.insert(auditLogs).values({actorId:actor.id,organizationId:locked.organizationId,
@@ -163,8 +176,9 @@ export async function registerBillingBatchRoutes(app:FastifyInstance){
      billingBatchRunId:run.id,issuedBy:actor.id,documentSnapshot:{schemaVersion:1,
       issuerName:org.name,propertyName:locked.name,propertyAddress:locked.address,
       roomNumber:preview.room.number,tenantName:preview.lease.tenantName}}).returning();
-    await tx.insert(invoiceLines).values(preview.lines.map((line,ordinal)=>({invoiceId:invoice.id,
-     ordinal,...line})));
+    const noteLine=invoiceNoteLine(run.previewSnapshot.note);
+    await tx.insert(invoiceLines).values([...preview.lines,...(noteLine?[noteLine]:[])]
+     .map((line,ordinal)=>({invoiceId:invoice.id,ordinal,...line})));
     await tx.insert(auditLogs).values({actorId:actor.id,organizationId:locked.organizationId,
      action:"INVOICE_ISSUED",targetId:invoice.id,metadata:{amountSatang:invoice.amountSatang,billingBatchRunId:run.id}});
     await queueInvoiceIssuedTx(tx,invoice);

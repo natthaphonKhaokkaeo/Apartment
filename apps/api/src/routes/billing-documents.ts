@@ -53,7 +53,7 @@ async function sourceFor(bill:typeof invoices.$inferSelect):Promise<BillingNotic
    unitsMilli:l.unitsMilli,tariffSatang:l.tariffSatang}))
  };
 }
-async function sendPdf(reply:FastifyReply,bill:typeof invoices.$inferSelect){
+async function sendPdf(reply:FastifyReply,bill:typeof invoices.$inferSelect,inline=false){
  if(bill.status!=="ISSUED")throw new AppError(409,"BILLING_NOTICE_NOT_ISSUED");
  let content:Buffer;
  try{content=await renderBillingNotice(await sourceFor(bill));}
@@ -70,7 +70,7 @@ async function sendPdf(reply:FastifyReply,bill:typeof invoices.$inferSelect){
  reply.header("cache-control","private, no-store, max-age=0");
  reply.header("pragma","no-cache");
  reply.header("x-content-type-options","nosniff");
- reply.header("content-disposition",'attachment; filename="billing-notice-'+bill.id+'.pdf"');
+ reply.header("content-disposition",(inline?"inline":"attachment")+'; filename="billing-notice-'+bill.id+'.pdf"');
  return reply.type("application/pdf").send(content);
 }
 export async function registerBillingDocumentRoutes(app:FastifyInstance){
@@ -83,7 +83,8 @@ export async function registerBillingDocumentRoutes(app:FastifyInstance){
   const [bill]=await db.select().from(invoices).where(and(eq(invoices.id,invoiceId),
    eq(invoices.propertyId,property.id),eq(invoices.organizationId,property.organizationId))).limit(1);
   if(!bill)throw new AppError(404,"INVOICE_NOT_FOUND");
-  return sendPdf(reply,bill);
+  const {inline}=z.object({inline:z.literal("1").optional()}).parse(req.query);
+  return sendPdf(reply,bill,inline==="1");
  });
  app.get("/v1/tenant/invoices/:invoiceId/billing-notice.pdf",{
   config:{rateLimit:{max:20,timeWindow:"1 minute"}}

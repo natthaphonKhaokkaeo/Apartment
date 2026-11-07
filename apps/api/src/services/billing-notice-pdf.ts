@@ -182,7 +182,8 @@ export async function renderBillingNotice(b:BillingNoticeInput):Promise<Buffer>{
    for(const [index,line] of b.lines.entries()){
     // Height is computed by the same embedded font used to actually render.
     d.font("NotoThai").fontSize(9.5);
-    const descHeight=d.heightOfString(line.description,{width:260,lineGap:2});
+    const renderedDescription=line.type==="NOTE"?`หมายเหตุ: ${line.description}`:line.description;
+    const descHeight=d.heightOfString(renderedDescription,{width:260,lineGap:2});
     const rh=Math.max(41,Math.ceil(descHeight+20));
     if(rh>440)throw new Error("INVOICE_LINE_TOO_TALL");
     if(y+rh>H-185){
@@ -193,12 +194,12 @@ export async function renderBillingNotice(b:BillingNoticeInput):Promise<Buffer>{
     }
     if(index%2===0)d.rect(LEFT,y-2,WIDTH,rh).fill(BG);
     d.font("NotoThai").fontSize(9.5).fillColor(DARK)
-      .text(line.description,LEFT+13,y+10,{width:260,lineGap:2});
+      .text(renderedDescription,LEFT+13,y+10,{width:260,lineGap:2});
     const units=line.unitsMilli===null?"-":(line.unitsMilli/1000).toLocaleString("en-US",{minimumFractionDigits:3,maximumFractionDigits:3});
     const rate=line.tariffSatang===null?"-":fmt(line.tariffSatang);
     label(d,units,LEFT+283,y+11,{width:63,align:"right"});
     label(d,rate,LEFT+350,y+11,{width:60,align:"right"});
-    bold(d,fmt(line.amountSatang),LEFT+414,y+10,{width:76,align:"right"});
+    bold(d,line.type==="NOTE"?"-":fmt(line.amountSatang),LEFT+414,y+10,{width:76,align:"right"});
     y+=rh;
    }
    if(y+122>H-83){d.addPage();y=continuation(d,b,b.lines.length);}

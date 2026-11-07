@@ -34,7 +34,7 @@ const reasonText:Record<string,string>={
 
 export function BulkBillingCenter({propertyId,cadence,api,post,onIssued}:Props){
  const initial=useMemo(()=>initialPeriod(cadence),[cadence]);
- const [start,setStart]=useState(initial.start),[endExclusive,setEndExclusive]=useState(initial.endExclusive);
+ const [start,setStart]=useState(initial.start),[endExclusive,setEndExclusive]=useState(initial.endExclusive),[note,setNote]=useState("");
  const [runs,setRuns]=useState<Run[]>([]),[active,setActive]=useState<Run|null>(null);
  const [busy,setBusy]=useState(false),[error,setError]=useState(""),[notice,setNotice]=useState("");
  const path="/properties/"+propertyId+"/billing-batch-runs";
@@ -47,7 +47,7 @@ export function BulkBillingCenter({propertyId,cadence,api,post,onIssued}:Props){
  async function preview(){
   setBusy(true);setError("");setNotice("");
   try{
-   const result=await post<Run>(path+"/preview",{start,endExclusive},{"idempotency-key":crypto.randomUUID()});
+   const result=await post<Run>(path+"/preview",{start,endExclusive,note:note.trim()},{"idempotency-key":crypto.randomUUID()});
    setActive(result);await reload();setNotice("สร้างตัวอย่างแล้ว โปรดตรวจยอดและห้องที่ข้ามก่อนอนุมัติ");
   }catch(e){setError((e as Error).message);}finally{setBusy(false);}
  }
@@ -68,7 +68,7 @@ export function BulkBillingCenter({propertyId,cadence,api,post,onIssued}:Props){
   <div className="form"><p className="hint">เลือกช่วงวันที่ต้องการคิดค่าเช่าได้ ไม่จำเป็นต้องรอวันสิ้นเดือน ระบบจะตรวจสอบห้องที่ออกบิลไปแล้วก่อนเสมอ</p><div className="cols2">
    <label className="field"><span>วันเริ่มรอบ</span><input type="date" value={start} onChange={e=>setStart(e.target.value)}/></label>
    <label className="field"><span>วันสิ้นสุดรอบ (ไม่รวมวันที่เลือก)</span><input type="date" value={endExclusive} onChange={e=>setEndExclusive(e.target.value)}/></label>
-  </div><p className="hint"><ShieldCheck size={15}/> ระบบออกบิลเฉพาะห้องที่มีสัญญาและข้อมูลครบ ห้องที่ขาดมิเตอร์หรือมีบิลแล้วจะแสดงสาเหตุและไม่ถูกรวมในชุด</p>
+  </div><label className="field"><span>ข้อความเพิ่มเติมบนบิล (ไม่บังคับ · ใช้เหมือนกันทุกห้องในชุดนี้)</span><textarea rows={2} maxLength={300} value={note} onChange={e=>{setNote(e.target.value);setActive(null);}} placeholder="เช่น กรุณาชำระก่อนวันที่กำหนด หรือแจ้งข้อมูลเพิ่มเติมแก่ผู้เช่า"/></label><p className="hint"><ShieldCheck size={15}/> ระบบออกบิลเฉพาะห้องที่มีสัญญาและข้อมูลครบ ห้องที่ขาดมิเตอร์หรือมีบิลแล้วจะแสดงสาเหตุและไม่ถูกรวมในชุด</p>
    <button className="btn primary" type="button" disabled={busy||!start||!endExclusive||endExclusive<=start} onClick={()=>void preview()}>{busy?"กำลังคำนวณ…":"คำนวณตัวอย่างทุกห้อง"}</button>{endExclusive<=start&&<p className="notice danger">วันสิ้นสุดต้องอยู่หลังวันเริ่มรอบ</p>}</div>
   {error&&<p className="notice danger" role="alert">{error}</p>}{notice&&<p className="notice success" role="status">{notice}</p>}
   {active&&<div className="claim-list" aria-live="polite">

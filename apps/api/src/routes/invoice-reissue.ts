@@ -7,6 +7,7 @@ import {db} from "../db/client.js";
 import {auditLogs,evidenceUploads,financeAdjustmentRequests,invoices,invoiceLines,lineOutbox,paymentClaims,paymentLedger,properties,rooms} from "../db/schema.js";
 import {AppError,requireActor,requireProperty} from "../security.js";
 import {prepareInvoice} from "../services/billing.js";
+import {invoiceNoteLine,optionalInvoiceNote} from "../services/invoice-note.js";
 import {queueInvoiceIssuedTx} from "../services/line-notifications.js";
 import {notifyOrganizationMembersTx} from "../services/org-notifications.js";
 import {assertOwner} from "./billing-batches.js";
@@ -16,7 +17,8 @@ const uid=z.uuid();
 const routeParams=z.object({propertyId:uid,invoiceId:uid});
 const correction=z.object({
  reason:z.string().trim().min(15).max(500),
- adjustmentSatang:z.number().int().min(-2147483647).max(2147483647).default(0)
+ adjustmentSatang:z.number().int().min(-2147483647).max(2147483647).default(0),
+ note:optionalInvoiceNote
 });
 const confirmSchema=correction.extend({confirmed:z.literal(true),previewHash:z.string().regex(/^[a-f0-9]{64}$/)});
 const hash=(value:unknown)=>createHash("sha256").update(JSON.stringify(value)).digest("hex");
@@ -46,6 +48,11 @@ async function buildCorrection(tx:Tx,property:typeof properties.$inferSelect,
  if(prepared.lease.id!==original.leaseId)throw new AppError(409,"LEASE_CHANGED_SINCE_ISSUE");
  const total=correctedInvoiceTotal(prepared.totalSatang,input.adjustmentSatang);
  const lines:Array<{type:string;description:string;unitsMilli:number|null;tariffSatang:number|null;amountSatang:number;snapshot:unknown}>=[...prepared.lines];
+ const [previousNote]=await tx.select({description:invoiceLines.description}).from(invoiceLines)
+  .where(and(eq(invoiceLines.invoiceId,original.id),eq(invoiceLines.type,"NOTE"))).limit(1);
+ const noteLine=invoiceNoteLine(input.note??previousNote?.description);
+ if(noteLine)lines.push(noteLine);
+
  if(input.adjustmentSatang!==0)lines.push({type:"CORRECTION",description:("ปรับปรุงยอดใบแจ้งหนี้: "+input.reason).slice(0,450),
   unitsMilli:null,tariffSatang:null,amountSatang:input.adjustmentSatang,
   snapshot:{reason:input.reason,originalInvoiceId:original.id}});
@@ -104,6 +111,11 @@ export async function registerInvoiceReissueRoutes(app:FastifyInstance){
     const [source]=await tx.select({voidReason:invoices.voidReason}).from(invoices)
      .where(eq(invoices.id,invoiceId));
     if(source?.voidReason!==input.reason)throw new AppError(409,"IDEMPOTENCY_KEY_REUSED");
+    if(input.note!==undefined){
+     const [savedNote]=await tx.select({description:invoiceLines.description}).from(invoiceLines)
+      .where(and(eq(invoiceLines.invoiceId,replayed.id),eq(invoiceLines.type,"NOTE"))).limit(1);
+     if((savedNote?.description??"")!==input.note)throw new AppError(409,"IDEMPOTENCY_KEY_REUSED");
+    }
     return {invoice:replayed,replayed:true};
    }
    const original=await checkedInvoice(tx,propertyId,property.organizationId,invoiceId);

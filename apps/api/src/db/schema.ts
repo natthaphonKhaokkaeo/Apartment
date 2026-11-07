@@ -192,7 +192,7 @@ export const leaseInvitations = pgTable("lease_invitations", {
 }, t=>[index("idx_lease_invite_lease").on(t.leaseId),index("idx_lease_invite_expiry").on(t.expiresAt)]);
 
 export type BillingBatchSnapshot = {
- version:1; start:string; endExclusive:string;
+ version:1; start:string; endExclusive:string; note?:string;
  rooms:Array<{roomId:string;roomNumber:string;leaseId:string|null;status:"READY"|"SKIPPED";
   amountSatang:number|null;fingerprint:string|null;
   lines:Array<{type:string;description:string;amountSatang:number}>;reason:string|null}>;
