@@ -48,7 +48,7 @@ export function MeterEvidenceCenter({propertyId,rooms,canUpload,canReview,api,po
    reviewKey.current={signature:"",key:""};setReason("");setNotice("บันทึกผลตรวจแล้ว ไม่เปลี่ยนเลขมิเตอร์หรือบิลเดิม");await load();
   }catch(e){setError((e as Error).message);}finally{setBusy(false);}
  }
- return <section className="panel" aria-label="หลักฐานมิเตอร์">
+ return <section id="meter-evidence" className="panel" aria-label="หลักฐานมิเตอร์">
   <div className="panel-head"><div><h2>รูปมิเตอร์และผลตรวจความผิดปกติ</h2><p>การแนบรูปมิเตอร์เป็นตัวเลือก ไม่บังคับ: จดเลขมิเตอร์และออกบิลได้โดยไม่ต้องถ่ายรูป หากแนบ ระบบจะแปลงเป็น WebP ส่วนตัวและตัดข้อมูลภาพเดิมออก ผลตรวจเป็นคำแนะนำ ไม่แก้ไขมิเตอร์หรือยอดบิลอัตโนมัติ</p></div></div>
   <div className="cols2"><label className="field"><span>ห้องสำหรับหลักฐานมิเตอร์</span><select disabled={busy} value={roomId} onChange={e=>setRoomId(e.target.value)}>{rooms.map(r=><option key={r.id} value={r.id}>{r.number}</option>)}</select></label><label className="field"><span>ประเภทหลักฐานมิเตอร์</span><select disabled={busy} value={kind} onChange={e=>setKind(e.target.value)}><option value="WATER">น้ำ</option><option value="ELECTRIC">ไฟ</option></select></label></div>
   {!!roomId&&<button type="button" className="btn" disabled={busy||loading} onClick={()=>void load().catch(e=>setError((e as Error).message))}>โหลดเลขมิเตอร์และหลักฐานใหม่</button>}

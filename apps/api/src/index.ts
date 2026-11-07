@@ -15,7 +15,7 @@ import {users,sessions,organizations,memberships,properties,rooms,leases,meterRe
 import {AppError,newSessionToken,tokenHash,requireActor,requireOrg,requireProperty,requireAdmin} from "./security.js";
 import {prepareInvoice} from "./services/billing.js";
 import {invoiceNoteLine,optionalInvoiceNote} from "./services/invoice-note.js";
-import {classifyRichMenuRole,linkRichMenuToUser,provisionLineRichMenus,unlinkRichMenuFromUser} from "./services/line-rich-menus.js";
+import {chooseMembershipRole,classifyRichMenuRole,linkRichMenuToUser,provisionLineRichMenus,unlinkRichMenuFromUser} from "./services/line-rich-menus.js";
 import {registerTenantRoutes} from "./routes/tenant.js";
 import {registerFormerTenantHistoryRoutes} from "./routes/former-tenant-history.js";
 import {registerReceivablesExportRoutes} from "./routes/receivables-export.js";
@@ -111,18 +111,22 @@ app.post("/v1/auth/line/exchange",async(req,reply)=>{
  if(!data.sub||data.aud!==config.LINE_CHANNEL_ID||data.iss!=="https://access.line.me"||!data.exp||data.exp*1000<Date.now())throw new AppError(401,"INVALID_LINE_CLAIMS");
  const root=!!config.SUPER_ADMIN_LINE_USER_ID&&data.sub===config.SUPER_ADMIN_LINE_USER_ID;
  const [u]=await db.insert(users).values({lineSubject:data.sub,displayName:data.name||"LINE User",platformRole:root?"SUPER_ADMIN":"USER"})
-  .onConflictDoUpdate({target:users.lineSubject,set:{displayName:data.name||"LINE User"}}).returning();
+  .onConflictDoUpdate({target:users.lineSubject,set:{displayName:data.name||"LINE User",...(root?{platformRole:"SUPER_ADMIN"}:{})}}).returning();
  if(u.status!=="ACTIVE")throw new AppError(403,"ACCOUNT_DISABLED");
  const token=newSessionToken();
  await db.insert(sessions).values({userId:u.id,tokenHash:tokenHash(token),expiresAt:new Date(Date.now()+604800000)});
  reply.setCookie("apartment_session",token,{httpOnly:true,secure:config.COOKIE_SECURE==="true",sameSite:"lax",path:"/",maxAge:604800});
  if(config.LINE_MESSAGING_CHANNEL_ACCESS_TOKEN){
   try{
-   const [membership]=await db.select({role:memberships.role}).from(memberships)
-    .where(and(eq(memberships.userId,u.id),eq(memberships.status,"ACTIVE"))).limit(1);
-   const [tenantLease]=await db.select({id:leases.id}).from(leases)
-    .where(and(eq(leases.tenantLineSubject,data.sub),eq(leases.status,"ACTIVE"))).limit(1);
-   const menuRole=classifyRichMenuRole(u.platformRole,membership?.role,!!tenantLease);
+   const [activeMemberships,tenantLeases]=await Promise.all([
+    db.select({role:memberships.role}).from(memberships)
+     .innerJoin(organizations,eq(memberships.organizationId,organizations.id))
+     .where(and(eq(memberships.userId,u.id),eq(memberships.status,"ACTIVE"),eq(organizations.status,"ACTIVE"))),
+    db.select({id:leases.id}).from(leases)
+     .innerJoin(organizations,eq(leases.organizationId,organizations.id))
+     .where(and(eq(leases.tenantLineSubject,data.sub),eq(leases.status,"ACTIVE"),eq(organizations.status,"ACTIVE"))).limit(1)
+   ]);
+   const menuRole=classifyRichMenuRole(u.platformRole,chooseMembershipRole(activeMemberships.map(x=>x.role)),tenantLeases.length>0);
    const linked=await linkRichMenuToUser({channelAccessToken:config.LINE_MESSAGING_CHANNEL_ACCESS_TOKEN,lineUserId:data.sub,role:menuRole});
    if(linked)req.log.info({menuRole},"LINE rich menu assigned to authenticated user");
   }catch(error){

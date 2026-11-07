@@ -1,17 +1,28 @@
 import {readFile} from "node:fs/promises";
 
-export type RichMenuRole="public"|"owner"|"tenant"|"account"|"superadmin";
+export type RichMenuRole="public"|"owner"|"tenant"|"account"|"staff"|"superadmin";
 export type RichMenuArea={bounds:{x:number;y:number;width:number;height:number};action:{type:"uri";uri:string;label:string}};
 export type RichMenuDefinition={size:{width:2500;height:1686};selected:boolean;name:string;chatBarText:string;areas:RichMenuArea[]};
 const names:Record<RichMenuRole,string>={
- public:"apartment-public-v2",owner:"apartment-owner-v2",tenant:"apartment-tenant-v2",account:"apartment-account-v2",superadmin:"apartment-superadmin-v2"
+ public:"apartme-public-pastel-v3",owner:"apartme-owner-pastel-v3",
+ tenant:"apartme-tenant-pastel-v3",account:"apartme-account-pastel-v3",
+ staff:"apartme-staff-pastel-v3",superadmin:"apartme-superadmin-pastel-v3"
 };
+/** Each tile label and destination must match the visible role-specific artwork. */
 const sectionActions:Record<RichMenuRole,[string,string,string][]>={
- public:[["เข้าสู่ระบบ","overview",""],["บริการ","overview",""],["วิธีใช้งาน","overview",""],["จัดการหอพัก","overview",""],["ติดต่อเรา","profile",""],["เกี่ยวกับเรา","overview",""]],
- owner:[["ภาพรวม","overview",""],["ห้องพัก","rooms",""],["ออกบิล","billing",""],["ผู้เช่า","tenant",""],["งานซ่อม","maintenance",""],["โปรไฟล์","profile",""]],
- tenant:[["หน้าหลัก","tenant","tenant-home"],["ใบแจ้งหนี้","tenant","tenant-invoices"],["การชำระเงิน","tenant","tenant-invoices"],["แจ้งซ่อม","tenant","tenant-maintenance"],["ประวัติบิล","tenant","tenant-history"],["โปรไฟล์","profile",""]],
- account:[["โปรไฟล์","profile",""],["หน้าหลัก","overview",""],["เชิญเข้าพัก","tenant","tenant-home"],["แจ้งซ่อม","tenant","tenant-maintenance"],["คู่มือ","overview",""],["ติดต่อเรา","profile",""]],
- superadmin:[["จัดการระบบ","admin",""],["ภาพรวม","overview",""],["หอพัก","rooms",""],["ออกบิล","billing",""],["งานซ่อม","maintenance",""],["โปรไฟล์","profile",""]]
+ public:[["เริ่มใช้งาน","overview",""],["รู้จัก ApartMe","overview",""],["โปรไฟล์","profile",""],
+  ["ดูระบบหอพัก","overview",""],["สำหรับผู้เช่า","tenant","tenant-home"],["ติดต่อเรา","profile",""]],
+ owner:[["ภาพรวม","overview",""],["ห้องพัก","rooms",""],["ออกบิล","billing",""],
+  ["รายงานบิล","reports",""],["รับชำระ","payments",""],["โปรไฟล์","profile",""]],
+ tenant:[["หน้าหลัก","tenant","tenant-home"],["ใบแจ้งหนี้","tenant","tenant-invoices"],
+  ["การชำระเงิน","tenant","tenant-invoices"],["แจ้งซ่อม","tenant","tenant-maintenance"],
+  ["ประวัติบิล","tenant","tenant-history"],["โปรไฟล์","profile",""]],
+ account:[["หน้าหลัก","overview",""],["โปรไฟล์","profile",""],["เชิญเข้าพัก","tenant","tenant-home"],
+  ["รายการบิล","tenant","tenant-invoices"],["แจ้งซ่อม","tenant","tenant-maintenance"],["ติดต่อเรา","profile",""]],
+ staff:[["ห้องพัก","rooms",""],["จดมิเตอร์","meter",""],["หลักฐานมิเตอร์","meter","meter-evidence"],
+  ["งานของฉัน","rooms",""],["คู่มือห้องพัก","rooms",""],["โปรไฟล์","profile",""]],
+ superadmin:[["จัดการระบบ","admin",""],["ภาพรวม","overview",""],["หอพัก","rooms",""],
+  ["แจ้งเตือน","notifications",""],["งานซ่อม","maintenance",""],["โปรไฟล์","profile",""]]
 };
 const areaBounds=(index:number)=>({x:64+(index%3)*812,y:354+Math.floor(index/3)*650,width:748,height:596});
 const menuUrl=(liffId:string,section:string,anchor:string)=>{
@@ -24,9 +35,16 @@ export function buildRichMenuDefinition(role:RichMenuRole,liffId:string):RichMen
  return {size:{width:2500,height:1686},selected:true,name:names[role],chatBarText:"เมนูหลัก",
   areas:sectionActions[role].map(([label,section,anchor],i)=>({bounds:areaBounds(i),action:{type:"uri",uri:menuUrl(liffId,section,anchor),label}}))};
 }
+export function chooseMembershipRole(roles:readonly string[]):"OWNER"|"MANAGER"|"STAFF"|undefined{
+ if(roles.includes("OWNER"))return "OWNER";
+ if(roles.includes("MANAGER"))return "MANAGER";
+ if(roles.includes("STAFF"))return "STAFF";
+ return undefined;
+}
 export function classifyRichMenuRole(platformRole:string|undefined,membershipRole:string|undefined,hasActiveTenantLease:boolean):RichMenuRole{
  if(platformRole==="SUPER_ADMIN")return "superadmin";
- if(membershipRole==="OWNER"||membershipRole==="MANAGER"||membershipRole==="STAFF")return "owner";
+ if(membershipRole==="OWNER")return "owner";
+ if(membershipRole==="MANAGER"||membershipRole==="STAFF")return "staff";
  return hasActiveTenantLease?"tenant":"account";
 }
 type ProviderMenu={richMenuId:string;name?:string};
