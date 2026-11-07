@@ -72,3 +72,27 @@ export function effectiveRate(defaultSatang: number, roomOverride: number | null
   if (!Number.isSafeInteger(v) || v < 0) throw new Error("INVALID_RATE");
   return v;
 }
+
+/** Invoice cycles selected by *month and round*, not by typing a day.
+ * Each returned cycle starts in the given month. For 15-day rolling cycles
+ * the end may lie in the next month. Existing tariff period rules are reused. */
+export function meterPeriodsStartingInMonth(
+ year:number,month:number,cadence:Cadence,rollingAnchor?:string|null
+):Period[]{
+ if(!Number.isInteger(year)||year<1970||year>9998||!Number.isInteger(month)||month<1||month>12)
+  throw new Error("INVALID_MONTH");
+ if(cadence!=="EVERY_15_DAYS")return periodsForMonth(year,month,cadence);
+ if(!rollingAnchor)throw new Error("ROLLING_ANCHOR_REQUIRED");
+ const first=+parseDay(`${year}-${String(month).padStart(2,"0")}-01`);
+ const next=+new Date(Date.UTC(year,month,1));
+ const anchor=+parseDay(rollingAnchor);
+ const index=Math.max(0,Math.floor((first-anchor)/(15*DAY)));
+ const result:Period[]=[];
+ for(let i=index;i<index+4;i++){
+  const from=anchor+i*15*DAY;
+  if(from>=next)break;
+  if(from<first)continue;
+  result.push({start:iso(new Date(from)),endExclusive:iso(new Date(from+15*DAY))});
+ }
+ return result;
+}

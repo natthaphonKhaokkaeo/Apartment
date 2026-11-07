@@ -9,8 +9,9 @@ describe("meter first-period baseline",()=>{
   expect(resolveMeterStartBoundary("2026-11-01",[sample("2026-12-01","25.000")],[])).toMatchObject({value:"0",id:null,assumedZero:true});
   expect(resolveMeterStartBoundary("2026-11-01",[],[]).value).toBe("0");
  });
- it("never resets to zero in later cycles when there is an older reading",()=>{
-  expect(()=>resolveMeterStartBoundary("2026-12-01",[sample("2026-11-01","30.000")],[])).toThrow("METER_BOUNDARY_READING_REQUIRED");
+ it("uses latest dated reading within the previous month as opening, never resets to zero",()=>{
+  expect(resolveMeterStartBoundary("2026-12-01",[sample("2026-11-01","30.000"),sample("2026-11-25","45.000")],[])).toMatchObject({value:"45.000",readAt:"2026-11-25",assumedZero:false});
+  expect(()=>resolveMeterStartBoundary("2026-12-01",[sample("2026-10-20","30.000")],[])).toThrow("METER_BOUNDARY_READING_REQUIRED");
   expect(()=>resolveMeterStartBoundary("2026-12-01",[],[{replacedAt:"2026-11-01"}])).toThrow("METER_BOUNDARY_READING_REQUIRED");
  });
  it("does not invent baseline 0 when a replacement precedes the first bill",()=>{

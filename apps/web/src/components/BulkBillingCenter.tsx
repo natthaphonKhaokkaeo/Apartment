@@ -25,6 +25,7 @@ export function initialPeriod(cadence:string){
 const reasonText:Record<string,string>={
  FULL_PERIOD_ACTIVE_LEASE_REQUIRED:"ไม่มีสัญญาที่ใช้งานตลอดรอบบิล",
  METER_BOUNDARY_READING_REQUIRED:"ยังไม่มีเลขมิเตอร์ต้นหรือปลายรอบ",
+ METER_BILLING_READING_DECREASED:"ค่าปิดมิเตอร์ต่ำกว่าค่าต้นรอบ กรุณาตรวจเลขรายเดือนก่อนออกบิล",
  COMPLIANCE_REVIEW_REQUIRED:"อัตราค่าน้ำ/ไฟยังไม่ผ่านการตรวจสอบ",
  TARIFF_ABOVE_REVIEWED_LIMIT:"อัตราค่าน้ำ/ไฟเกินเพดานที่อนุมัติ",
  PERIOD_ALREADY_BILLED:"มีใบแจ้งหนี้รอบนี้แล้ว",

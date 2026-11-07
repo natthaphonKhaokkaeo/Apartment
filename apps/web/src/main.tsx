@@ -1,3 +1,4 @@
+import {MeterMonthlyEditor} from "./components/MeterMonthlyEditor.js";
 import {SingleRoomBillingCenter} from "./components/SingleRoomBillingCenter.js";
 import {InvoiceRoomReport} from "./components/InvoiceRoomReport.js";
 import {InvoiceCorrectionCenter} from "./components/InvoiceCorrectionCenter.js";
@@ -96,9 +97,11 @@ const labels:Record<string,string>={
  ROOM_NOT_OCCUPIED:"สถานะห้องไม่สอดคล้องกับสัญญาที่ใช้งาน",
  UNAUTHENTICATED:"กรุณาเข้าสู่ระบบ",COMPLIANCE_REVIEW_REQUIRED:"ต้องให้ Super Admin ตรวจอัตราน้ำไฟก่อนออกบิล",
  TARIFF_ABOVE_REVIEWED_LIMIT:"อัตราค่าน้ำหรือค่าไฟเกินวงเงินที่ตรวจสอบแล้ว",
- METER_BOUNDARY_READING_REQUIRED:"ต้องมีเลขมิเตอร์วันสิ้นสุดรอบบิล และเลขต้นรอบถ้าเคยจดมิเตอร์มาก่อน (ครั้งแรกเริ่มต้นจาก 0 ได้)",
- NON_MONOTONIC_READING:"เลขมิเตอร์ไม่สอดคล้องกับวันที่อ่าน: ห้ามค่าลดลงจากเลขก่อนหน้า หรือมากกว่าค่าที่บันทึกไว้ในวันถัดไป หากเปลี่ยนมิเตอร์ให้ใช้เมนูเปลี่ยนมิเตอร์ก่อน",
- DUPLICATE_READING:"ห้องนี้มีเลขมิเตอร์ประเภทนี้ในวันที่เลือกอยู่แล้ว กรุณาเลือกวันที่อื่นหรือตรวจรายการเดิม",
+ METER_BOUNDARY_READING_REQUIRED:"ขาดเลขปิดรอบเดือนหรือเลขต้นรอบที่ใช้คำนวณ กรุณาบันทึกเลขมิเตอร์รายเดือนก่อนออกบิล",
+ NON_MONOTONIC_READING:"ไม่สามารถตรวจเลขมิเตอร์ได้ โปรดตรวจรอบเดือนและหลักฐานการเปลี่ยนมิเตอร์",
+ DUPLICATE_READING:"เลขมิเตอร์วันนี้มีแล้ว สามารถแก้ในรูปแบบรอบเดือนแทนได้",
+ METER_READING_USED_BY_INVOICE:"เลขมิเตอร์นี้ถูกนำไปใช้ในใบแจ้งหนี้ที่ออกแล้ว กรุณาใช้กระบวนการแก้ไขบิล",
+ METER_BILLING_READING_DECREASED:"บันทึกเลขมิเตอร์ย้อนหลังสำเร็จได้ แต่ค่าปิดรอบนี้ต่ำกว่าค่าต้นรอบ คำนวณยอดติดลบไม่ได้ กรุณาตรวจเลขทั้งสองเดือนหรือบันทึกการเปลี่ยนมิเตอร์",
  FULL_PERIOD_ACTIVE_LEASE_REQUIRED:"ต้องมีสัญญาเช่าที่มีผลตลอดรอบบิล",
  INVALID_BILLING_PERIOD:"ช่วงวันที่ไม่ตรงกับรอบบิลของหอพัก",PERIOD_ALREADY_BILLED:"ออกบิลสำหรับรอบนี้แล้ว",
  ROOM_NOT_AVAILABLE:"ห้องนี้ไม่ว่าง",IDEMPOTENCY_KEY_REUSED:"รหัสคำขอถูกใช้กับบิลอื่นแล้ว",
@@ -126,6 +129,7 @@ function App(){
  const [error,setError]=useState(""),[success,setSuccess]=useState(""),[busy,setBusy]=useState(false),[menu,setMenu]=useState(false);
  const [lineBusy,setLineBusy]=useState(false),[hasTenantLease,setHasTenantLease]=useState(false);
  const [correctionInvoiceId,setCorrectionInvoiceId]=useState<string|null>(null);
+ const [meterRevision,setMeterRevision]=useState(0);
  const property=props.find(p=>p.id===propertyId);
  const orgRole=me?.memberships?.find(m=>m.organizationId===orgId)?.role;
  const isStaff=orgRole==="STAFF";
@@ -253,11 +257,6 @@ function App(){
    notify("ปิดสัญญาและปรับสถานะห้องเรียบร้อย ข้อมูลบิลเดิมยังอยู่");
   });
  }
- async function reading(form:FormData){if(!property)return;await run(async()=>{
-  await post("/properties/"+property.id+"/readings",{roomId:String(form.get("roomId")),kind:String(form.get("kind")),
-   readAt:String(form.get("day")),value:String(form.get("value"))});
-  notify("บันทึกเลขมิเตอร์เรียบร้อย");
- });}
  async function meterSwap(form:FormData){
   if(!property)return;
   if(!window.confirm("ยืนยันเปลี่ยนมิเตอร์จริง? ระบบจะเก็บค่าปิดมิเตอร์เก่าและค่าเปิดมิเตอร์ใหม่เป็นประวัติถาวร"))return;
@@ -361,7 +360,9 @@ function App(){
           ระบบจะไม่ตัดยอดหนี้หรือคืนเงินให้อัตโนมัติ</p>
         </div>):<p className="hint">ไม่มีสัญญาเช่าที่กำลังใช้งาน</p>}
       </Panel>}
-    {property&&section==="meter"&&<>{(!isStaff||staffGrantLevel==="METER_READER")&&<Panel title="จดเลขมิเตอร์" subtitle="กรอกเลขมิเตอร์น้ำและไฟ พร้อมวันที่อ่านจริง เลขต้องไม่ลดลง">{form(reading,<div className="cols2"><Field label="ห้องพัก"><select name="roomId">{rooms.map(r=><option key={r.id} value={r.id}>{r.number}</option>)}</select></Field><Field label="ประเภท"><select name="kind"><option value="WATER">ค่าน้ำ</option><option value="ELECTRIC">ค่าไฟ</option></select></Field><Field label="วันที่อ่าน"><input type="date" name="day" required defaultValue={dateNow()}/></Field><Field label="เลขมิเตอร์"><input name="value" required inputMode="decimal" placeholder="1234.000"/></Field></div>)}</Panel>}{canManageBilling&&<Panel title="เปลี่ยนมิเตอร์น้ำ/ไฟ (Owner)"
+    {property&&section==="meter"&&<>{(!isStaff||staffGrantLevel==="METER_READER")&&
+      <MeterMonthlyEditor propertyId={property.id} rooms={rooms} cadence={property.cadence}
+       rollingAnchor={property.rollingAnchor} api={api} post={post} onSaved={()=>setMeterRevision(x=>x+1)}/>} {canManageBilling&&<Panel title="เปลี่ยนมิเตอร์น้ำ/ไฟ (Owner)"
        subtitle="บันทึกหมายเลขเครื่อง ค่าปิดเก่า ค่าเริ่มใหม่ และเลขอ้างอิงหลักฐาน">
        {form(meterSwap,<div className="cols2">
         <Field label="ห้อง"><select name="roomId">
@@ -388,7 +389,7 @@ function App(){
       {canManageBilling&&<MeterReplacementHistory propertyId={property.id} rooms={rooms} api={api}/>}
       {isStaff&&<StaffMeterReadings key={property.id} propertyId={property.id} rooms={rooms} api={api}/>}
       {!isStaff&&<div className="hint"><Gauge size={19}/> ระบบบันทึกค่าเริ่มใหม่ในวันที่เปลี่ยนโดยอัตโนมัติ และรวมหน่วยการใช้งานข้ามมิเตอร์ก่อนออกบิล ต้องมีค่าที่ต้นและปลายรอบบิลด้วย</div>}</>}
-    {property&&section==="billing"&&<>{canManageBilling&&<><BulkBillingCenter propertyId={property.id} cadence={property.cadence} api={api} post={post} onIssued={()=>loadProperty(property.id)}/><InvoiceCorrectionCenter propertyId={property.id} api={api} post={post} initialInvoiceId={correctionInvoiceId} onIssued={()=>loadProperty(property.id)}/></>}<SingleRoomBillingCenter key={property.id} propertyId={property.id} cadence={property.cadence} rooms={rooms} post={post} onIssued={()=>loadProperty(property.id)}/>
+    {property&&section==="billing"&&<><MeterMonthlyEditor key={property.id} propertyId={property.id} rooms={rooms} cadence={property.cadence} rollingAnchor={property.rollingAnchor} api={api} post={post} onSaved={()=>setMeterRevision(x=>x+1)}/>{canManageBilling&&<><BulkBillingCenter key={`${property.id}-${meterRevision}`} propertyId={property.id} cadence={property.cadence} api={api} post={post} onIssued={()=>loadProperty(property.id)}/><InvoiceCorrectionCenter propertyId={property.id} api={api} post={post} initialInvoiceId={correctionInvoiceId} onIssued={()=>loadProperty(property.id)}/></>}<SingleRoomBillingCenter key={`${property.id}-${meterRevision}`} propertyId={property.id} cadence={property.cadence} rooms={rooms} post={post} onIssued={()=>loadProperty(property.id)}/>
       <Panel title="ใบแจ้งหนี้ที่ออกแล้ว" subtitle="ยอดเป็นหนี้ตั้งต้น; การรับชำระตรวจโดยเจ้าของจากหลักฐาน และยังไม่เชื่อม Bank API"><div className="table-scroll"><table><thead><tr><th>หมายเลขห้อง</th><th>รอบบิล</th><th>ครบกำหนด</th><th>ยอดเงิน</th><th>สถานะ</th><th>PDF</th></tr></thead><tbody>{invoices.map(i=><tr key={i.id}><td><b>{rooms.find(r=>r.id===i.roomId)?.number??"-"}</b></td><td>{i.periodStart} → {i.periodEnd}</td><td>{i.dueDate}</td><td>{money(i.amountSatang)}</td><td><span className="pill occupied">{i.status}</span></td><td><a className="btn outline" href={"/v1/properties/"+property.id+"/invoices/"+i.id+"/billing-notice.pdf"} target="_blank" rel="noopener noreferrer">ดาวน์โหลด PDF</a></td></tr>)}</tbody></table>{invoices.length===0&&<p className="empty">ยังไม่มีบิล</p>}</div></Panel></>}
     {property&&section==="reports"&&canManageBilling&&
       <InvoiceRoomReport propertyId={property.id} propertyName={property.name} rooms={rooms} api={api}

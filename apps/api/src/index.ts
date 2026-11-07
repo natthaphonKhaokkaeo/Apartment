@@ -7,7 +7,7 @@ import cookie from "@fastify/cookie";
 import cors from "@fastify/cors";
 import helmet from "@fastify/helmet";
 import rateLimit from "@fastify/rate-limit";
-import {and,eq,asc,desc,gt,lte,inArray,lt} from "drizzle-orm";
+import {and,eq,asc,desc,gt,gte,lte,inArray,lt} from "drizzle-orm";
 import {z,ZodError} from "zod";
 import {config} from "./config.js";
 import {db,sqlClient} from "./db/client.js";
@@ -15,7 +15,8 @@ import {users,sessions,organizations,memberships,properties,rooms,leases,meterRe
 import {AppError,newSessionToken,tokenHash,requireActor,requireOrg,requireProperty,requireAdmin} from "./security.js";
 import {prepareInvoice} from "./services/billing.js";
 import {invoiceNoteLine,optionalInvoiceNote} from "./services/invoice-note.js";
-import {checkMeterReadingProgression} from "./services/meter-initial-baseline.js";
+import {monthCloseBoundary} from "./services/meter-monthly.js";
+import {meterPeriodsStartingInMonth} from "@apartment/domain";
 import {chooseMembershipRole,classifyRichMenuRole,linkRichMenuToUser,provisionLineRichMenus,unlinkRichMenuFromUser} from "./services/line-rich-menus.js";
 import {registerTenantRoutes} from "./routes/tenant.js";
 import {registerFormerTenantHistoryRoutes} from "./routes/former-tenant-history.js";
@@ -43,10 +44,9 @@ import {registerBillingBatchRoutes} from "./routes/billing-batches.js";
 import {registerInvoiceReissueRoutes} from "./routes/invoice-reissue.js";
 import {registerInvoiceRoomReportRoutes} from "./routes/invoice-room-report.js";
 import {registerNotificationRoutes} from "./routes/notifications.js";
-import {readingSegmentIndex} from "./services/meter-replacement.js";
-import {meterReplacements} from "./db/schema.js";
+
 import {bangkokToday} from "./services/property-rates.js";
-import {propertyRateVersions,roomRateVersions} from "./db/schema.js";
+import {meterReplacements,propertyRateVersions,roomRateVersions} from "./db/schema.js";
 import {queueInvoiceIssuedTx} from "./services/line-notifications.js";
 import {notifyOrganizationMembersTx} from "./services/org-notifications.js";
 import {readingToMilli,parseDay} from "@apartment/domain";
@@ -333,14 +333,29 @@ app.get("/v1/properties/:propertyId/readings",async req=>{
 });
 app.post("/v1/properties/:propertyId/readings",async(req,reply)=>{
  const a=await requireActor(req),p=await requireProperty(a,params(req.params),"METER_READING");
- const b=take(z.object({roomId:uuid,kind:z.enum(["WATER","ELECTRIC"]),readAt:day,
-   value:z.string().regex(/^\d{1,11}(\.\d{1,3})?$/)}),req.body);
+ const b=take(z.object({roomId:uuid,kind:z.enum(["WATER","ELECTRIC"]),
+  readAt:day.optional(),month:z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/)
+   .refine(month=>Number(month.slice(0,4))>=1970&&Number(month.slice(0,4))<=9998).optional(),
+  periodEndExclusive:day.optional(),
+  value:z.string().regex(/^\d{1,11}(\.\d{1,3})?$/)}).refine(v=>Boolean(v.readAt)!==Boolean(v.month),
+  {message:"METER_MONTH_OR_DAY_REQUIRED"}),req.body);
+ const validMonthCycle=b.month?meterPeriodsStartingInMonth(Number(b.month.slice(0,4)),
+  Number(b.month.slice(5)),p.cadence,p.rollingAnchor):[];
+ if(b.month&&b.periodEndExclusive&&
+  !validMonthCycle.some(cycle=>cycle.endExclusive===b.periodEndExclusive))
+  throw new AppError(422,"INVALID_METER_PERIOD");
+ if(b.month&&p.cadence!=="MONTHLY"&&!b.periodEndExclusive)
+  throw new AppError(422,"METER_PERIOD_REQUIRED");
+ const readAt=b.month?(b.periodEndExclusive??monthCloseBoundary(b.month)):b.readAt!;
  const created=await db.transaction(async tx=>{
-  // Serialize revocations with an org lock and re-check active grant inside the write transaction.
+  // The invoice-issuance transaction takes the same property lock first.
+  // An edit can therefore never race with issuing a bill from these values.
+  await tx.select({id:properties.id}).from(properties).where(eq(properties.id,p.id)).for("update");
+  // Always recheck active organization (including SUPER_ADMIN) under a row lock.
+  const [activeOrg]=await tx.select({id:organizations.id}).from(organizations).where(and(
+   eq(organizations.id,p.organizationId),eq(organizations.status,"ACTIVE"))).for("share");
+  if(!activeOrg)throw new AppError(403,"ORG_ACCESS_DENIED");
   if(a.role!=="SUPER_ADMIN"){
-   const [activeOrg]=await tx.select({id:organizations.id}).from(organizations).where(and(
-    eq(organizations.id,p.organizationId),eq(organizations.status,"ACTIVE"))).for("share");
-   if(!activeOrg)throw new AppError(403,"ORG_ACCESS_DENIED");
    const [activeMember]=await tx.select({role:memberships.role}).from(memberships).where(and(
     eq(memberships.organizationId,p.organizationId),eq(memberships.userId,a.id),
     eq(memberships.status,"ACTIVE"))).for("share");
@@ -355,26 +370,35 @@ app.post("/v1/properties/:propertyId/readings",async(req,reply)=>{
   // Lock the room to serialize simultaneous inserts with different reading dates.
   const [locked]=await tx.select().from(rooms).where(and(eq(rooms.id,b.roomId),eq(rooms.propertyId,p.id),eq(rooms.organizationId,p.organizationId))).for("update");
   if(!locked)throw new AppError(404,"ROOM_NOT_FOUND");
-  const milli=readingToMilli(b.value);
-  const past=await tx.select().from(meterReadings).where(and(
-   eq(meterReadings.roomId,b.roomId),eq(meterReadings.kind,b.kind)));
-  const swaps=await tx.select().from(meterReplacements).where(and(
-   eq(meterReplacements.roomId,b.roomId),eq(meterReplacements.kind,b.kind)
-  )).orderBy(meterReplacements.replacedAt);
-  const segment=readingSegmentIndex(b.readAt,swaps);
-  const previousSwap=swaps[segment-1],followingSwap=swaps[segment];
-  if(previousSwap&&milli<readingToMilli(previousSwap.newOpeningValue))
-   throw new AppError(422,"NON_MONOTONIC_READING");
-  if(followingSwap&&milli>readingToMilli(followingSwap.oldClosingValue))
-   throw new AppError(422,"NON_MONOTONIC_READING");
-  if(past.some(r=>r.readAt===b.readAt))throw new AppError(409,"DUPLICATE_READING");
-  if(checkMeterReadingProgression(b.readAt,b.value,past,swaps))
-   throw new AppError(422,"NON_MONOTONIC_READING");
-  const [r]=await tx.insert(meterReadings).values({...b,organizationId:p.organizationId,propertyId:p.id,createdBy:a.id}).returning();
-  await tx.insert(auditLogs).values({actorId:a.id,organizationId:p.organizationId,action:"READING_CREATED",targetId:r.id,metadata:{kind:b.kind,readAt:b.readAt,roomId:b.roomId,actorPlatformRole:a.role}});
-  return r;
+  // Meter values are historical facts; saving an earlier month MUST NOT be blocked
+  // by an unrelated later month's number. Validate units at billing instead.
+  readingToMilli(b.value);
+  const [lockedInvoice]=await tx.select({id:invoices.id}).from(invoices).where(and(
+   eq(invoices.propertyId,p.id),eq(invoices.roomId,b.roomId),
+   gte(invoices.periodEnd,readAt))).limit(1);
+  if(lockedInvoice)throw new AppError(409,"METER_READING_USED_BY_INVOICE");
+  const [replacement]=await tx.select({id:meterReplacements.id}).from(meterReplacements)
+   .where(and(eq(meterReplacements.organizationId,p.organizationId),
+    eq(meterReplacements.propertyId,p.id),eq(meterReplacements.roomId,b.roomId),
+    eq(meterReplacements.kind,b.kind),eq(meterReplacements.replacedAt,readAt))).limit(1);
+  if(replacement)throw new AppError(409,"METER_REPLACEMENT_BOUNDARY_LOCKED");
+  const [existing]=await tx.select().from(meterReadings).where(and(
+   eq(meterReadings.organizationId,p.organizationId),eq(meterReadings.propertyId,p.id),
+   eq(meterReadings.roomId,b.roomId),eq(meterReadings.kind,b.kind),
+   eq(meterReadings.readAt,readAt))).for("update");
+  if(existing&&!b.month)throw new AppError(409,"DUPLICATE_READING");
+  const [r]=existing?
+   await tx.update(meterReadings).set({value:b.value})
+    .where(eq(meterReadings.id,existing.id)).returning():
+   await tx.insert(meterReadings).values({roomId:b.roomId,kind:b.kind,readAt,
+    value:b.value,organizationId:p.organizationId,propertyId:p.id,createdBy:a.id}).returning();
+  await tx.insert(auditLogs).values({actorId:a.id,organizationId:p.organizationId,
+   action:existing?"READING_UPDATED":"READING_CREATED",targetId:r.id,
+   metadata:{kind:b.kind,roomId:b.roomId,readAt,month:b.month??null,
+    previousValue:existing?.value??null,newValue:b.value,actorPlatformRole:a.role}});
+  return {reading:r,updated:Boolean(existing)};
  });
- return reply.code(201).send(created);
+ return reply.code(created.updated?200:201).send(created.reading);
 });
 const billing=z.object({roomId:uuid,start:day,endExclusive:day,
  partialMode:z.enum(["MOVE_IN","MOVE_OUT"]).optional(),note:optionalInvoiceNote});

@@ -7,6 +7,7 @@ import {bangkokToday,effectiveMasterRate} from "./property-rates.js";
 import {effectiveRoomRate} from "./room-rates.js";
 import {sumReplacedMeterUsage} from "./meter-replacement.js";
 import {resolveMeterStartBoundary} from "./meter-initial-baseline.js";
+import {latestBoundaryReading} from "./meter-monthly.js";
 
 type QueryDB = Pick<typeof db, "select">;
 export type BillInput = {roomId:string; start:string; endExclusive:string;partialMode?:"MOVE_IN"|"MOVE_OUT"};
@@ -128,7 +129,7 @@ export async function prepareInvoice(data:BillInput, property:typeof properties.
  for(const [kind,rate] of [["WATER",rateWater],["ELECTRIC",rateElectric]] as const){
    const readings = await client.select().from(meterReadings)
     .where(and(eq(meterReadings.roomId,room.id),eq(meterReadings.propertyId,property.id),eq(meterReadings.kind,kind)));
-   const next=readings.find(r=>r.readAt===data.endExclusive);
+   const next=latestBoundaryReading(data.endExclusive,readings);
    if(!next)throw new AppError(422,"METER_BOUNDARY_READING_REQUIRED");
    const allSwaps=await client.select().from(meterReplacements).where(and(
     eq(meterReplacements.roomId,room.id),eq(meterReplacements.organizationId,property.organizationId),
@@ -145,13 +146,18 @@ export async function prepareInvoice(data:BillInput, property:typeof properties.
     gt(meterReplacements.replacedAt,data.start),
     lte(meterReplacements.replacedAt,data.endExclusive)
    )).orderBy(asc(meterReplacements.replacedAt));
+   // Historical corrections are allowed to be saved even when other months are higher.
+   // But a negative consumption cannot be turned into a payable amount.
+   if(!swaps.length&&endMilli<startMilli)
+    throw new AppError(422,"METER_BILLING_READING_DECREASED");
    const consumedMilli=sumReplacedMeterUsage(startMilli,endMilli,swaps.map(s=>({
     replacedAt:s.replacedAt,oldClosingMilli:readingToMilli(s.oldClosingValue),
     newOpeningMilli:readingToMilli(s.newOpeningValue)
    })));
    const amountSatang=invoiceUtilityAmount(consumedMilli,rate);
    meterLines.push({type:kind,description:kind==="WATER"?"ค่าน้ำ":"ค่าไฟ",unitsMilli:consumedMilli,tariffSatang:rate,amountSatang,
-     snapshot:{start:prev.value,end:next.value,rateSatang:rate,
+     snapshot:{start:prev.value,end:next.value,startReadingDate:prev.readAt,
+      endReadingDate:next.readAt,rateSatang:rate,
       masterRateVersionId:master.id,masterEffectiveFrom:master.effectiveFrom,
       roomRateVersionId:roomVersion.id,roomRateEffectiveFrom:roomVersion.effectiveFrom,
       rateSource:(kind==="WATER"?roomVersion.waterOverrideSatang:roomVersion.electricOverrideSatang)===null?"MASTER":"OVERRIDE",

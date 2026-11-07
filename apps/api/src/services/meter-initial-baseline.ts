@@ -1,10 +1,11 @@
+import {latestBoundaryReading} from "./meter-monthly.js";
 import {readingToMilli} from "@apartment/domain";
 import {readingSegmentIndex} from "./meter-replacement.js";
 
 type Reading={readAt:string;value:string;id:string};
 type Replacement={replacedAt:string};
 export function resolveMeterStartBoundary(start:string,readings:readonly Reading[],replacements:readonly Replacement[]){
- const recorded=readings.find(row=>row.readAt===start);
+ const recorded=latestBoundaryReading(start,readings);
  if(recorded)return {...recorded,assumedZero:false};
  // Zero is only the FIRST historical baseline; never silently reset a running meter.
  if(readings.some(row=>row.readAt<start)||replacements.some(row=>row.replacedAt<=start))
