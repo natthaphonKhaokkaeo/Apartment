@@ -63,3 +63,58 @@
 .room-rate-default input{width:1rem;height:1rem;margin:.1rem 0 0;flex:none;accent-color:var(--primary,#3157c8)}
 .room-rate-field>input:disabled{background:#edf1f6;color:#526174;cursor:not-allowed;opacity:1}
 @media(max-width:760px){.room-rate-grid{grid-template-columns:1fr}}
+
+/* Responsive foundations: nested grid content must shrink before a child table scrolls.
+   Avoid hiding body overflow: off-screen action buttons must remain discoverable. */
+.workspace,.content,.panel,.claim-list,.claim-item,.claim-heading,.panel-head,
+.table-scroll,.platform-admin-center,.platform-account-list,.room-rate-grid,
+.payment-figures,.payment-center,.two-col,.cols2,.cols3{min-width:0;max-width:100%}
+.claim-list,.platform-account-list{grid-template-columns:minmax(0,1fr)}
+.claim-item{width:100%;overflow-wrap:anywhere}
+.claim-heading{flex-wrap:wrap;max-width:100%}
+.claim-heading > :first-child{min-width:0;flex:1 1 15rem;overflow-wrap:anywhere}
+.claim-heading > button,.claim-heading > .btn{flex-shrink:0;max-width:100%;white-space:normal;text-align:center}
+.table-scroll{width:100%;max-width:100%;overflow-x:auto;overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch}
+.panel-head{flex-wrap:wrap}
+.panel-head > :first-child{min-width:0;flex:1 1 16rem;overflow-wrap:anywhere}
+.panel-head > .btn,.panel-head > button{max-width:100%;white-space:normal}
+.rate-row{min-width:0;max-width:100%}
+.rate-row > span{min-width:0;overflow-wrap:anywhere}
+/* Text coming from descriptions, emails, identifiers and long URLs can never widen a grid track. */
+.claim-item small,.claim-item strong,.claim-item b,.panel p,.panel h2,.panel h3{overflow-wrap:anywhere}
+@media(max-width:760px){
+ .claim-heading > button,.claim-heading > .btn{flex:1 1 100%;width:100%;min-width:0}
+ .panel-head > .btn,.panel-head > button{width:100%;min-width:0}
+ .selectors,.selectors label{min-width:0;max-width:100%}
+ .actions > .btn,.actions > button{max-width:100%;min-width:0;white-space:normal}
+}
+@media(max-width:370px){
+ .content{padding:12px}
+ .panel{padding:14px}
+ .claim-item{padding:12px}
+ .topbar{padding:14px}
+}
+
+/* Sidebar layouts can have a narrow content column even on tablet-sized screens. */
+.room-rate-grid{grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr))}
+.room-rate-field,.room-rate-default{min-width:0;max-width:100%}
+.room-rate-field > input,.room-rate-field > select{width:100%;min-width:0;max-width:100%}
+.room-rate-default > span{min-width:0;overflow-wrap:anywhere}
+
+/* Touch-friendly mobile navigation with explicit close and backdrop. */
+.sidebar-close,.sidebar-backdrop{display:none}
+@media(max-width:760px){
+ .sidebar-backdrop{display:block;position:fixed;inset:0;z-index:98;border:0;padding:0;background:rgb(15 23 42 / 48%);cursor:pointer}
+ .sidebar-close{display:inline-flex;align-self:flex-end;align-items:center;justify-content:center;gap:7px;padding:8px 10px;min-height:40px;border:1px solid #e2e8f0;border-radius:10px;background:#f8fafc;color:#334155;font-size:13px;cursor:pointer;margin-bottom:15px}
+}
+/* Keep dynamic amounts, names and notifications inside their cards. */
+.rate-row{flex-wrap:wrap}
+.rate-row > span,.rate-row > b,.rate-row > strong{min-width:0;overflow-wrap:anywhere}
+.notification-item{min-width:0;max-width:100%;flex-wrap:wrap}
+.notification-item > div{min-width:0;flex:1 1 14rem;overflow-wrap:anywhere}
+.notification-item > button{max-width:100%;white-space:normal}
+.room-tile,.platform-account,.two-col > *{min-width:0;max-width:100%;overflow-wrap:anywhere}
+.field > input,.field > select,.field > textarea{min-width:0;max-width:100%;width:100%}
+@media(max-width:520px){
+ .notification-item > button{width:100%;justify-content:center}
+}

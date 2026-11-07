@@ -6,7 +6,8 @@
   "dev": "vite --host 0.0.0.0",
   "build": "tsc -b && vite build",
   "typecheck": "tsc --noEmit",
-  "smoke:billing-ui": "node scripts/smoke-billing-preview.mjs"
+  "smoke:billing-ui": "node scripts/smoke-billing-preview.mjs",
+  "smoke:responsive": "node scripts/smoke-responsive.mjs"
  },
  "dependencies": {
   "@apartment/domain": "workspace:*",

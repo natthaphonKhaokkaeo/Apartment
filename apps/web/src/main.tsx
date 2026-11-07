@@ -10,7 +10,7 @@ import {parseSatang} from "./money.js";
 import React,{useEffect,useState,useCallback} from "react";
 import {createRoot} from "react-dom/client";
 import liff from "@line/liff";
-import {Building2,LayoutDashboard,DoorOpen,ReceiptText,Gauge,Settings,ShieldCheck,LogOut,ChevronDown,CheckCircle2,AlertTriangle,Wallet,Users,Menu,Wrench,UserRound,Bell} from "lucide-react";
+import {Building2,LayoutDashboard,DoorOpen,ReceiptText,Gauge,Settings,ShieldCheck,LogOut,ChevronDown,CheckCircle2,AlertTriangle,Wallet,Users,Menu,Wrench,UserRound,Bell,X} from "lucide-react";
 import {OwnerInvitations} from "./components/OwnerInvitations.js";
 import {TenantPortal} from "./components/TenantPortal.js";
 import {PropertyOperationsReports} from "./components/PropertyOperationsReports.js";
@@ -131,6 +131,12 @@ function App(){
  const isStaff=orgRole==="STAFF";
  const canManageBilling=orgRole==="OWNER"||me?.role==="SUPER_ADMIN";
  const staffGrantLevel=me?.propertyGrants?.find(g=>g.propertyId===propertyId)?.level;
+ useEffect(()=>{
+  if(!menu)return;
+  const onKeyDown=(event:KeyboardEvent)=>{if(event.key==="Escape")setMenu(false);};
+  window.addEventListener("keydown",onKeyDown);
+  return()=>window.removeEventListener("keydown",onKeyDown);
+ },[menu]);
  const notify=(message:string)=>{setError("");setSuccess(message);};
  const loadMe=useCallback(async()=>{
   try{const result=await api<Me>("/me");setMe(result);return result;}catch{return null;}
@@ -276,7 +282,10 @@ function App(){
  const form=(fn:(data:FormData)=>Promise<void>,content:React.ReactNode)=>(
   <form className="form" onSubmit={e=>{e.preventDefault();void fn(new FormData(e.currentTarget));}}>{content}<button className="btn primary" disabled={busy} type="submit">{busy?"กำลังบันทึก...":"บันทึกข้อมูล"}</button></form>);
  return <div className="shell">
-  {me&&<aside className={"sidebar "+(menu?"expanded":"")}><div className="brand"><div className="brand-symbol"><Building2 size={23}/></div><span>Apartment<span className="brand-dot">.</span><small>PROPERTY MANAGEMENT</small></span></div>
+  {me&&menu&&<button type="button" aria-label="ปิดพื้นหลังเมนู" className="sidebar-backdrop" onClick={()=>setMenu(false)}/>}
+  {me&&<aside id="apartme-primary-sidebar" className={"sidebar "+(menu?"expanded":"")}>
+   <button type="button" className="sidebar-close" aria-label="ปิดเมนู" onClick={()=>setMenu(false)}><X size={18}/> ปิดเมนู</button>
+   <div className="brand"><div className="brand-symbol"><Building2 size={23}/></div><span>Apartment<span className="brand-dot">.</span><small>PROPERTY MANAGEMENT</small></span></div>
    <div className="nav-caption">WORKSPACE</div>
    <nav aria-label="เมนูหลัก">{sections.filter(([id])=>{
     if(id==="admin")return me.role==="SUPER_ADMIN";
@@ -290,7 +299,7 @@ function App(){
    <div className="aside-bottom"><div className="avatar">{me.name.slice(0,1).toUpperCase()}</div><div><b>{me.name}</b><small>{me.role==="SUPER_ADMIN"?"Super Admin":isStaff?"พนักงาน":orgRole==="OWNER"?"เจ้าของ":"ผู้จัดการ"}</small></div><button onClick={()=>void logout()} aria-label="ออกจากระบบ" className="logout"><LogOut size={18}/></button></div>
   </aside>}
   <div className="workspace">
-   <header className="topbar"><div className="top-left">{me&&<button className="menu-btn" onClick={()=>setMenu(!menu)} aria-label="เมนู"><Menu size={23}/></button>}<div><div className="eyebrow">APARTMENT CONSOLE</div><h1>{me?(sections.find(s=>s[0]===section)?.[1]||"ภาพรวม"):"ยินดีต้อนรับ"}</h1></div></div>
+   <header className="topbar"><div className="top-left">{me&&<button type="button" className="menu-btn" onClick={()=>setMenu(!menu)} aria-label="เมนู" aria-expanded={menu} aria-controls="apartme-primary-sidebar"><Menu size={23}/></button>}<div><div className="eyebrow">APARTMENT CONSOLE</div><h1>{me?(sections.find(s=>s[0]===section)?.[1]||"ภาพรวม"):"ยินดีต้อนรับ"}</h1></div></div>
     {me&&<div className="selectors"><label><span>บัญชีเจ้าของ</span><select value={orgId} onChange={e=>setOrgId(e.target.value)}>{orgs.map(o=><option value={o.id} key={o.id}>{o.name}</option>)}</select></label>
       <label><span>หอพัก</span><select value={propertyId} onChange={e=>setPropertyId(e.target.value)}>{props.map(p=><option value={p.id} key={p.id}>{p.name}</option>)}</select></label></div>}
    </header>
