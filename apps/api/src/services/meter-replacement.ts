@@ -11,7 +11,7 @@ import {bangkokToday} from "./property-rates.js";
 type MeterSwitch={
  replacedAt:string;oldClosingMilli:number;newOpeningMilli:number
 };
-export function readingSegmentIndex(day:string,switches:Pick<MeterSwitch,"replacedAt">[]):number{
+export function readingSegmentIndex(day:string,switches:readonly Pick<MeterSwitch,"replacedAt">[]):number{
  return switches.filter(s=>s.replacedAt<=day).length;
 }
 /** Units in milli-units across arbitrary physical meter replacements.
@@ -80,7 +80,7 @@ export async function replacePhysicalMeter(
    .where(and(eq(memberships.organizationId,property.organizationId),
     eq(memberships.userId,actor.id),eq(memberships.status,"ACTIVE"),
     eq(memberships.role,"OWNER"))).limit(1);
-  if(!owner)throw new AppError(403,"METER_REPLACEMENT_OWNER_REQUIRED");
+  if(actor.role!=="SUPER_ADMIN"&&!owner)throw new AppError(403,"METER_REPLACEMENT_OWNER_REQUIRED");
   const [room]=await tx.select({id:rooms.id}).from(rooms).where(and(
    eq(rooms.id,value.roomId),eq(rooms.propertyId,property.id),
    eq(rooms.organizationId,property.organizationId)

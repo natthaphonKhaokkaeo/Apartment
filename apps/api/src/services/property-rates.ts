@@ -73,7 +73,7 @@ export async function schedulePropertyRate(
    .where(and(eq(memberships.organizationId,property.organizationId),
     eq(memberships.userId,actor.id),eq(memberships.status,"ACTIVE"),
     eq(memberships.role,"OWNER"))).limit(1);
-  if(!member)throw new AppError(403,"PROPERTY_RATE_OWNER_REQUIRED");
+  if(actor.role!=="SUPER_ADMIN"&&!member)throw new AppError(403,"PROPERTY_RATE_OWNER_REQUIRED");
   if(body.effectiveFrom<bangkokToday(now))
    throw new AppError(422,"RATE_BACKDATE_FORBIDDEN");
   if(!isRateBoundary(property,body.effectiveFrom))

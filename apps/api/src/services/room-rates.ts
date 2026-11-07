@@ -65,7 +65,7 @@ export async function scheduleRoomRate(
    .where(and(eq(memberships.organizationId,property.organizationId),
     eq(memberships.userId,actor.id),eq(memberships.status,"ACTIVE"),
     eq(memberships.role,"OWNER"))).limit(1);
-  if(!member)throw new AppError(403,"ROOM_RATE_OWNER_REQUIRED");
+  if(actor.role!=="SUPER_ADMIN"&&!member)throw new AppError(403,"ROOM_RATE_OWNER_REQUIRED");
   const [room]=await tx.select().from(rooms).where(and(
    eq(rooms.id,roomId),eq(rooms.propertyId,property.id),
    eq(rooms.organizationId,property.organizationId)

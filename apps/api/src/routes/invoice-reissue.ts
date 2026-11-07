@@ -144,7 +144,8 @@ export async function registerInvoiceReissueRoutes(app:FastifyInstance){
    await tx.insert(auditLogs).values({actorId:actor.id,organizationId:property.organizationId,
     action:"INVOICE_REISSUED",targetId:created.id,metadata:{originalInvoiceId:invoiceId,
      correctionReason:input.reason,previousAmountSatang:original.amountSatang,
-     correctedAmountSatang:created.amountSatang,adjustmentSatang:input.adjustmentSatang}});
+     correctedAmountSatang:created.amountSatang,adjustmentSatang:input.adjustmentSatang,
+     actorPlatformRole:actor.role,propertyId}});
    await queueInvoiceIssuedTx(tx,created);
    await notifyOrganizationMembersTx(tx,property.organizationId,{eventKey:`INVOICE_REISSUED:${created.id}`,
     kind:"INVOICE_ISSUED",title:"ออกบิลฉบับแก้ไข",body:`ออกบิลฉบับแก้ไขเรียบร้อย ยอด ฿${(created.amountSatang/100).toFixed(2)}`});

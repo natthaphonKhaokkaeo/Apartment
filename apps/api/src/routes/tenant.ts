@@ -120,7 +120,7 @@ export async function registerTenantRoutes(app:FastifyInstance):Promise<void>{
    const [ownerUser]=await tx.select({id:users.id}).from(users).where(and(eq(users.id,actor.id),eq(users.status,"ACTIVE"))).for("share");
    const [org]=await tx.select({id:organizations.id}).from(organizations).where(and(eq(organizations.id,property.organizationId),eq(organizations.status,"ACTIVE"))).for("share");
    const [owner]=await tx.select({id:memberships.id}).from(memberships).where(and(eq(memberships.userId,actor.id),eq(memberships.organizationId,property.organizationId),eq(memberships.role,"OWNER"),eq(memberships.status,"ACTIVE"))).for("share");
-   if(!owner||!ownerUser||!org)throw new AppError(403,"TENANT_APPROVAL_ACTIVE_OWNER_REQUIRED");
+   if(!ownerUser||!org||(actor.role!=="SUPER_ADMIN"&&!owner))throw new AppError(403,"TENANT_APPROVAL_ACTIVE_OWNER_REQUIRED");
    // Lock the claimant before lease/invitation, matching profile anonymization.
    // Recheck the invitation under its write lock below before linking anything.
    const [candidate]=await tx.select({claimedBy:leaseInvitations.claimedBy}).from(leaseInvitations).where(and(eq(leaseInvitations.id,inviteId),eq(leaseInvitations.leaseId,leaseId),eq(leaseInvitations.organizationId,property.organizationId)));

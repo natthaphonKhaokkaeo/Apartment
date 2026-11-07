@@ -8,6 +8,7 @@ import {auditLogs,billingBatchRuns,invoices,invoiceLines,leases,memberships,orga
 import {AppError,requireActor,requireProperty} from "../security.js";
 import {prepareInvoice,validBillingPeriod} from "../services/billing.js";
 import {invoiceNoteLine,optionalInvoiceNote} from "../services/invoice-note.js";
+import {mayPerformOwnerBillingAction} from "../services/billing-authorization.js";
 import {queueInvoiceIssuedTx} from "../services/line-notifications.js";
 import {notifyOrganizationMembersTx} from "../services/org-notifications.js";
 
@@ -16,16 +17,17 @@ const digest=(value:unknown)=>createHash("sha256").update(JSON.stringify(value))
 type Reader=Pick<typeof db,"select">;
 
 export async function assertOwner(actorId:string,property:typeof properties.$inferSelect,client:Reader){
- const [user]=await client.select({id:users.id}).from(users)
+ const [user]=await client.select({id:users.id,platformRole:users.platformRole}).from(users)
   .where(and(eq(users.id,actorId),eq(users.status,"ACTIVE"))).for("share");
  if(!user)throw new AppError(403,"OWNER_REQUIRED");
  const [org]=await client.select({id:organizations.id,status:organizations.status}).from(organizations)
   .where(eq(organizations.id,property.organizationId)).for("share");
  if(!org||org.status!=="ACTIVE")throw new AppError(403,"ORG_ACCESS_DENIED");
+ if(user.platformRole==="SUPER_ADMIN")return;
  const [member]=await client.select({role:memberships.role,status:memberships.status})
   .from(memberships).where(and(eq(memberships.organizationId,property.organizationId),
    eq(memberships.userId,actorId))).for("share");
- if(!member||member.status!=="ACTIVE"||member.role!=="OWNER")
+ if(!member||member.status!=="ACTIVE"||!mayPerformOwnerBillingAction(user.platformRole,member.role))
   throw new AppError(403,"OWNER_REQUIRED");
 }
 
@@ -189,7 +191,7 @@ export async function registerBillingBatchRoutes(app:FastifyInstance){
     approvedAt:new Date(),completedAt:new Date(),issuedCount:ready.length})
     .where(eq(billingBatchRuns.id,run.id)).returning();
    await tx.insert(auditLogs).values({actorId:actor.id,organizationId:locked.organizationId,
-    action:"BILLING_BATCH_COMPLETED",targetId:run.id,metadata:{issuedCount:ready.length,
+    action:"BILLING_BATCH_COMPLETED",targetId:run.id,metadata:{actorPlatformRole:actor.role,propertyId:property.id,issuedCount:ready.length,
      skippedCount:current.rooms.length-ready.length}});
    return {run:completed,replayed:false};
   });

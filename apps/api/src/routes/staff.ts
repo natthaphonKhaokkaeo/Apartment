@@ -24,8 +24,7 @@ async function requireOwner(actor:Actor,orgId:string){
  const [member]=await db.select({role:memberships.role}).from(memberships).where(and(
   eq(memberships.organizationId,orgId),eq(memberships.userId,actor.id),eq(memberships.status,"ACTIVE")
  )).limit(1);
- // No SUPER_ADMIN shortcut for organization membership control.
- if(member?.role!=="OWNER")throw new AppError(403,"ORG_OWNER_REQUIRED");
+ if(actor.role!=="SUPER_ADMIN"&&member?.role!=="OWNER")throw new AppError(403,"ORG_OWNER_REQUIRED");
 }
 
 export async function registerStaffRoutes(app:FastifyInstance){

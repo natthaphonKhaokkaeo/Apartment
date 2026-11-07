@@ -15,6 +15,7 @@ import {users,sessions,organizations,memberships,properties,rooms,leases,meterRe
 import {AppError,newSessionToken,tokenHash,requireActor,requireOrg,requireProperty,requireAdmin} from "./security.js";
 import {prepareInvoice} from "./services/billing.js";
 import {invoiceNoteLine,optionalInvoiceNote} from "./services/invoice-note.js";
+import {checkMeterReadingProgression} from "./services/meter-initial-baseline.js";
 import {chooseMembershipRole,classifyRichMenuRole,linkRichMenuToUser,provisionLineRichMenus,unlinkRichMenuFromUser} from "./services/line-rich-menus.js";
 import {registerTenantRoutes} from "./routes/tenant.js";
 import {registerFormerTenantHistoryRoutes} from "./routes/former-tenant-history.js";
@@ -366,15 +367,11 @@ app.post("/v1/properties/:propertyId/readings",async(req,reply)=>{
    throw new AppError(422,"NON_MONOTONIC_READING");
   if(followingSwap&&milli>readingToMilli(followingSwap.oldClosingValue))
    throw new AppError(422,"NON_MONOTONIC_READING");
-  for(const r of past){
-   if(r.readAt===b.readAt)throw new AppError(409,"DUPLICATE_READING");
-   if(readingSegmentIndex(r.readAt,swaps)!==segment)continue;
-   const old=readingToMilli(r.value);
-   if((r.readAt<b.readAt&&old>milli)||(r.readAt>b.readAt&&old<milli))
-    throw new AppError(422,"NON_MONOTONIC_READING");
-  }
+  if(past.some(r=>r.readAt===b.readAt))throw new AppError(409,"DUPLICATE_READING");
+  if(checkMeterReadingProgression(b.readAt,b.value,past,swaps))
+   throw new AppError(422,"NON_MONOTONIC_READING");
   const [r]=await tx.insert(meterReadings).values({...b,organizationId:p.organizationId,propertyId:p.id,createdBy:a.id}).returning();
-  await tx.insert(auditLogs).values({actorId:a.id,organizationId:p.organizationId,action:"READING_CREATED",targetId:r.id,metadata:{kind:b.kind,readAt:b.readAt}});
+  await tx.insert(auditLogs).values({actorId:a.id,organizationId:p.organizationId,action:"READING_CREATED",targetId:r.id,metadata:{kind:b.kind,readAt:b.readAt,roomId:b.roomId,actorPlatformRole:a.role}});
   return r;
  });
  return reply.code(201).send(created);
@@ -427,7 +424,7 @@ app.post("/v1/properties/:propertyId/bills/issue",async(req,reply)=>{
   const noteLine=invoiceNoteLine(b.note);
   await tx.insert(invoiceLines).values([...preview.lines,...(noteLine?[noteLine]:[])]
    .map((l,ordinal)=>({invoiceId:i.id,ordinal,...l})));
-  await tx.insert(auditLogs).values({actorId:a.id,organizationId:p.organizationId,action:"INVOICE_ISSUED",targetId:i.id,metadata:{amountSatang:i.amountSatang}});
+  await tx.insert(auditLogs).values({actorId:a.id,organizationId:p.organizationId,action:"INVOICE_ISSUED",targetId:i.id,metadata:{amountSatang:i.amountSatang,propertyId:p.id,actorPlatformRole:a.role}});
   // Enqueue only with verified active LINE tenant and explicit opt-in. Atomic with
   // the invoice: a rollback removes both the invoice and its pending notification.
   const notificationStatus=await queueInvoiceIssuedTx(tx,i);

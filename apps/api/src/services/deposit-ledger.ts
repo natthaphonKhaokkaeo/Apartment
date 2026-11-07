@@ -31,7 +31,7 @@ async function withOwner<T>(actor:Actor,scope:DepositScope,action:(tx:Tx,organiz
   const [user]=await tx.select({id:users.id}).from(users).where(and(eq(users.id,actor.id),eq(users.status,"ACTIVE"))).for("share");
   const [org]=await tx.select({id:organizations.id}).from(organizations).where(and(eq(organizations.id,p.organizationId),eq(organizations.status,"ACTIVE"))).for("share");
   const [owner]=await tx.select({id:memberships.id}).from(memberships).where(and(eq(memberships.userId,actor.id),eq(memberships.organizationId,p.organizationId),eq(memberships.role,"OWNER"),eq(memberships.status,"ACTIVE"))).for("share");
-  if(!user||!org||!owner)throw new AppError(403,"DEPOSIT_ACTIVE_OWNER_REQUIRED");
+  if(!user||!org||(actor.role!=="SUPER_ADMIN"&&!owner))throw new AppError(403,"DEPOSIT_ACTIVE_OWNER_REQUIRED");
   // Same property -> lease order as lease lifecycle; all receipts/reviews share this lock.
   const [property]=await tx.select({id:properties.id}).from(properties).where(and(eq(properties.id,scope.propertyId),eq(properties.organizationId,p.organizationId))).for("update");
   const [lease]=await tx.select({id:leases.id}).from(leases).where(and(eq(leases.id,scope.leaseId),eq(leases.propertyId,scope.propertyId),eq(leases.organizationId,p.organizationId))).for("update");

@@ -14,7 +14,7 @@ export async function withMeterScope<T>(actor:Actor,scope:MeterScope,mode:"read"
   if(!org||!user)throw new AppError(403,"METER_SCOPE_INACTIVE");
   const [member]=await tx.select().from(memberships).where(and(eq(memberships.organizationId,org.id),eq(memberships.userId,actor.id),eq(memberships.status,"ACTIVE"))).for("share");
   if(mode==="owner"){
-   if(member?.role!=="OWNER")throw new AppError(403,"METER_REVIEW_OWNER_REQUIRED");
+   if(user.platformRole!=="SUPER_ADMIN"&&member?.role!=="OWNER")throw new AppError(403,"METER_REVIEW_OWNER_REQUIRED");
   }else if(user.platformRole!=="SUPER_ADMIN"&&member?.role!=="OWNER"&&member?.role!=="MANAGER"){
    if(member?.role!=="STAFF")throw new AppError(403,"PROPERTY_ACCESS_DENIED");
    const [grant]=await tx.select().from(propertyStaffGrants).where(and(eq(propertyStaffGrants.organizationId,org.id),eq(propertyStaffGrants.propertyId,scope.propertyId),eq(propertyStaffGrants.userId,actor.id),eq(propertyStaffGrants.status,"ACTIVE"))).for("share");

@@ -35,7 +35,7 @@ describe("meter evidence transactional capability boundaries",()=>{
  it("does not infer property access from missing membership",async()=>{state.rows.memberships=[];await expect(read("read")).rejects.toMatchObject({statusCode:403});});
  it("denies an absent scoped room",async()=>{state.rows.rooms=[];await expect(read("read")).rejects.toMatchObject({statusCode:404});});
  it("accepts an active OWNER review",async()=>{state.rows.memberships=[{role:"OWNER"}];await expect(read("owner")).resolves.toEqual({authorized:true});});
- it("does not turn platform administration into owner review",async()=>{state.rows.users=[{id:"u",platformRole:"SUPER_ADMIN"}];state.rows.memberships=[];await expect(read("read")).resolves.toEqual({authorized:true});await expect(read("owner")).rejects.toMatchObject({statusCode:403});});
+ it("permits active platform SUPER_ADMIN to review meter evidence with no membership",async()=>{state.rows.users=[{id:"u",platformRole:"SUPER_ADMIN"}];state.rows.memberships=[];await expect(read("read")).resolves.toEqual({authorized:true});await expect(read("owner")).resolves.toEqual({authorized:true});});
  it("requires the exact meter record to exist",async()=>{await expect(db.transaction(tx=>scopedMeterReading(tx,scope,"reading","o"))).rejects.toMatchObject({statusCode:404});});
 });
 describe("stored reading assessment",()=>{

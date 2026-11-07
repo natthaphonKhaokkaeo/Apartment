@@ -43,7 +43,7 @@ export async function moveOutLease(actor:Actor,rawParams:unknown,rawBody:unknown
    .where(and(eq(memberships.organizationId,property.organizationId),
     eq(memberships.userId,actor.id),eq(memberships.role,"OWNER"),
     eq(memberships.status,"ACTIVE"))).limit(1);
-  if(!owner)throw new AppError(403,"LEASE_MOVE_OUT_OWNER_REQUIRED");
+  if(actor.role!=="SUPER_ADMIN"&&!owner)throw new AppError(403,"LEASE_MOVE_OUT_OWNER_REQUIRED");
   const [lease]=await tx.select().from(leases).where(and(
    eq(leases.id,leaseId),eq(leases.propertyId,propertyId),
    eq(leases.organizationId,property.organizationId))).for("update").limit(1);

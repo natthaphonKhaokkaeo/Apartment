@@ -11,6 +11,7 @@ type Props={propertyId:string;initialInvoiceId?:string|null;api:<T>(path:string,
 const money=(satang:number)=>"฿"+(satang/100).toLocaleString("th-TH",{minimumFractionDigits:2,maximumFractionDigits:2});
 const message=(error:unknown)=>{
  const code=(error as Error)?.message??"";
+ if(code.includes("OWNER_REQUIRED"))return "ต้องใช้สิทธิ์เจ้าของหอพักหรือ Super Admin เพื่อแก้ไขและออกใบแจ้งหนี้ทดแทน";
  if(code.includes("INVOICE_HAS_PAYMENT_ACTIVITY"))return "บิลนี้มีรายการชำระเงิน หลักฐานโอน หรือรายการการเงินที่เกี่ยวข้อง ต้องเคลียร์ยอดผ่านระบบการเงินก่อน";
  if(code.includes("LINE_NOTIFICATION_IN_FLIGHT"))return "กำลังส่ง LINE แจ้งบิลเดิม กรุณาลองใหม่เมื่อการส่งเสร็จสิ้น";
  if(code.includes("PREVIEW_STALE"))return "ข้อมูลใบแจ้งหนี้เปลี่ยนแล้ว กรุณาตรวจสอบยอดใหม่";
