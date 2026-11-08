@@ -33,6 +33,7 @@ export async function queueLeaseNotificationTx(tx:Pick<typeof db,"select"|"inser
  kind:NotificationKind):
  Promise<"QUEUED"|"INELIGIBLE"|"ALREADY_QUEUED">{
  if(!notificationPurposeAllowed(kind))return "INELIGIBLE";
+ if(!invoice.leaseId)return "INELIGIBLE";
  const [[lease],[binding]]=await Promise.all([
   tx.select({id:leases.id,organizationId:leases.organizationId,
    tenantLineSubject:leases.tenantLineSubject}).from(leases).where(and(

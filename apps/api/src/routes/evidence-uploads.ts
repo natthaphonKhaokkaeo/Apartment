@@ -148,6 +148,7 @@ export async function registerEvidenceUploadRoutes(app:FastifyInstance){
     eq(invoices.propertyId,bill.propertyId),eq(invoices.organizationId,bill.organizationId),
     eq(invoices.status,"ISSUED"))).for("update");
    if(!locked)throw new AppError(409,"INVOICE_NOT_ISSUED");
+   if(!bill.leaseId)throw new AppError(404,"INVOICE_NOT_FOUND");
    const [activeLease]=await tx.select({id:leases.id}).from(leases)
     .innerJoin(organizations,eq(organizations.id,leases.organizationId))
     .innerJoin(properties,eq(properties.id,leases.propertyId))

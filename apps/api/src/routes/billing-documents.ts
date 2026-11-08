@@ -36,12 +36,12 @@ async function sourceFor(bill:typeof invoices.$inferSelect):Promise<BillingNotic
     eq(properties.organizationId,bill.organizationId))).limit(1),
    db.select().from(rooms).where(and(eq(rooms.id,bill.roomId),
     eq(rooms.propertyId,bill.propertyId))).limit(1),
-   db.select().from(leases).where(and(eq(leases.id,bill.leaseId),
-    eq(leases.roomId,bill.roomId))).limit(1)
+   bill.leaseId?db.select().from(leases).where(and(eq(leases.id,bill.leaseId),
+    eq(leases.roomId,bill.roomId))).limit(1):Promise.resolve([])
   ]);
-  if(!org||!prop||!room||!lease)throw new AppError(409,"BILLING_NOTICE_METADATA_MISSING");
+  if(!org||!prop||!room||(bill.leaseId&&!lease))throw new AppError(409,"BILLING_NOTICE_METADATA_MISSING");
   snapshot={schemaVersion:1,issuerName:org.name,propertyName:prop.name,
-   propertyAddress:prop.address,roomNumber:room.number,tenantName:lease.tenantName};
+   propertyAddress:prop.address,roomNumber:room.number,tenantName:lease?.tenantName??"ไม่ระบุผู้เช่า"};
   snapshotSource="CURRENT_RECORD_LEGACY";
  }else throw new AppError(409,"BILLING_NOTICE_SNAPSHOT_INVALID");
  return {

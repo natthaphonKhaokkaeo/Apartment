@@ -5,7 +5,7 @@ import {initialPeriod} from "./BulkBillingCenter.js";
 type Room={id:string;number:string;status:string};
 type PreviewLine={type:string;description:string;amountSatang:number;unitsMilli:number|null;tariffSatang:number|null;
  snapshot?:{startAssumedZero?:boolean;start?:string;end?:string}};
-type BillPreview={room:{id:string;number:string};lease:{tenantName:string};periodStart:string;
+type BillPreview={room:{id:string;number:string};lease:{tenantName:string}|null;periodStart:string;
  periodEnd:string;totalSatang:number;lines:PreviewLine[]};
 type Issued={invoice:{id:string;roomId:string;amountSatang:number};replayed?:boolean};
 type Input={roomId:string;start:string;endExclusive:string;partialMode?:"MOVE_IN"|"MOVE_OUT";note:string};
@@ -15,14 +15,14 @@ type Props={propertyId:string;cadence:string;rooms:Room[];
 const money=(n:number)=>"฿"+(n/100).toLocaleString("th-TH",{minimumFractionDigits:2,maximumFractionDigits:2});
 export function SingleRoomBillingCenter({propertyId,cadence,rooms,post,onIssued}:Props){
  const initial=useMemo(()=>initialPeriod(cadence),[cadence]);
- const occupied=rooms.filter(room=>room.status==="OCCUPIED");
+ const billableRooms=rooms;
  const [roomId,setRoomId]=useState(""),[start,setStart]=useState(initial.start),[endExclusive,setEndExclusive]=useState(initial.endExclusive);
  const [partialMode,setPartialMode]=useState<""|"MOVE_IN"|"MOVE_OUT">(""),[note,setNote]=useState("");
  const [preview,setPreview]=useState<BillPreview|null>(null),[previewInput,setPreviewInput]=useState("");
  const [issued,setIssued]=useState<Issued|null>(null),[busy,setBusy]=useState(false),
   [error,setError]=useState(""),[notice,setNotice]=useState("");
  const issueKey=useRef("");
- useEffect(()=>{setRoomId(current=>rooms.some(room=>room.status==="OCCUPIED"&&room.id===current)?current:(rooms.find(room=>room.status==="OCCUPIED")?.id??""));},[rooms]);
+ useEffect(()=>{setRoomId(current=>rooms.some(room=>room.id===current)?current:(rooms[0]?.id??""));},[rooms]);
  useEffect(()=>{setPreview(null);setPreviewInput("");setIssued(null);issueKey.current="";},[propertyId]);
  useEffect(()=>{setStart(initial.start);setEndExclusive(initial.endExclusive);setPreview(null);setPreviewInput("");},[initial.start,initial.endExclusive]);
  const payload:Input={roomId,start,endExclusive,note:note.trim(),...(partialMode?{partialMode}:{})};
@@ -43,7 +43,7 @@ export function SingleRoomBillingCenter({propertyId,cadence,rooms,post,onIssued}
  }
  async function issue(){
   if(!ready||!preview)return;
-  if(!window.confirm(`ยืนยันออกบิลห้อง ${preview.room.number} ผู้เช่า ${preview.lease.tenantName} รวม ${money(preview.totalSatang)}?`))return;
+  if(!window.confirm(`ยืนยันออกบิลห้อง ${preview.room.number} ผู้เช่า ${preview.lease?.tenantName??"ไม่ระบุผู้เช่า"} รวม ${money(preview.totalSatang)}?`))return;
   setBusy(true);setError("");setNotice("");
   try{
    if(!issueKey.current)issueKey.current=crypto.randomUUID();
@@ -56,17 +56,18 @@ export function SingleRoomBillingCenter({propertyId,cadence,rooms,post,onIssued}
  }
  return <section className="panel" aria-label="ออกใบแจ้งหนี้รายห้อง">
   <div className="panel-head"><div><h2><ReceiptText size={20}/> ออกใบแจ้งหนี้รายห้อง</h2>
-   <p>1. เลือกห้องและรอบบิล → 2. คำนวณและตรวจ Preview → 3. ยืนยันออกบิลจริง</p></div></div>
+   <p>1. เลือกห้องและรอบบิล → 2. คำนวณและตรวจ Preview → 3. ยืนยันออกบิลจริง · ไม่บังคับมีสัญญาเช่า</p></div></div>
   <div className="form"><div className="cols3">
    <label className="field"><span>ห้องพัก</span><select value={roomId} onChange={e=>{setRoomId(e.target.value);invalidate();}}>
-    {occupied.length===0&&<option value="">ยังไม่มีห้องที่มีผู้เช่า</option>}
-    {occupied.map(room=><option key={room.id} value={room.id}>{room.number}</option>)}</select></label>
+    {billableRooms.length===0&&<option value="">ยังไม่มีห้องพัก</option>}
+    {billableRooms.map(room=><option key={room.id} value={room.id}>{room.number}</option>)}</select></label>
    <label className="field"><span>วันเริ่มรอบบิล</span><input type="date" value={start} onChange={e=>{setStart(e.target.value);invalidate();}}/></label>
    <label className="field"><span>วันสิ้นสุด (ไม่รวมวันเลือก)</span><input type="date" value={endExclusive} onChange={e=>{setEndExclusive(e.target.value);invalidate();}}/></label>
   </div>
   <label className="field"><span>ประเภทบิล</span><select value={partialMode} onChange={e=>{setPartialMode(e.target.value as typeof partialMode);invalidate();}}>
    <option value="">รอบปกติ</option><option value="MOVE_IN">ย้ายเข้ากลางรอบ</option><option value="MOVE_OUT">ย้ายออกกลางรอบ</option>
   </select></label>
+  {partialMode&&<p className="hint">การคิดบิลย้ายเข้า/ย้ายออกต้องมีข้อมูลวันเริ่มสัญญา หากไม่มีสัญญาเช่าให้เลือก “รอบปกติ”</p>}
   <label className="field"><span>หมายเหตุบนบิล (ไม่บังคับ · ยอด 0 บาท)</span><textarea maxLength={300} rows={2} value={note}
    onChange={e=>{setNote(e.target.value);invalidate();}} placeholder="ข้อความเพิ่มเติมสำหรับผู้เช่า"/></label>
   <p className="hint">เลขมิเตอร์ต้นรอบแรกจะถือเป็น 0 หากไม่มีประวัติก่อนหน้า ส่วนรอบถัดไปต้องใช้ค่าที่บันทึกไว้จริง</p>
@@ -77,7 +78,7 @@ export function SingleRoomBillingCenter({propertyId,cadence,rooms,post,onIssued}
   {notice&&<p className="notice success" role="status"><CheckCircle2 size={18}/>{notice}</p>}
   {preview&&previewInput===signature&&<article className="claim-item" aria-label="ตัวอย่างรายการบิลรายห้อง" aria-live="polite">
    <div className="claim-heading"><div><h3>ตัวอย่างใบแจ้งหนี้ · ห้อง {preview.room.number}</h3>
-    <small>ผู้เช่า {preview.lease.tenantName} · รอบ {preview.periodStart} ถึง {preview.periodEnd}</small></div>
+    <small>ผู้เช่า {preview.lease?.tenantName??"ไม่ระบุผู้เช่า"} · รอบ {preview.periodStart} ถึง {preview.periodEnd}</small></div>
     <strong>{money(preview.totalSatang)}</strong></div>
    <div className="table-scroll"><table><thead><tr><th>รายการ</th><th>หน่วยใช้จริง</th><th>อัตรา</th><th>จำนวนเงิน</th></tr></thead>
     <tbody>{preview.lines.map((line,index)=><tr key={`${line.type}-${index}`}><td>{line.type==="NOTE"?`หมายเหตุ: ${line.description}`:line.description}

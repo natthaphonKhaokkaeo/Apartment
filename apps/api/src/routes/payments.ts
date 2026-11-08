@@ -193,6 +193,7 @@ export async function registerPaymentRoutes(app:FastifyInstance){
     if(!locked)throw new AppError(409,"INVOICE_NOT_ISSUED");
     // Re-check that the claimant still has an approved active lease and org.
     const identity=await subject(actor);
+    if(!bill.leaseId)throw new AppError(404,"INVOICE_NOT_FOUND");
     const [valid]=await tx.select({id:leases.id}).from(leases)
      .innerJoin(organizations,eq(organizations.id,leases.organizationId))
      .where(and(eq(leases.id,bill.leaseId),eq(leases.tenantLineSubject,identity),

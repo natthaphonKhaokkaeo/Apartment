@@ -15,6 +15,7 @@ import {users,sessions,organizations,memberships,properties,rooms,leases,meterRe
 import {AppError,newSessionToken,tokenHash,requireActor,requireOrg,requireProperty,requireAdmin} from "./security.js";
 import {prepareInvoice} from "./services/billing.js";
 import {invoiceNoteLine,optionalInvoiceNote} from "./services/invoice-note.js";
+import {noLeaseRecipientName} from "./services/billing-lease.js";
 import {monthCloseBoundary} from "./services/meter-monthly.js";
 import {meterPeriodsStartingInMonth} from "@apartment/domain";
 import {chooseMembershipRole,classifyRichMenuRole,linkRichMenuToUser,provisionLineRichMenus,unlinkRichMenuFromUser} from "./services/line-rich-menus.js";
@@ -424,13 +425,13 @@ app.post("/v1/properties/:propertyId/bills/issue",async(req,reply)=>{
    return {invoice:replay,replayed:true};
   }
   const preview=await prepareInvoice(b,locked,tx);
-  const [duplicate]=await tx.select().from(invoices).where(and(eq(invoices.leaseId,preview.lease.id),
+  const [duplicate]=await tx.select().from(invoices).where(and(eq(invoices.roomId,preview.room.id),
     eq(invoices.periodStart,b.start),eq(invoices.periodEnd,b.endExclusive)));
   if(duplicate)throw new AppError(409,"PERIOD_ALREADY_BILLED");
   // A different invoice interval may still overlap this period. Serialize
   // through the property lock above to avoid double charging on concurrent requests.
   const [overlap]=await tx.select({id:invoices.id}).from(invoices)
-   .where(and(eq(invoices.leaseId,preview.lease.id),
+   .where(and(eq(invoices.roomId,preview.room.id),
     eq(invoices.organizationId,p.organizationId),
     eq(invoices.status,"ISSUED"),
     lt(invoices.periodStart,b.endExclusive),
@@ -440,10 +441,10 @@ app.post("/v1/properties/:propertyId/bills/issue",async(req,reply)=>{
     .from(organizations).where(eq(organizations.id,locked.organizationId)).limit(1);
   if(!org||org.status!=="ACTIVE")throw new AppError(409,"ORGANIZATION_NOT_ACTIVE");
   const [i]=await tx.insert(invoices).values({organizationId:p.organizationId,propertyId:p.id,
-    roomId:preview.room.id,leaseId:preview.lease.id,periodStart:b.start,periodEnd:b.endExclusive,
+    roomId:preview.room.id,leaseId:preview.lease?.id??null,periodStart:b.start,periodEnd:b.endExclusive,
     dueDate:due(b.endExclusive,locked.dueDays),amountSatang:preview.totalSatang,idempotencyKey:key,issuedBy:a.id,
     documentSnapshot:{schemaVersion:1,issuerName:org.name,propertyName:locked.name,
-      propertyAddress:locked.address,roomNumber:preview.room.number,tenantName:preview.lease.tenantName}
+      propertyAddress:locked.address,roomNumber:preview.room.number,tenantName:preview.lease?.tenantName??noLeaseRecipientName}
   }).returning();
   const noteLine=invoiceNoteLine(b.note);
   await tx.insert(invoiceLines).values([...preview.lines,...(noteLine?[noteLine]:[])]

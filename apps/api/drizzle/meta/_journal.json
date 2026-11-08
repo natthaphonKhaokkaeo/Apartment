@@ -176,6 +176,13 @@
       "when": 1793973765700,
       "tag": "0024_striped_the_enforcers",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1794119700339,
+      "tag": "0025_careful_argent",
+      "breakpoints": true
     }
   ]
 }

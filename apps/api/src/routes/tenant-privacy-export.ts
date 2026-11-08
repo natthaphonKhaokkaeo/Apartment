@@ -56,7 +56,7 @@ export async function registerTenantPrivacyExportRoutes(app:FastifyInstance):Pro
   )).orderBy(desc(invoices.createdAt)).limit(MAX_INVOICES+1):[];
   if(invoiceRows.length>MAX_INVOICES)throw new AppError(409,"TENANT_EXPORT_TOO_LARGE");
   const permittedInvoices=invoiceRows.filter(bill=>{
-   const lease=leaseById.get(bill.leaseId);
+   const lease=bill.leaseId?leaseById.get(bill.leaseId):undefined;
    if(!lease||lease.organizationId!==bill.organizationId||
       lease.propertyId!==bill.propertyId||
       !validDay(bill.periodStart)||!validDay(bill.periodEnd)||

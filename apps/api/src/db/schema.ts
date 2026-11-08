@@ -266,7 +266,7 @@ export const invoices = pgTable("invoices", {
   organizationId: uuid("organization_id").notNull().references(() => organizations.id),
   propertyId: uuid("property_id").notNull().references(() => properties.id),
   roomId: uuid("room_id").notNull().references(() => rooms.id),
-  leaseId: uuid("lease_id").notNull().references(() => leases.id),
+  leaseId: uuid("lease_id").references(() => leases.id),
   periodStart: date("period_start").notNull(),
   periodEnd: date("period_end").notNull(),
   dueDate: date("due_date").notNull(),
@@ -283,6 +283,7 @@ export const invoices = pgTable("invoices", {
   createdAt: timestamp("created_at", {withTimezone:true}).notNull().defaultNow()
 }, t => [
   uniqueIndex("uq_invoice_lease_period").on(t.leaseId,t.periodStart,t.periodEnd).where(sql`${t.status} = 'ISSUED'`),
+  uniqueIndex("uq_invoice_room_period").on(t.roomId,t.periodStart,t.periodEnd).where(sql`${t.status} = 'ISSUED'`),
   uniqueIndex("uq_invoice_replaces_invoice").on(t.replacesInvoiceId),
   uniqueIndex("uq_invoice_property_idem").on(t.propertyId,t.idempotencyKey),
   index("idx_invoice_org_property").on(t.organizationId,t.propertyId)

@@ -97,5 +97,19 @@ try{
  await meterPage.getByRole('button',{name:'บันทึก / แก้ไขเลขมิเตอร์เดือนนี้'}).click();
  await expect(meterPage.getByText(/บันทึกเลขน้ำรอบ 2026-11 เรียบร้อย/)).toBeVisible();
  if(!semiSubmitted)throw new Error('HALF_MONTH_METER_NOT_SUBMITTED');
- console.log('BILLING_BROWSER_SMOKE_PASS single/bulk preview, past-month edit, half-month cycle, stale previews invalidated; mocked API');
+ // A vacant room with NO contract can preview and issue its room-scoped bill.
+ await page.route(`**/v1/organizations/${org}/properties`,route=>json(route,[{
+  id,name:'หอพักไม่มีสัญญา',cadence:'MONTHLY',dueDays:7
+ }]));
+ await page.route(`**/v1/properties/${id}/rooms`,route=>json(route,[{...rows[0],status:'AVAILABLE'}]));
+ await page.route(`**/v1/properties/${id}/bills/preview`,route=>json(route,{...quote,lease:null}));
+ await page.goto(base+'/?section=billing');
+ const noLease=page.getByRole('region',{name:'ออกใบแจ้งหนี้รายห้อง'});
+ await expect(noLease.getByRole('option',{name:'A101'})).toHaveCount(1);
+ await noLease.getByRole('button',{name:'คำนวณยอดก่อนออกบิล'}).click();
+ await expect(noLease.getByRole('article',{name:'ตัวอย่างรายการบิลรายห้อง'})).toContainText('ไม่ระบุผู้เช่า');
+ await expect(noLease.getByRole('button',{name:'ยืนยันออกบิล'})).toBeEnabled();
+ await noLease.getByRole('button',{name:'ยืนยันออกบิล'}).click();
+ await expect(noLease.getByText(/ออกใบแจ้งหนี้สำเร็จ/)).toBeVisible();
+ console.log('BILLING_BROWSER_SMOKE_PASS single/bulk, past-month/half-month meter, no-lease vacant-room billing; mocked API');
 }finally{await browser?.close();server.kill('SIGTERM');}

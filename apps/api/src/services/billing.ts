@@ -7,6 +7,7 @@ import {bangkokToday,effectiveMasterRate} from "./property-rates.js";
 import {effectiveRoomRate} from "./room-rates.js";
 import {sumReplacedMeterUsage} from "./meter-replacement.js";
 import {resolveMeterStartBoundary} from "./meter-initial-baseline.js";
+import {billableLease} from "./billing-lease.js";
 import {latestBoundaryReading} from "./meter-monthly.js";
 
 type QueryDB = Pick<typeof db, "select">;
@@ -106,15 +107,18 @@ export async function prepareInvoice(data:BillInput, property:typeof properties.
  const [room] = await client.select().from(rooms).where(and(eq(rooms.id,data.roomId),eq(rooms.propertyId,property.id),eq(rooms.organizationId,property.organizationId))).limit(1);
  if(!room) throw new AppError(404,"ROOM_NOT_FOUND");
  const [lease] = await client.select().from(leases).where(and(eq(leases.roomId,room.id),eq(leases.propertyId,property.id),eq(leases.organizationId,property.organizationId),eq(leases.status,"ACTIVE"))).limit(1);
- if(!lease||lease.startDate>data.start||
-  (lease.endDate&&lease.endDate<data.endExclusive))
-  throw new AppError(422,"FULL_PERIOD_ACTIVE_LEASE_REQUIRED");
- if(data.partialMode==="MOVE_IN"&&!validMoveInPartialPeriod(
+ // Ordinary room invoices do not need a lease. Never attribute a full-month
+ // invoice to an unrelated/mid-period tenant; preserve the lease only when it
+ // really covers the cycle. Move-in/out specialized prorating still uses the
+ // underlying actual lease dates when explicitly requested.
+ if(data.partialMode&&!lease)throw new AppError(422,"PARTIAL_BILLING_LEASE_REQUIRED");
+ if(data.partialMode==="MOVE_IN"&&lease&&!validMoveInPartialPeriod(
   property,lease.startDate,data.start,data.endExclusive))
   throw new AppError(422,"INVALID_MOVE_IN_PARTIAL_PERIOD");
- if(data.partialMode==="MOVE_OUT"&&!validMoveOutPartialPeriod(
+ if(data.partialMode==="MOVE_OUT"&&lease&&!validMoveOutPartialPeriod(
   property,lease.startDate,data.start,data.endExclusive))
   throw new AppError(422,"INVALID_MOVE_OUT_PARTIAL_PERIOD");
+ const billingLease=billableLease(lease,data.start,data.endExclusive,Boolean(data.partialMode));
  // The rate effective at the billing period START owns this whole interval.
  // A mid-period scheduled revision is rejected until P1-03 supports prorating.
  const master=await effectiveMasterRate(property,data.start,data.endExclusive,client);
@@ -178,5 +182,5 @@ export async function prepareInvoice(data:BillInput, property:typeof properties.
     rateSource:roomVersion.rentOverrideSatang===null?"MASTER":"OVERRIDE"}},...meterLines];
  const total=lines.reduce((sum,l)=>sum+l.amountSatang,0);
  assertInvoiceStorageBounds(lines,total);
- return {room,lease,property,periodStart:data.start,periodEnd:data.endExclusive,lines,totalSatang:total};
+ return {room,lease:billingLease,property,periodStart:data.start,periodEnd:data.endExclusive,lines,totalSatang:total};
 }

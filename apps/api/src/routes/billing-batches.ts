@@ -7,6 +7,7 @@ import {db} from "../db/client.js";
 import {auditLogs,billingBatchRuns,invoices,invoiceLines,leases,memberships,organizations,properties,rooms,users,type BillingBatchSnapshot} from "../db/schema.js";
 import {AppError,requireActor,requireProperty} from "../security.js";
 import {prepareInvoice,validBillingPeriod} from "../services/billing.js";
+import {noLeaseRecipientName} from "../services/billing-lease.js";
 import {invoiceNoteLine,optionalInvoiceNote} from "../services/invoice-note.js";
 import {mayPerformOwnerBillingAction} from "../services/billing-authorization.js";
 import {queueInvoiceIssuedTx} from "../services/line-notifications.js";
@@ -47,20 +48,19 @@ async function buildSnapshot(property:typeof properties.$inferSelect,start:strin
    eq(leases.status,"ACTIVE"))).limit(1);
   const leaseId=active[0]?.id??null;
   try{
-   if(!leaseId)throw new AppError(422,"FULL_PERIOD_ACTIVE_LEASE_REQUIRED");
    const preview=await prepareInvoice({roomId:room.id,start,endExclusive},property,client);
    const [duplicate]=await client.select({id:invoices.id}).from(invoices).where(and(
-    eq(invoices.leaseId,preview.lease.id),eq(invoices.periodStart,start),eq(invoices.periodEnd,endExclusive),eq(invoices.status,"ISSUED")));
+    eq(invoices.roomId,preview.room.id),eq(invoices.periodStart,start),eq(invoices.periodEnd,endExclusive),eq(invoices.status,"ISSUED")));
    if(duplicate)throw new AppError(409,"PERIOD_ALREADY_BILLED");
    const [overlap]=await client.select({id:invoices.id}).from(invoices).where(and(
-    eq(invoices.leaseId,preview.lease.id),eq(invoices.organizationId,property.organizationId),
+    eq(invoices.roomId,preview.room.id),eq(invoices.organizationId,property.organizationId),
     eq(invoices.status,"ISSUED"),lt(invoices.periodStart,endExclusive),gt(invoices.periodEnd,start))).limit(1);
    if(overlap)throw new AppError(409,"PERIOD_OVERLAP_ALREADY_BILLED");
    const fingerprint=digest({property:{id:property.id,name:property.name,address:property.address,
     dueDays:property.dueDays},organizationName:org.name,room:{id:preview.room.id,
-    number:preview.room.number},lease:{id:preview.lease.id,tenantName:preview.lease.tenantName},
+    number:preview.room.number},lease:{id:preview.lease?.id??null,tenantName:preview.lease?.tenantName??null},
     start,endExclusive,totalSatang:preview.totalSatang,lines:preview.lines});
-   result.rooms.push({roomId:room.id,roomNumber:room.number,leaseId:preview.lease.id,status:"READY",
+   result.rooms.push({roomId:room.id,roomNumber:room.number,leaseId:preview.lease?.id??null,status:"READY",
     amountSatang:preview.totalSatang,fingerprint,lines:preview.lines.map(line=>({type:line.type,
      description:line.description,amountSatang:line.amountSatang})),reason:null});
   }catch(error){
@@ -172,12 +172,12 @@ export async function registerBillingBatchRoutes(app:FastifyInstance){
     const preview=await prepareInvoice({roomId:item.roomId,start:run.periodStart,
      endExclusive:run.periodEnd},locked,tx);
     const [invoice]=await tx.insert(invoices).values({organizationId:locked.organizationId,
-     propertyId:locked.id,roomId:preview.room.id,leaseId:preview.lease.id,
+     propertyId:locked.id,roomId:preview.room.id,leaseId:preview.lease?.id??null,
      periodStart:run.periodStart,periodEnd:run.periodEnd,dueDate:dueDate(run.periodEnd,locked.dueDays),
      amountSatang:preview.totalSatang,idempotencyKey:`batch:${run.id}:${item.roomId}`,
      billingBatchRunId:run.id,issuedBy:actor.id,documentSnapshot:{schemaVersion:1,
       issuerName:org.name,propertyName:locked.name,propertyAddress:locked.address,
-      roomNumber:preview.room.number,tenantName:preview.lease.tenantName}}).returning();
+      roomNumber:preview.room.number,tenantName:preview.lease?.tenantName??noLeaseRecipientName}}).returning();
     const noteLine=invoiceNoteLine(run.previewSnapshot.note);
     await tx.insert(invoiceLines).values([...preview.lines,...(noteLine?[noteLine]:[])]
      .map((line,ordinal)=>({invoiceId:invoice.id,ordinal,...line})));

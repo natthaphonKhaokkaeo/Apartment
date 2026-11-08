@@ -34,10 +34,10 @@ export async function registerInvoiceRoomReportRoutes(app:FastifyInstance){
    dueDate:invoices.dueDate,status:invoices.status,createdAt:invoices.createdAt,
    replacesInvoiceId:invoices.replacesInvoiceId,voidReason:invoices.voidReason})
    .from(invoices).innerJoin(rooms,eq(invoices.roomId,rooms.id))
-   .innerJoin(leases,eq(invoices.leaseId,leases.id))
+   .leftJoin(leases,and(eq(invoices.leaseId,leases.id),
+    eq(leases.organizationId,property.organizationId),eq(leases.propertyId,property.id)))
    .where(and(eq(invoices.organizationId,property.organizationId),eq(invoices.propertyId,property.id),
     eq(rooms.organizationId,property.organizationId),eq(rooms.propertyId,property.id),
-    eq(leases.organizationId,property.organizationId),eq(leases.propertyId,property.id),
     filters.roomId?eq(invoices.roomId,filters.roomId):undefined,
     filters.status?eq(invoices.status,filters.status):undefined,
     filters.from?gte(invoices.periodStart,filters.from):undefined,
@@ -72,7 +72,7 @@ export async function registerInvoiceRoomReportRoutes(app:FastifyInstance){
    // Issued snapshot is immutable; never silently change historical recipient labels.
    const snapshot=row.documentSnapshot;
    return {id:row.id,roomId:row.roomId,roomNumber:snapshot?.roomNumber||row.roomNumber,
-    tenantName:snapshot?.tenantName||row.tenantName,
+    tenantName:snapshot?.tenantName||row.tenantName||"ไม่ระบุผู้เช่า",
     amountSatang:row.amountSatang,periodStart:row.periodStart,periodEnd:row.periodEnd,
     dueDate:row.dueDate,status:row.status,createdAt:row.createdAt,
     replacesInvoiceId:row.replacesInvoiceId,voidReason:row.voidReason,...position};

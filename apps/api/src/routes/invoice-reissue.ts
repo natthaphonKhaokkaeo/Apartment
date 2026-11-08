@@ -45,7 +45,7 @@ async function buildCorrection(tx:Tx,property:typeof properties.$inferSelect,
  original:typeof invoices.$inferSelect,input:z.infer<typeof correction>){
  const prepared=await prepareInvoice({roomId:original.roomId,start:original.periodStart,
   endExclusive:original.periodEnd},property,tx);
- if(prepared.lease.id!==original.leaseId)throw new AppError(409,"LEASE_CHANGED_SINCE_ISSUE");
+ if((prepared.lease?.id??null)!==original.leaseId)throw new AppError(409,"LEASE_CHANGED_SINCE_ISSUE");
  const total=correctedInvoiceTotal(prepared.totalSatang,input.adjustmentSatang);
  const lines:Array<{type:string;description:string;unitsMilli:number|null;tariffSatang:number|null;amountSatang:number;snapshot:unknown}>=[...prepared.lines];
  const [previousNote]=await tx.select({description:invoiceLines.description}).from(invoiceLines)

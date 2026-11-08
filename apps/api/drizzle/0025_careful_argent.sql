@@ -1,0 +1,2 @@
+ALTER TABLE "invoices" ALTER COLUMN "lease_id" DROP NOT NULL;--> statement-breakpoint
+CREATE UNIQUE INDEX "uq_invoice_room_period" ON "invoices" USING btree ("room_id","period_start","period_end") WHERE "invoices"."status" = 'ISSUED';
