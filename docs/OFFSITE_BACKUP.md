@@ -1,5 +1,8 @@
 # Apartment PostgreSQL — encrypted offsite backup (P0)
 
+> **Cloudflare R2 implementation (2026-11-10):** see [CLOUDFLARE_R2_BACKUP_SETUP.md](CLOUDFLARE_R2_BACKUP_SETUP.md). Added interactive bucket-scoped R2 provisioning, a root-owned config guard, and real encrypted local-provider roundtrip with isolated PostgreSQL restore. Live R2 credentials, external recovery acceptance and timer activation remain **pending operator setup**. The existing local backup system is unchanged.
+
+
 > Current approved DEV design: encrypted same-VPS archive, not offsite. See [LOCAL_BACKUP.md](LOCAL_BACKUP.md). Independent offsite setup below is optional future host-loss protection and is not required for approved DEV local backup acceptance.
 
 

@@ -3,6 +3,7 @@ Description=Apartment-only encrypted PostgreSQL offsite backup
 After=network-online.target
 Wants=network-online.target
 ConditionPathExists=/etc/apartment/offsite.env
+OnFailure=apartment-backup-alert@%n.service
 RequiresMountsFor=/root/backups/apartment-postgres
 
 [Service]
@@ -11,6 +12,7 @@ User=root
 Group=root
 EnvironmentFile=/etc/apartment/offsite.env
 WorkingDirectory=/root/Projects/Apartment
+ExecStartPre=/root/Projects/Apartment/infra/setup-apartment-r2.sh remote-check
 ExecStartPre=/root/Projects/Apartment/infra/offsite-apartment-postgres.sh check
 ExecStart=/root/Projects/Apartment/infra/offsite-apartment-postgres.sh upload
 UMask=0077
